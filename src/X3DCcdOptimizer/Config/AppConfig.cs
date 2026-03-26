@@ -1,0 +1,143 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+namespace X3DCcdOptimizer.Config;
+
+public class AutoDetectionConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; } = true;
+
+    [JsonPropertyName("gpuThresholdPercent")]
+    public int GpuThresholdPercent { get; set; } = 50;
+
+    [JsonPropertyName("requireForeground")]
+    public bool RequireForeground { get; set; } = true;
+}
+
+public class LoggingConfig
+{
+    [JsonPropertyName("level")]
+    public string Level { get; set; } = "Information";
+
+    [JsonPropertyName("maxSizeMb")]
+    public int MaxSizeMb { get; set; } = 10;
+}
+
+public class UiConfig
+{
+    [JsonPropertyName("startWithWindows")]
+    public bool StartWithWindows { get; set; } = true;
+
+    [JsonPropertyName("startMinimized")]
+    public bool StartMinimized { get; set; }
+
+    [JsonPropertyName("minimizeToTray")]
+    public bool MinimizeToTray { get; set; } = true;
+
+    [JsonPropertyName("notifications")]
+    public bool Notifications { get; set; } = true;
+
+    [JsonPropertyName("windowPosition")]
+    public int[]? WindowPosition { get; set; }
+
+    [JsonPropertyName("windowSize")]
+    public int[]? WindowSize { get; set; }
+}
+
+public class CcdOverrideConfig
+{
+    [JsonPropertyName("vcacheCores")]
+    public int[]? VCacheCores { get; set; }
+
+    [JsonPropertyName("frequencyCores")]
+    public int[]? FrequencyCores { get; set; }
+}
+
+public class AppConfig
+{
+    private static readonly string ConfigDir = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "X3DCCDOptimizer");
+
+    private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    [JsonPropertyName("version")]
+    public int Version { get; set; } = 2;
+
+    [JsonPropertyName("pollingIntervalMs")]
+    public int PollingIntervalMs { get; set; } = 2000;
+
+    [JsonPropertyName("dashboardRefreshMs")]
+    public int DashboardRefreshMs { get; set; } = 1000;
+
+    [JsonPropertyName("autoDetection")]
+    public AutoDetectionConfig AutoDetection { get; set; } = new();
+
+    [JsonPropertyName("manualGames")]
+    public List<string> ManualGames { get; set; } =
+    [
+        "elitedangerous64.exe",
+        "ffxiv_dx11.exe",
+        "stellaris.exe",
+        "re4.exe",
+        "helldivers2.exe",
+        "starcitizen.exe"
+    ];
+
+    [JsonPropertyName("excludedProcesses")]
+    public List<string> ExcludedProcesses { get; set; } =
+    [
+        "chrome.exe",
+        "firefox.exe",
+        "obs64.exe",
+        "discord.exe",
+        "spotify.exe"
+    ];
+
+    [JsonPropertyName("protectedProcesses")]
+    public List<string> ProtectedProcesses { get; set; } =
+    [
+        "audiodg.exe",
+        "svchost.exe"
+    ];
+
+    [JsonPropertyName("ccdOverride")]
+    public CcdOverrideConfig? CcdOverride { get; set; }
+
+    [JsonPropertyName("logging")]
+    public LoggingConfig Logging { get; set; } = new();
+
+    [JsonPropertyName("ui")]
+    public UiConfig Ui { get; set; } = new();
+
+    public static AppConfig Load()
+    {
+        Directory.CreateDirectory(ConfigDir);
+
+        if (File.Exists(ConfigPath))
+        {
+            var json = File.ReadAllText(ConfigPath);
+            return JsonSerializer.Deserialize<AppConfig>(json, JsonOptions) ?? CreateDefault();
+        }
+
+        var config = CreateDefault();
+        config.Save();
+        return config;
+    }
+
+    public void Save()
+    {
+        Directory.CreateDirectory(ConfigDir);
+        var json = JsonSerializer.Serialize(this, JsonOptions);
+        File.WriteAllText(ConfigPath, json);
+    }
+
+    private static AppConfig CreateDefault() => new();
+}
