@@ -1,14 +1,83 @@
-# Session Log — Phase 1 Build
+# Session Log
 
-**Date:** 2026-03-26
+Development session history for X3D Dual CCD Optimizer.
+
+---
+
+## Session 3 — 2026-03-26
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Add Monitor/Optimize dual-mode system to project documentation
+
+### What Was Done
+
+1. **Blueprint rewrite (v0.3.0)** — Rewrote `X3D_CCD_OPTIMIZER_BLUEPRINT.md` from scratch incorporating the Monitor/Optimize dual-mode system throughout:
+   - New Section 3.1 Operating Modes — full Monitor vs Optimize specification
+   - Mode-aware AffinityManager with `WouldEngage`/`WouldMigrate`/`WouldRestore` simulated events
+   - `HasVCache` bool on CpuTopology to gate the Optimize toggle
+   - `operationMode` config field (default: `"monitor"`), config version bumped to 3
+   - Dashboard mode toggle, blue dashed vs green solid CCD borders, muted `[MONITOR]` log styling
+   - Tray icon states: Blue (Monitor), Purple (Optimize idle), Green (Optimize active), Yellow, Red
+   - Updated risk register, compatibility split by mode, parking health check in futures
+   - Phase 2 renamed to "Monitor Mode + Dashboard Window"
+
+2. **CLAUDE.md rewrite** — Complete rewrite reflecting dual-mode architecture, mode-aware coding conventions, updated AffinityAction enum, and mode-gating rules.
+
+3. **CONTRIBUTING.md rewrite** — Added AI-assisted development disclosure, highlighted code review as high-value contribution for AI-generated codebases, updated for dual-mode conventions.
+
+4. **SECURITY.md created** — Documented minimal attack surface (no network, no kernel, no credentials, no IPC, standard user only), what the app accesses, vulnerability reporting process, Monitor mode as safety default.
+
+5. **README.md updated** — Added "How This Was Built" section with honest AI-assisted development disclosure.
+
+6. **Cherry-picked docs onto master** — Both doc commits cherry-picked onto master and pushed.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| `d88259a` | develop | docs: add Monitor/Optimize dual-mode system to blueprint and CLAUDE.md (v0.3.0) |
+| `ef1a852` | develop | docs: add CONTRIBUTING.md, SECURITY.md, update README with development disclosure |
+| `0c4d0de` | master | cherry-pick of d88259a |
+| `681588b` | master | cherry-pick of ef1a852 |
+
+### Design Decisions
+
+- **Monitor mode is the default.** Users observe before enabling control. Builds trust, avoids anticheat risk, widens audience to all dual-CCD Ryzen owners.
+- **AffinityManager is the only mode-aware module.** All other engine modules run identically in both modes. Clean, testable mode boundary.
+- **Mode switch mid-game is immediate.** No "wait until game exits" behaviour.
+- **Optimize toggle is hardware-gated.** `HasVCache == false` means the toggle is greyed out. Config override falls back to Monitor with a warning.
+
+---
+
+## Session 2 — 2026-03-25
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Project scaffolding and community files
+
+### What Was Done
+
+1. Added GPL v2 license
+2. Added initial CONTRIBUTING.md guidelines
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| `3555b5f` | develop | Add GPL v2 license |
+| `ebbe594` | develop | Add contributing guidelines |
+
+---
+
+## Session 1 — 2026-03-25
+
 **Agent:** Claude Opus 4.6 (1M context)
 **Goal:** Build Phase 1 of X3D Dual CCD Optimizer from blueprint specs
 
-## What Was Built
+### What Was Built
 
 Complete Phase 1 foundation — a console-mode .NET 8 application that detects AMD X3D dual-CCD topology, monitors per-core performance, watches for games, and manages CPU affinity.
 
-## Steps Completed
+### Steps Completed
 
 ### Step 0: Project Setup
 - Created `X3DCcdOptimizer.sln` with two projects
