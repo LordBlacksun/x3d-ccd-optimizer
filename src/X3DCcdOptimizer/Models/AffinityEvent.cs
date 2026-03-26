@@ -6,7 +6,10 @@ public enum AffinityAction
     Migrated,
     Restored,
     Skipped,
-    Error
+    Error,
+    WouldEngage,
+    WouldMigrate,
+    WouldRestore
 }
 
 public record AffinityEvent

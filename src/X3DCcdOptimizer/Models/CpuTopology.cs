@@ -11,6 +11,8 @@ public class CpuTopology
     public int StandardL3SizeMB { get; set; }
     public int TotalLogicalCores { get; set; }
 
+    public bool HasVCache => VCacheL3SizeMB > StandardL3SizeMB * 2;
+
     public string VCacheMaskHex => $"0x{VCacheMask.ToInt64():X4}";
     public string FrequencyMaskHex => $"0x{FrequencyMask.ToInt64():X4}";
 
