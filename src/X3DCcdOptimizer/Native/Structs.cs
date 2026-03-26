@@ -20,7 +20,10 @@ internal struct CACHE_RELATIONSHIP
     public ushort LineSize;
     public uint CacheSize;
     public int Type; // PROCESSOR_CACHE_TYPE enum
-    public ushort Reserved1;
+
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 18)]
+    public byte[] Reserved;
+
     public ushort GroupCount;
     public GROUP_AFFINITY GroupMask; // First element; for multi-group there may be more
 }
