@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 19
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 20
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -16,7 +16,7 @@ Development session history for X3D Dual CCD Optimizer.
 - **Display name resolution:** ProcessInfo.DisplayName populated at detection time from known_games.json or launcher scan. Propagated through AffinityEvent.DisplayName. All UI surfaces (status bar, CCD role labels, activity log, process router, overlay) show resolved game names. Fallback: strip .exe extension.
 - **Optimization strategies:** AffinityPinning (default, SetProcessAffinityMask) or DriverPreference (AMD amd3dvcache registry interface, discovered by cocafe/vcache-tray). Strategy stored in config, selectable in Settings, gated by driver availability and tier.
 - **WPF dashboard:** MVVM, dark theme, CCD panels (1 or 2 based on tier) with 4x2 core tile heatmaps, grouped process router (by CCD with game badges), activity log, animated pill toggle (Monitor/Optimize), polished UI
-- **Compact overlay:** Discord-style toast/pill (auto-width 200-400px), slide-in/out animation (300ms cubic ease), semi-transparent dark (#1A1A1A at 85%), single/two-line contextual messages, OLED-safe (auto-hide, pixel shift), Ctrl+Shift+O hotkey, draggable, position persisted
+- **Compact overlay:** Discord-style toast/pill (auto-width 200-400px), slide-in/out animation (300ms cubic ease), semi-transparent dark (#1A1A1A at 85%), single/two-line contextual messages, opt-in CCD load bars (8px, green V-Cache + blue Freq, toggle in Settings > Overlay), OLED-safe (auto-hide, pixel shift), Ctrl+Shift+O hotkey, draggable, position persisted
 - **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
 - **Monitor/Optimize dual-mode:** Monitor (default, observe-only, all tiers), Optimize (active affinity or driver preference, dual-CCD only, tier-gated)
 - **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
@@ -40,6 +40,43 @@ Development session history for X3D Dual CCD Optimizer.
 - WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
 - WPF relative Icon paths resolve from XAML file's namespace location, not project root — use pack URIs for embedded resources
 - Steam VDF files use Valve KeyValues format (not JSON) — need custom parser; escaped backslashes in paths
+- WPF ComboBox dropdown popup uses SystemColors for background/text — override WindowBrushKey, HighlightBrushKey, ControlTextBrushKey in style for dark theme
+- WPF grid rows with star sizing compete for space — use Auto for fixed-content rows (CCD panels), star for scrollable areas (process router, activity log)
+
+---
+
+## Session 20 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix scrollbar layout + ComboBox contrast bugs, add opt-in CCD load bars to overlay
+
+### What Was Done
+
+1. **Fix: scrollbar layout** — Dashboard grid Row 1 (CCD panels) changed from `*` to `Auto` — fixed-size content doesn't need star sizing. Process Router changed from fixed `150px` to `*`. Activity Log changed to `2*`. Both scrollable areas now get properly constrained height, enabling functional scrollbars.
+
+2. **Fix: ComboBox dark theme contrast** — Added implicit `ComboBox` and `ComboBoxItem` styles to `Themes/Controls.xaml`. Overrides `SystemColors.WindowBrushKey` (#2A2A2E), `HighlightBrushKey` (#404048), `HighlightTextBrushKey` (white), and `ControlTextBrushKey` (#E0E0E0). Dropdown popup background is now dark with readable light text.
+
+3. **Overlay CCD load bars (opt-in)** — New `OverlayConfig.ShowLoadBars` (bool, default true). Toggle in Settings > Overlay tab: "Show CCD load bars". When enabled, two compact 8px horizontal bars appear below event text in the overlay pill — green (#1D9E75) for V-Cache CCD with label + percentage, blue (#378ADD) for Frequency CCD. Bars update from `PerformanceMonitor.SnapshotReady` at dashboard refresh rate. Single-CCD tiers show one bar. When disabled, overlay remains clean text-only toast. Re-wired `SnapshotReady` to `OverlayViewModel.OnSnapshotReady` (early-returns when bars disabled).
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| a58e029 | develop, master | fix: scrollbar layout + ComboBox dark theme contrast |
+| 6de68f4 | develop, master | feat: opt-in CCD load bars in overlay |
+
+### Files Modified (8)
+
+```
+Views/DashboardWindow.xaml — grid row sizing: CCD panels Auto, scrollable areas star
+Themes/Controls.xaml — dark ComboBox + ComboBoxItem styles with SystemColors overrides
+Config/AppConfig.cs — new OverlayConfig.ShowLoadBars (bool, default true)
+ViewModels/SettingsViewModel.cs — ShowOverlayBars property + init/apply wiring
+ViewModels/OverlayViewModel.cs — CCD load properties, OnSnapshotReady, bar visibility flags
+Views/OverlayWindow.xaml — two load bar grids with conditional visibility
+Views/SettingsWindow.xaml — "Show CCD load bars" checkbox in Overlay tab
+App.xaml.cs — re-wire SnapshotReady to overlay + cleanup in OnExit
+```
 
 ---
 
