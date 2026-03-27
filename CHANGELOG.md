@@ -14,6 +14,9 @@ All notable changes to X3D Dual CCD Optimizer are documented here.
 - **Config validation** — all numeric values clamped to sane ranges on load.
 - **Single-instance enforcement** — named mutex prevents conflicting instances.
 - **Admin elevation** — manifest requires administrator for process affinity and HKLM registry access.
+- **Non-AMD CPU detection** — warns Intel/other users with Continue/Exit dialog instead of silently running in reduced mode.
+- **GPU heuristic feedback** — activity log shows "[AUTO] BELOW THRESHOLD" when a foreground app uses GPU but below detection threshold, so users know why it wasn't detected.
+- **Power plan warning** — warns in status bar when Driver Preference is active on a non-Balanced power plan.
 - **Tooltips on all settings** — plain English explanations on every interactive control.
 - **Keyboard accessibility** — AccessKeys on all Settings tabs and buttons (Alt+letter shortcuts).
 - **Screen reader support** — AutomationProperties.Name on all interactive UI elements across dashboard, settings, and overlay.

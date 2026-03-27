@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 14
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 15
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -36,6 +36,53 @@ Development session history for X3D Dual CCD Optimizer.
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
 - SingleCcdX3D sets FrequencyCores=[] and FrequencyMask=IntPtr.Zero — all code referencing these must null/empty guard. CcdMapper, AffinityManager, MainViewModel (Ccd1Panel nullable), OverlayViewModel all audited and guarded.
 - WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
+
+---
+
+## Session 15 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** README rewrite for 1.0 release + zero-config user journey audit + fix 3 audit gaps
+
+### What Was Done
+
+1. **Comprehensive README rewrite** — Full 1.0 release documentation with new sections: "Why This Tool Exists" (AMD software chain problem), "Optimization Strategies" (Affinity Pinning vs Driver Preference with pros/cons/requirements), "System Requirements", "Supported Processors" (4-tier table), "Windows Settings Compatibility" (table showing what matters per strategy), "Does This Conflict with AMD's Own Optimization?", updated "Known Limitations" (Driver Preference latency, 64+ processors, AMD Application Compatibility Database). All current features accurately documented.
+
+2. **Zero-config user journey audit** — Traced 8 complete user journeys through exact code lines: fresh install, known game, unknown game, no chipset drivers, High Performance power plan, Game Bar disabled, no GPU, Intel CPU. Found 3 gaps (ZC-001/002/003). Report saved as `ZERO_CONFIG_AUDIT.md`.
+
+3. **ZC-003 (Medium) — Non-AMD CPU warning** — After topology detection, checks `CpuTopology.CpuModel` for "AMD". If absent, shows dialog: "X3D CCD Optimizer is designed for AMD Ryzen processors. Your CPU ({name}) is not an AMD processor." with Continue Anyway / Exit buttons. Logged at Warning level.
+
+4. **ZC-001 (Low) — GPU heuristic rejection feedback** — New `DetectionSkipped` AffinityAction value. ProcessWatcher reports foreground processes with GPU > 0% but below threshold, once per PID per session. Shows in activity log as "[AUTO] BELOW THRESHOLD" with muted styling. Tracked PIDs reset when foreground changes.
+
+5. **ZC-002 (Low) — Power plan warning for Driver Preference** — WMI query (`Win32_PowerPlan WHERE IsActive=True`) at startup when strategy is DriverPreference. If not Balanced, warns in status bar: "Optimize — waiting for game | Power plan '{name}' detected — Balanced recommended for Driver Preference". Silently skips if WMI fails.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| (pending) | develop | docs: comprehensive README rewrite for 1.0 release |
+| (pending) | develop | audit: zero-config user journey audit (8 journeys, 3 gaps) |
+| (pending) | develop | fix: 3 zero-config audit gaps (Intel detection, GPU feedback, power plan warning) |
+
+### Files Created (1 new)
+
+```
+ZERO_CONFIG_AUDIT.md — zero-config user journey audit (internal)
+```
+
+### Files Modified (8)
+
+```
+README.md — complete rewrite with AMD chain explanation, strategies, compatibility tables
+App.xaml.cs — non-AMD CPU warning dialog, power plan WMI query, DetectionSkipped event wiring
+Models/AffinityEvent.cs — DetectionSkipped enum value
+Core/ProcessWatcher.cs — below-threshold reporting with per-PID dedup
+ViewModels/LogEntryViewModel.cs — DetectionSkipped display case
+ViewModels/OverlayViewModel.cs — DetectionSkipped prefix
+ViewModels/MainViewModel.cs — PowerPlanWarning property, status bar display
+SESSION_LOG.md — session 15
+CHANGELOG.md — new entries
+```
 
 ---
 

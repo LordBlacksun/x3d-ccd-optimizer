@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Serilog;
+using X3DCcdOptimizer.Models;
 using X3DCcdOptimizer.Native;
 
 namespace X3DCcdOptimizer.Core;
@@ -23,8 +24,12 @@ public class ProcessWatcher : IDisposable
     private DateTime _autoDetectExitStart;
     private bool _autoDetectExitPending;
 
+    // PIDs already reported as below-threshold (don't spam every poll cycle)
+    private readonly HashSet<int> _belowThresholdReported = new();
+
     public event Action<ProcessInfo>? GameDetected;
     public event Action<ProcessInfo>? GameExited;
+    public event Action<AffinityEvent>? DetectionSkipped;
 
     public ProcessWatcher(GameDetector detector, int pollingIntervalMs = 2000,
         bool requireForeground = true, bool autoDetectEnabled = true,
@@ -216,6 +221,20 @@ public class ProcessWatcher : IDisposable
             var gpuUsage = _gpuMonitor!.GetGpuUsage(foregroundPid);
             if (gpuUsage < _gpuThreshold)
             {
+                // Report below-threshold once per PID per session
+                if (gpuUsage > 0 && !_belowThresholdReported.Contains(foregroundPid))
+                {
+                    _belowThresholdReported.Add(foregroundPid);
+                    Log.Debug("Foreground process {Name} using {Gpu:F0}% GPU (below {Threshold}% threshold)",
+                        name, gpuUsage, _gpuThreshold);
+                    DetectionSkipped?.Invoke(new AffinityEvent
+                    {
+                        Action = AffinityAction.DetectionSkipped,
+                        ProcessName = name + ".exe",
+                        Pid = foregroundPid,
+                        Detail = $"GPU: {gpuUsage:F0}% (below {_gpuThreshold}% threshold)"
+                    });
+                }
                 ResetAutoDetectState();
                 return;
             }
@@ -255,6 +274,8 @@ public class ProcessWatcher : IDisposable
 
     private void ResetAutoDetectState()
     {
+        if (_autoDetectCandidatePid != 0)
+            _belowThresholdReported.Remove(_autoDetectCandidatePid);
         _autoDetectCandidatePid = 0;
         _autoDetectCandidateName = "";
     }

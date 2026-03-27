@@ -23,7 +23,8 @@ public class LogEntryViewModel
             or AffinityAction.WouldMigrate
             or AffinityAction.WouldRestore
             or AffinityAction.WouldSetDriver
-            or AffinityAction.WouldRestoreDriver;
+            or AffinityAction.WouldRestoreDriver
+            or AffinityAction.DetectionSkipped;
 
         FontStyle = IsMonitorAction ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal;
         Opacity = IsMonitorAction ? 0.7 : 1.0;
@@ -42,6 +43,7 @@ public class LogEntryViewModel
             AffinityAction.DriverRestored => ("DRIVER RESTORE", FindBrush("AccentBlueBrush")),
             AffinityAction.WouldSetDriver => ("[MONITOR] WOULD SET DRIVER", FindBrush("AccentBlueBrush")),
             AffinityAction.WouldRestoreDriver => ("[MONITOR] WOULD RESTORE DRIVER", FindBrush("AccentBlueBrush")),
+            AffinityAction.DetectionSkipped => ("[AUTO] BELOW THRESHOLD", FindBrush("TextTertiaryBrush")),
             _ => ("UNKNOWN", FindBrush("TextSecondaryBrush"))
         };
     }

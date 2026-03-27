@@ -109,14 +109,18 @@ public class MainViewModel : ViewModelBase
     public CpuTopology Topology => _topology;
     public AppConfig Config => _config;
 
+    public string? PowerPlanWarning { get; }
+
     public MainViewModel(CpuTopology topology, PerformanceMonitor perfMon,
         ProcessWatcher processWatcher, GameDetector gameDetector,
-        AffinityManager affinityManager, AppConfig config)
+        AffinityManager affinityManager, AppConfig config,
+        string? powerPlanWarning = null)
     {
         _topology = topology;
         _affinityManager = affinityManager;
         _config = config;
         _currentMode = affinityManager.Mode;
+        PowerPlanWarning = powerPlanWarning;
 
         IsOptimizeEnabled = topology.IsDualCcd;
         ShowSecondPanel = topology.IsDualCcd;
@@ -280,7 +284,9 @@ public class MainViewModel : ViewModelBase
             }
             else if (_currentMode == OperationMode.Optimize)
             {
-                StatusText = "Optimize — waiting for game";
+                StatusText = PowerPlanWarning != null
+                    ? $"Optimize — waiting for game | \u26A0 {PowerPlanWarning}"
+                    : "Optimize — waiting for game";
                 StatusColor = FindBrush("AccentPurpleBrush");
             }
             else

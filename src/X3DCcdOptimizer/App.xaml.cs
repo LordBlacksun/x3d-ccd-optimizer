@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Management;
 using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
@@ -87,6 +88,24 @@ public partial class App : System.Windows.Application
 
         Log.Information("CPU: {Model} | Tier: {Tier}", _topology.CpuModel, _topology.Tier);
 
+        // Non-AMD CPU warning (ZC-003)
+        if (!_topology.CpuModel.Contains("AMD", StringComparison.OrdinalIgnoreCase))
+        {
+            Log.Warning("Non-AMD CPU detected: {Model}", _topology.CpuModel);
+            var result = MessageBox.Show(
+                $"X3D CCD Optimizer is designed for AMD Ryzen processors.\n\n" +
+                $"Your CPU ({_topology.CpuModel}) is not an AMD processor. " +
+                $"The monitoring features will work, but optimization features are not applicable to your hardware.\n\n" +
+                $"Continue anyway?",
+                "X3D CCD Optimizer — Non-AMD CPU Detected",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            if (result != MessageBoxResult.Yes)
+            {
+                Shutdown();
+                return;
+            }
+        }
+
         var mode = _config.GetOperationMode();
 
         // Tier-based mode gating
@@ -113,6 +132,32 @@ public partial class App : System.Windows.Application
             strategy = OptimizeStrategy.AffinityPinning;
         }
 
+        // Power plan check for Driver Preference (ZC-002)
+        string? powerPlanWarning = null;
+        if (strategy == OptimizeStrategy.DriverPreference)
+        {
+            try
+            {
+                using var searcher = new ManagementObjectSearcher(
+                    @"root\cimv2\power", "SELECT ElementName FROM Win32_PowerPlan WHERE IsActive=True");
+                searcher.Options.Timeout = TimeSpan.FromSeconds(5);
+                foreach (var obj in searcher.Get())
+                {
+                    var planName = obj["ElementName"]?.ToString() ?? "";
+                    if (!planName.Contains("Balanced", StringComparison.OrdinalIgnoreCase))
+                    {
+                        powerPlanWarning = $"Power plan '{planName}' detected \u2014 Balanced recommended for Driver Preference";
+                        Log.Warning("Active power plan is '{Plan}' — Balanced recommended for Driver Preference strategy", planName);
+                    }
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("Power plan query failed: {Error}", ex.Message);
+            }
+        }
+
         // Engine
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
         _gpuMonitor = new GpuMonitor();
@@ -126,7 +171,8 @@ public partial class App : System.Windows.Application
 
         // ViewModels
         _mainViewModel = new MainViewModel(
-            _topology, _perfMon, _processWatcher, _gameDetector, _affinityManager, _config);
+            _topology, _perfMon, _processWatcher, _gameDetector, _affinityManager, _config,
+            powerPlanWarning);
         _overlayViewModel = new OverlayViewModel(_topology, _config.Overlay);
 
         // Dashboard
@@ -167,6 +213,7 @@ public partial class App : System.Windows.Application
         _perfMon.SnapshotReady += _overlayViewModel.OnSnapshotReady;
         _affinityManager.AffinityChanged += _mainViewModel.OnAffinityChanged;
         _affinityManager.AffinityChanged += _overlayViewModel.OnAffinityChanged;
+        _processWatcher.DetectionSkipped += _mainViewModel.OnAffinityChanged;
         _processWatcher.GameDetected += _affinityManager.OnGameDetected;
         _processWatcher.GameDetected += _mainViewModel.OnGameDetected;
         _processWatcher.GameDetected += _overlayViewModel.OnGameDetected;
@@ -252,6 +299,7 @@ public partial class App : System.Windows.Application
         }
         if (_processWatcher != null && _affinityManager != null && _mainViewModel != null && _overlayViewModel != null)
         {
+            _processWatcher.DetectionSkipped -= _mainViewModel.OnAffinityChanged;
             _processWatcher.GameDetected -= _affinityManager.OnGameDetected;
             _processWatcher.GameDetected -= _mainViewModel.OnGameDetected;
             _processWatcher.GameDetected -= _overlayViewModel.OnGameDetected;

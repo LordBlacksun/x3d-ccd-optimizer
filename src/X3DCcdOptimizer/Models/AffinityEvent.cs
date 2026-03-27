@@ -13,7 +13,8 @@ public enum AffinityAction
     DriverSet,
     DriverRestored,
     WouldSetDriver,
-    WouldRestoreDriver
+    WouldRestoreDriver,
+    DetectionSkipped
 }
 
 public record AffinityEvent
