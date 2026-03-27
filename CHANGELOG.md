@@ -17,6 +17,7 @@ All notable changes to X3D Dual CCD Optimizer are documented here.
 - **Non-AMD CPU detection** — warns Intel/other users with Continue/Exit dialog instead of silently running in reduced mode.
 - **GPU heuristic feedback** — activity log shows "[AUTO] BELOW THRESHOLD" when a foreground app uses GPU but below detection threshold, so users know why it wasn't detected.
 - **Power plan warning** — warns in status bar when Driver Preference is active on a non-Balanced power plan.
+- **App icon** — custom icon on exe, window titlebar, and system tray. Tray icon composites a colored status dot (blue/purple/green) onto the app icon for at-a-glance mode identification.
 - **Tooltips on all settings** — plain English explanations on every interactive control.
 - **Keyboard accessibility** — AccessKeys on all Settings tabs and buttons (Alt+letter shortcuts).
 - **Screen reader support** — AutomationProperties.Name on all interactive UI elements across dashboard, settings, and overlay.

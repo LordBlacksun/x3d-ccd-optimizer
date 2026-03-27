@@ -29,6 +29,9 @@ public class TrayIconManager : IDisposable
         _overlayWindow = overlayWindow;
         _config = config;
 
+        // Load app icon and set as base for compositing
+        LoadAndSetBaseIcon();
+
         _statusItem = new WinForms.ToolStripMenuItem(viewModel.StatusText) { Enabled = false };
         _monitorItem = new WinForms.ToolStripMenuItem("Mode: Monitor");
         _optimizeItem = new WinForms.ToolStripMenuItem("Mode: Optimize") { Enabled = viewModel.IsOptimizeEnabled };
@@ -62,16 +65,34 @@ public class TrayIconManager : IDisposable
         }
     }
 
+    /// <summary>
+    /// Returns app icon with colored status dot composited in the bottom-right corner.
+    /// Blue = Monitor idle, Purple = Monitor + game observed, Green = Optimize + game engaged.
+    /// </summary>
     private System.Drawing.Icon GetCurrentIcon()
     {
-        var colorName = _viewModel.CurrentMode switch
+        var colorName = (_viewModel.CurrentMode, _viewModel.IsGameActive) switch
         {
-            OperationMode.Monitor => "blue",
-            OperationMode.Optimize when _viewModel.IsGameActive => "green",
-            OperationMode.Optimize => "purple",
+            (OperationMode.Optimize, true) => "green",
+            (OperationMode.Monitor, true) => "purple",
+            (OperationMode.Optimize, false) => "purple",
             _ => "blue"
         };
         return IconGenerator.GetIcon(colorName);
+    }
+
+    private static void LoadAndSetBaseIcon()
+    {
+        try
+        {
+            var iconPath = Path.Combine(AppContext.BaseDirectory, "Resources", "app.ico");
+            if (File.Exists(iconPath))
+            {
+                var icon = new System.Drawing.Icon(iconPath);
+                IconGenerator.SetBaseIcon(icon);
+            }
+        }
+        catch { }
     }
 
     private WinForms.ContextMenuStrip BuildContextMenu()

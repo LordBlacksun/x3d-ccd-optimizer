@@ -1,3 +1,5 @@
+![X3D CCD Optimizer](logo-512.png)
+
 # X3D Dual CCD Optimizer
 
 A lightweight, open-source Windows tool for AMD Ryzen processors. Real-time CCD dashboard, automatic game detection, intelligent process routing, and a compact gaming overlay — with four-tier processor support from single-CCD standard Ryzen to dual-CCD X3D.
