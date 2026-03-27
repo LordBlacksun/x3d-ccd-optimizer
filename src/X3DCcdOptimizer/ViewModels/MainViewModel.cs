@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Serilog;
 using X3DCcdOptimizer.Config;
 using X3DCcdOptimizer.Core;
 using X3DCcdOptimizer.Models;
@@ -21,6 +22,7 @@ public class MainViewModel : ViewModelBase
     private string _sessionDurationText = "";
     private string _currentGameName = "";
     private DateTime _sessionStart;
+    private bool _isOverlayVisible;
 
     public CcdPanelViewModel Ccd0Panel { get; }
     public CcdPanelViewModel Ccd1Panel { get; }
@@ -88,9 +90,18 @@ public class MainViewModel : ViewModelBase
         private set => SetProperty(ref _sessionDurationText, value);
     }
 
+    public bool IsOverlayVisible
+    {
+        get => _isOverlayVisible;
+        set => SetProperty(ref _isOverlayVisible, value);
+    }
+
+    public string OverlayButtonText => _isOverlayVisible ? "Hide Overlay" : "Show Overlay";
+
     public string FooterText { get; }
 
     public RelayCommand ToggleModeCommand { get; }
+    public RelayCommand ToggleOverlayCommand { get; }
 
     public MainViewModel(CpuTopology topology, PerformanceMonitor perfMon,
         ProcessWatcher processWatcher, GameDetector gameDetector,
@@ -112,6 +123,12 @@ public class MainViewModel : ViewModelBase
         ToggleModeCommand = new RelayCommand(
             () => IsOptimizeMode = !IsOptimizeMode,
             () => IsOptimizeEnabled);
+
+        ToggleOverlayCommand = new RelayCommand(() =>
+        {
+            IsOverlayVisible = !IsOverlayVisible;
+            OnPropertyChanged(nameof(OverlayButtonText));
+        });
 
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _sessionTimer.Tick += (_, _) =>
@@ -214,7 +231,7 @@ public class MainViewModel : ViewModelBase
 
     private void UpdateBorders()
     {
-        int? gameCcd = _isGameActive ? 0 : null; // Game always targets CCD0 (V-Cache)
+        int? gameCcd = _isGameActive ? 0 : null;
         Ccd0Panel.UpdateBorderState(_currentMode, _isGameActive, gameCcd);
         Ccd1Panel.UpdateBorderState(_currentMode, _isGameActive, _isGameActive ? 1 : null);
     }

@@ -15,6 +15,12 @@ public class AutoDetectionConfig
 
     [JsonPropertyName("requireForeground")]
     public bool RequireForeground { get; set; } = true;
+
+    [JsonPropertyName("detectionDelaySeconds")]
+    public int DetectionDelaySeconds { get; set; } = 5;
+
+    [JsonPropertyName("exitDelaySeconds")]
+    public int ExitDelaySeconds { get; set; } = 10;
 }
 
 public class LoggingConfig
@@ -45,6 +51,27 @@ public class UiConfig
 
     [JsonPropertyName("windowSize")]
     public int[]? WindowSize { get; set; }
+}
+
+public class OverlayConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+
+    [JsonPropertyName("autoHideSeconds")]
+    public int AutoHideSeconds { get; set; } = 10;
+
+    [JsonPropertyName("pixelShiftMinutes")]
+    public int PixelShiftMinutes { get; set; } = 3;
+
+    [JsonPropertyName("hotkey")]
+    public string Hotkey { get; set; } = "Ctrl+Shift+O";
+
+    [JsonPropertyName("opacity")]
+    public double Opacity { get; set; } = 0.8;
+
+    [JsonPropertyName("position")]
+    public int[]? Position { get; set; }
 }
 
 public class CcdOverrideConfig
@@ -101,9 +128,22 @@ public class AppConfig
     [
         "chrome.exe",
         "firefox.exe",
+        "msedge.exe",
         "obs64.exe",
+        "obs.exe",
         "discord.exe",
-        "spotify.exe"
+        "spotify.exe",
+        "devenv.exe",
+        "explorer.exe",
+        "dwm.exe",
+        "vlc.exe",
+        "mpc-hc64.exe",
+        "photoshop.exe",
+        "premiere pro.exe",
+        "aftereffects.exe",
+        "davinci resolve.exe",
+        "blender.exe",
+        "code.exe"
     ];
 
     [JsonPropertyName("protectedProcesses")]
@@ -122,26 +162,46 @@ public class AppConfig
     [JsonPropertyName("ui")]
     public UiConfig Ui { get; set; } = new();
 
+    [JsonPropertyName("overlay")]
+    public OverlayConfig Overlay { get; set; } = new();
+
     public static AppConfig Load()
     {
-        Directory.CreateDirectory(ConfigDir);
-
-        if (File.Exists(ConfigPath))
+        try
         {
-            var json = File.ReadAllText(ConfigPath);
-            return JsonSerializer.Deserialize<AppConfig>(json, JsonOptions) ?? CreateDefault();
+            Directory.CreateDirectory(ConfigDir);
+
+            if (File.Exists(ConfigPath))
+            {
+                var json = File.ReadAllText(ConfigPath);
+                var config = JsonSerializer.Deserialize<AppConfig>(json, JsonOptions);
+                if (config != null)
+                    return config;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Corrupted config, permission error, etc. — fall back to defaults
+            try { Serilog.Log.Warning(ex, "Failed to load config, using defaults"); } catch { }
         }
 
-        var config = CreateDefault();
-        config.Save();
-        return config;
+        var defaultConfig = CreateDefault();
+        defaultConfig.Save();
+        return defaultConfig;
     }
 
     public void Save()
     {
-        Directory.CreateDirectory(ConfigDir);
-        var json = JsonSerializer.Serialize(this, JsonOptions);
-        File.WriteAllText(ConfigPath, json);
+        try
+        {
+            Directory.CreateDirectory(ConfigDir);
+            var json = JsonSerializer.Serialize(this, JsonOptions);
+            File.WriteAllText(ConfigPath, json);
+        }
+        catch (Exception ex)
+        {
+            try { Serilog.Log.Warning(ex, "Failed to save config"); } catch { }
+        }
     }
 
     public Models.OperationMode GetOperationMode()

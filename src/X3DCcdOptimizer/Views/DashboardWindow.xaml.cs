@@ -56,11 +56,12 @@ public partial class DashboardWindow : Window
     {
         if (_config.Ui.WindowPosition is [var x, var y])
         {
-            // Validate position is on-screen
-            var screenWidth = SystemParameters.VirtualScreenWidth;
-            var screenHeight = SystemParameters.VirtualScreenHeight;
+            var left = SystemParameters.VirtualScreenLeft;
+            var top = SystemParameters.VirtualScreenTop;
+            var right = left + SystemParameters.VirtualScreenWidth;
+            var bottom = top + SystemParameters.VirtualScreenHeight;
 
-            if (x >= 0 && x < screenWidth - 100 && y >= 0 && y < screenHeight - 100)
+            if (x >= left && x < right - 100 && y >= top && y < bottom - 100)
             {
                 Left = x;
                 Top = y;

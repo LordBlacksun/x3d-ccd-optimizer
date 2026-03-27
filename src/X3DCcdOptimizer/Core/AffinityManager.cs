@@ -157,7 +157,14 @@ public class AffinityManager
         try
         {
             if (Kernel32.GetProcessAffinityMask(handle, out var originalMask, out _))
+            {
                 _originalMasks[game.Pid] = originalMask;
+            }
+            else
+            {
+                Log.Warning("Failed to read affinity for {Name} (PID {Pid}), error {Err}",
+                    game.Name, game.Pid, Marshal.GetLastWin32Error());
+            }
 
             if (Kernel32.SetProcessAffinityMask(handle, _topology.VCacheMask))
             {

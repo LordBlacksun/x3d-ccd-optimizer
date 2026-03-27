@@ -185,15 +185,18 @@
             </DockPanel>
         </Border>
 
-        <!-- Row 4: Footer — separator + info -->
+        <!-- Row 4: Footer — separator + info + overlay toggle -->
         <StackPanel Grid.Row="4">
-            <!-- Fading separator line -->
             <Rectangle Height="1" Margin="24,2,24,0"
                        Fill="{StaticResource FooterSeparatorBrush}"/>
-            <Border Padding="16,6,16,8">
+            <DockPanel Margin="16,6,16,8">
+                <Button DockPanel.Dock="Right" Style="{StaticResource SubtleButtonStyle}"
+                        Command="{Binding ToggleOverlayCommand}"
+                        Content="{Binding OverlayButtonText}"
+                        FontSize="11" Padding="10,4" Margin="8,0,0,0"/>
                 <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
-                           HorizontalAlignment="Center"/>
-            </Border>
+                           VerticalAlignment="Center"/>
+            </DockPanel>
         </StackPanel>
     </Grid>
 </Window>
