@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 17
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 18
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -20,7 +20,7 @@ Development session history for X3D Dual CCD Optimizer.
 - **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
 - **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
-- **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
+- **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Session 17 defensive coding audit (0 critical, 0 high, 2 medium, 6 low, 22 info — all 8 actionable findings fixed in session 18). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
 
 **Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (3-tier), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
@@ -36,6 +36,46 @@ Development session history for X3D Dual CCD Optimizer.
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
 - SingleCcdX3D sets FrequencyCores=[] and FrequencyMask=IntPtr.Zero — all code referencing these must null/empty guard. CcdMapper, AffinityManager, MainViewModel (Ccd1Panel nullable), OverlayViewModel all audited and guarded.
 - WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
+
+---
+
+## Session 18 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix all Medium and Low findings from session 17 defensive coding audit
+
+### What Was Done
+
+1. **DEF-001 (Medium) — RelayCommand null-safe invoke** — Changed `_execute()` to `_execute?.Invoke()` in `RelayCommand.Execute()`. Prevents NullReferenceException if constructed with null delegate.
+
+2. **DEF-009 (Medium) — Process.GetProcesses() try/catch** — Wrapped the `Process.GetProcesses()` call itself in try/catch in 3 locations: `AffinityManager.MigrateBackground`, `AffinityManager.SimulateMigrateBackground`, `RecoveryManager.RecoverAffinityPinning`. Logs warning and returns early if enumeration fails.
+
+3. **DEF-013 (Low) — CcdMapper division guard** — Added `cacheSizes.Count > 0` ternary guard before `TotalLogicalCores / cacheSizes.Count` in WMI fallback path. Practically unreachable (line 155 throws on count==0) but belt-and-suspenders.
+
+4. **DEF-016 (Low) — Tmp file cleanup on save failure** — Hoisted `tempPath` declaration before try block and added `File.Delete(tempPath)` in catch for both `AppConfig.Save()` and `RecoveryManager.WriteState()`. Prevents orphaned .tmp files when File.Move fails.
+
+5. **DEF-034 (Low) — Overlay pixel shift multi-monitor fix** — Overlay clamp now uses `VirtualScreenLeft`/`VirtualScreenTop` offsets instead of hardcoded 0. Fixes pixel shift drift on multi-monitor setups where primary monitor is not at (0,0).
+
+6. **DEF-035 (Low) — Safe JSON property access** — Replaced `GetProperty("exe")` / `GetProperty("name")` with `TryGetProperty` in both `GameDetector.LoadKnownGames()` and `SettingsViewModel` constructor. Malformed entries in known_games.json are now skipped individually instead of aborting the entire list.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| 7b82c12 | develop, master | fix: defensive coding fixes from audit (2 medium, 6 low) |
+
+### Files Modified (8)
+
+```
+ViewModels/RelayCommand.cs — null-safe _execute invocation
+Core/AffinityManager.cs — Process.GetProcesses() try/catch (2 locations)
+Core/RecoveryManager.cs — Process.GetProcesses() try/catch + .tmp cleanup
+Core/CcdMapper.cs — division-by-zero guard in WMI fallback
+Config/AppConfig.cs — .tmp file cleanup on save failure
+Views/OverlayWindow.xaml.cs — VirtualScreenLeft/Top clamp
+ViewModels/SettingsViewModel.cs — TryGetProperty for known games JSON
+Core/GameDetector.cs — TryGetProperty for known games JSON
+```
 
 ---
 
