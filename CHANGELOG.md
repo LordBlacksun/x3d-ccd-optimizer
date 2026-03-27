@@ -14,6 +14,12 @@ All notable changes to X3D Dual CCD Optimizer are documented here.
 - **Config validation** — all numeric values clamped to sane ranges on load.
 - **Single-instance enforcement** — named mutex prevents conflicting instances.
 - **Admin elevation** — manifest requires administrator for process affinity and HKLM registry access.
+- **Tooltips on all settings** — plain English explanations on every interactive control.
+- **Keyboard accessibility** — AccessKeys on all Settings tabs and buttons (Alt+letter shortcuts).
+- **Screen reader support** — AutomationProperties.Name on all interactive UI elements across dashboard, settings, and overlay.
+- **First-run onboarding** — status bar shows explanatory message on first launch.
+- **Strategy restart note** — settings UI clarifies that strategy changes take effect on next launch.
+- **Reduced idle GPU overhead** — GPU WMI queries skip every other poll cycle when no game is detected.
 
 ### Security
 - Two comprehensive security audits (17 + 30 findings), all actionable items fixed.
@@ -25,6 +31,8 @@ All notable changes to X3D Dual CCD Optimizer are documented here.
 - Core index bounds checking in CCD override (0-63).
 - IsSingleCcd guard on SwitchToOptimize/SwitchToMonitor prevents zero-mask affinity on single-CCD systems.
 - Debug logging in all catch blocks for diagnostic visibility.
+- Shared protected process list (single source for AffinityManager and RecoveryManager).
+- Event subscriptions unwired on shutdown to prevent callbacks into disposed objects.
 
 ### Fixed
 - WMI fallback core mask calculation for single-CCD processors (was hardcoded /2).

@@ -16,13 +16,7 @@ public class AffinityManager
     private bool _engaged;
     private ProcessInfo? _currentGame;
 
-    private static readonly HashSet<string> HardcodedProtected = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "System", "Idle", "csrss", "smss", "services", "wininit",
-        "lsass", "winlogon", "dwm", "audiodg", "fontdrvhost",
-        "Registry", "Memory Compression", "svchost",
-        "X3DCcdOptimizer" // Don't touch ourselves
-    };
+    private static readonly IReadOnlySet<string> HardcodedProtected = ProtectedProcesses.Names;
 
     public event Action<AffinityEvent>? AffinityChanged;
 
