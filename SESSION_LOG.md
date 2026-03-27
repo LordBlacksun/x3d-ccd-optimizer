@@ -49,6 +49,8 @@ Development session history for X3D Dual CCD Optimizer.
 | `e49c341` | develop | audit: fix all issues found in full codebase security and safety audit |
 | `bbbcad6` | develop | feat: add GPU heuristic auto-detection with debounce and expanded game database |
 | `cfd9814` | master | Phase 2.5: Overlay, audit fixes, GPU auto-detection (merge) |
+| `c83f429` | develop | docs: add known limitations section to README |
+| `a5361cb` | master | merge of c83f429 |
 
 ### Files Created (5 new)
 
