@@ -105,8 +105,16 @@ public static class RecoveryManager
         int skipped = 0;
 
         // Get all running processes once
+        Process[] allProcesses;
+        try { allProcesses = Process.GetProcesses(); }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to enumerate processes for recovery");
+            return;
+        }
+
         var runningProcesses = new Dictionary<string, List<Process>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var proc in Process.GetProcesses())
+        foreach (var proc in allProcesses)
         {
             try
             {
@@ -255,16 +263,17 @@ public static class RecoveryManager
 
     private static void WriteState()
     {
+        var tempPath = RecoveryPath + ".tmp";
         try
         {
             Directory.CreateDirectory(RecoveryDir);
             var json = JsonSerializer.Serialize(_currentState, JsonOptions);
-            var tempPath = RecoveryPath + ".tmp";
             File.WriteAllText(tempPath, json);
             File.Move(tempPath, RecoveryPath, overwrite: true);
         }
         catch (Exception ex)
         {
+            try { File.Delete(tempPath); } catch { }
             Log.Warning(ex, "Failed to write recovery state");
         }
     }

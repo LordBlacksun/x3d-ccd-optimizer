@@ -137,10 +137,13 @@ public class SettingsViewModel : ViewModelBase
                 if (doc.RootElement.TryGetProperty("games", out var arr))
                     foreach (var g in arr.EnumerateArray())
                     {
-                        var name = g.GetProperty("name").GetString();
-                        var exe = g.GetProperty("exe").GetString();
-                        if (name != null && exe != null)
-                            KnownGames.Add($"{name} ({exe})");
+                        if (g.TryGetProperty("name", out var nameEl) && g.TryGetProperty("exe", out var exeEl))
+                        {
+                            var name = nameEl.GetString();
+                            var exe = exeEl.GetString();
+                            if (name != null && exe != null)
+                                KnownGames.Add($"{name} ({exe})");
+                        }
                     }
             }
         }
