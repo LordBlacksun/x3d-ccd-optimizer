@@ -24,8 +24,16 @@ public class ProcessRouterViewModel : ViewModelBase
                         evt.Action == AffinityAction.WouldMigrate);
                 break;
 
+            case AffinityAction.DriverSet:
+            case AffinityAction.WouldSetDriver:
+                AddOrUpdate(evt.ProcessName, evt.Pid, "V-Cache (Driver)", true, evt.Detail,
+                    evt.Action == AffinityAction.WouldSetDriver);
+                break;
+
             case AffinityAction.Restored:
             case AffinityAction.WouldRestore:
+            case AffinityAction.DriverRestored:
+            case AffinityAction.WouldRestoreDriver:
                 Clear();
                 break;
         }

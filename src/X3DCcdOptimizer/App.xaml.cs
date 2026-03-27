@@ -83,11 +83,18 @@ public partial class App : System.Windows.Application
             mode = OperationMode.Monitor;
         }
 
+        var strategy = _config.GetOptimizeStrategy();
+        if (strategy == OptimizeStrategy.DriverPreference && !VCacheDriverManager.IsDriverAvailable)
+        {
+            Log.Warning("Config says DriverPreference but amd3dvcache driver not detected — falling back to AffinityPinning");
+            strategy = OptimizeStrategy.AffinityPinning;
+        }
+
         // Engine
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
         _gpuMonitor = new GpuMonitor();
         _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses);
-        _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode);
+        _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode, strategy);
         _processWatcher = new ProcessWatcher(
             _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground,
             _config.AutoDetection.Enabled, _config.AutoDetection.GpuThresholdPercent,
@@ -148,8 +155,8 @@ public partial class App : System.Windows.Application
         _perfMon.Start();
         _processWatcher.Start();
 
-        Log.Information("Monitoring started. Mode: {Mode}. Polling: {Interval}ms. Manual games: {Count}.",
-            mode, _config.PollingIntervalMs, _gameDetector.GameCount);
+        Log.Information("Monitoring started. Mode: {Mode}. Strategy: {Strategy}. Polling: {Interval}ms. Manual games: {Count}.",
+            mode, strategy, _config.PollingIntervalMs, _gameDetector.GameCount);
 
         // Register hotkey (after window is created so we have an HWND)
         _dashboardWindow.SourceInitialized += (_, _) => RegisterOverlayHotkey();

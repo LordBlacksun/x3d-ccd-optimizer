@@ -6,22 +6,23 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 0.4.0 | **Status:** Phase 3 in progress | **Branch:** develop | **Last session:** 9
+**Version:** 0.4.0 | **Status:** Phase 3 in progress | **Branch:** develop | **Last session:** 10
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
-- **Core engine:** CcdMapper (P/Invoke topology), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (3-tier: manual → 65-game DB → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode-aware, lock-based)
+- **Core engine:** CcdMapper (P/Invoke topology), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (3-tier: manual → 65-game DB → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode-aware + strategy-aware, lock-based), VCacheDriverManager (amd3dvcache registry)
+- **Optimization strategies:** AffinityPinning (default, SetProcessAffinityMask) or DriverPreference (AMD amd3dvcache registry interface, discovered by cocafe/vcache-tray). Strategy stored in config, selectable in Settings, gated by driver availability.
 - **WPF dashboard:** MVVM, dark theme, two CCD panels with 4x2 core tile heatmaps, process router, activity log, animated pill toggle (Monitor/Optimize), polished UI (Cascadia Mono numbers, load bars, accent edges, pulsing dot, gradient separator)
 - **Compact overlay:** 280x160 always-on-top, OLED-safe (auto-hide 10s, pixel shift 3min), Ctrl+Shift+O hotkey, draggable, position persisted
 - **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
-- **Monitor/Optimize dual-mode:** Monitor (default, observe-only, any dual-CCD Ryzen), Optimize (active affinity, X3D only, HasVCache-gated)
-- **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
-- **Dirty shutdown recovery:** RecoveryManager writes recovery.json while affinities are engaged. On next launch, restores all modified processes to full CPU affinity. Handles corrupted files, exited/restarted processes.
-- **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce settings
+- **Monitor/Optimize dual-mode:** Monitor (default, observe-only, any dual-CCD Ryzen), Optimize (active affinity or driver preference, X3D only, HasVCache-gated)
+- **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
+- **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
+- **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
 - **Code audit done:** 2 critical, 3 high, 7 medium issues fixed (config safety, global exception handler, thread-safe disposal, handle leaks, multi-monitor positions)
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
 
-**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode-aware), `Core/GameDetector.cs` (3-tier), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
+**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (3-tier), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
 
 **What's next:** Ryzen-wide support (single CCD + symmetric dual CCD tiers), Process Router grouped view redesign, Phase 4 (CI/CD, trimmed build, installer)
 
@@ -31,6 +32,84 @@ Development session history for X3D Dual CCD Optimizer.
 - WPF + WinForms namespace conflicts — removed WinForms global using, disambiguate with full type names
 - Overlay requires borderless windowed (exclusive fullscreen blocks standard overlays)
 - ComboBox SelectedValue binding for default mode — don't use RadioButton with complex converters in XAML, just use ComboBox
+- amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
+
+---
+
+## Session 10 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Add AMD V-Cache driver registry preference as alternative optimization strategy
+
+### What Was Done
+
+1. **New OptimizeStrategy enum and VCacheDriverManager**
+   - `OptimizeStrategy.cs`: `AffinityPinning` (default) | `DriverPreference` enum
+   - `VCacheDriverManager.cs`: static class wrapping `HKLM\SYSTEM\CurrentControlSet\Services\amd3dvcache\Preferences` registry reads/writes. `IsDriverAvailable` (cached), `SetCachePreferred()`, `RestoreDefault()`, `GetCurrentPreference()`. Uses `Microsoft.Win32.Registry` (no new NuGet). Header comment credits cocafe/vcache-tray for discovering the registry interface.
+
+2. **Strategy-aware AffinityManager**
+   - Constructor takes `OptimizeStrategy` parameter
+   - `OnGameDetected`: DriverPreference calls `EngageGameViaDriver()` (sets DefaultType=1), no background migration. AffinityPinning: unchanged.
+   - `OnGameExited`: DriverPreference calls `RestoreDriver()` (sets DefaultType=0). AffinityPinning: unchanged.
+   - `SwitchToOptimize`/`SwitchToMonitor`: strategy dispatch for mid-game mode switching
+   - Monitor mode: emits `WouldSetDriver`/`WouldRestoreDriver` events for DriverPreference simulation
+
+3. **Strategy-aware recovery**
+   - `RecoveryState` gains `strategy` field (backward-compatible default `"affinityPinning"`)
+   - `RecoveryManager.OnEngage()` accepts strategy parameter, stores in recovery.json
+   - `RecoverFromDirtyShutdown`: if DriverPreference, restores registry default instead of process affinities
+
+4. **12-value AffinityAction enum**
+   - Added: `DriverSet`, `DriverRestored`, `WouldSetDriver`, `WouldRestoreDriver`
+   - All ViewModels updated: LogEntryViewModel (colors/text), ProcessRouterViewModel (badge "V-Cache (Driver)"), OverlayViewModel (action prefixes)
+
+5. **Strategy-aware dashboard status**
+   - Optimize + DriverPreference: "Optimize — {game} V-Cache preferred (driver)"
+   - Optimize + AffinityPinning: "Optimize — {game} pinned to V-Cache CCD" (unchanged)
+   - CCD panel role labels: "V-Cache Preferred" vs "Gaming" based on strategy
+
+6. **Settings UI — strategy selector**
+   - ComboBox in General tab: "Affinity Pinning (default)" / "Driver Preference (AMD V-Cache)"
+   - Disabled when driver not installed; warning text shown
+   - `optimizeStrategy` config field, `GetOptimizeStrategy()` helper
+
+7. **App.xaml.cs wiring**
+   - Strategy resolution at startup with driver-unavailable fallback to AffinityPinning
+   - Strategy logged at startup alongside mode
+
+8. **README acknowledgements**
+   - Added cocafe/vcache-tray credit for discovering the AMD V-Cache driver registry interface
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| (pending) | develop | feat: add AMD V-Cache driver registry preference as alternative optimization strategy |
+
+### Files Created (2 new)
+
+```
+src/X3DCcdOptimizer/Models/OptimizeStrategy.cs
+src/X3DCcdOptimizer/Core/VCacheDriverManager.cs
+```
+
+### Files Modified (13)
+
+```
+Models/AffinityEvent.cs — 4 new AffinityAction values
+Models/RecoveryState.cs — strategy field
+Config/AppConfig.cs — optimizeStrategy property + GetOptimizeStrategy()
+Core/AffinityManager.cs — strategy parameter, driver dispatch, 4 new methods
+Core/RecoveryManager.cs — strategy-aware OnEngage + recovery (driver vs affinity)
+ViewModels/LogEntryViewModel.cs — 4 new action mappings + monitor check
+ViewModels/ProcessRouterViewModel.cs — driver action cases
+ViewModels/OverlayViewModel.cs — driver action prefixes
+ViewModels/MainViewModel.cs — strategy-aware status text + role labels
+ViewModels/SettingsViewModel.cs — strategy property, driver availability
+Views/SettingsWindow.xaml — strategy ComboBox + driver warning
+App.xaml.cs — strategy resolution + fallback + logging
+README.md — cocafe acknowledgement
+```
 
 ---
 

@@ -21,7 +21,9 @@ public class LogEntryViewModel
 
         IsMonitorAction = evt.Action is AffinityAction.WouldEngage
             or AffinityAction.WouldMigrate
-            or AffinityAction.WouldRestore;
+            or AffinityAction.WouldRestore
+            or AffinityAction.WouldSetDriver
+            or AffinityAction.WouldRestoreDriver;
 
         FontStyle = IsMonitorAction ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal;
         Opacity = IsMonitorAction ? 0.7 : 1.0;
@@ -36,6 +38,10 @@ public class LogEntryViewModel
             AffinityAction.WouldEngage => ("[MONITOR] WOULD ENGAGE", FindBrush("AccentBlueBrush")),
             AffinityAction.WouldMigrate => ("[MONITOR] WOULD MIGRATE", FindBrush("AccentBlueBrush")),
             AffinityAction.WouldRestore => ("[MONITOR] WOULD RESTORE", FindBrush("AccentBlueBrush")),
+            AffinityAction.DriverSet => ("DRIVER SET", FindBrush("AccentGreenBrush")),
+            AffinityAction.DriverRestored => ("DRIVER RESTORE", FindBrush("AccentBlueBrush")),
+            AffinityAction.WouldSetDriver => ("[MONITOR] WOULD SET DRIVER", FindBrush("AccentBlueBrush")),
+            AffinityAction.WouldRestoreDriver => ("[MONITOR] WOULD RESTORE DRIVER", FindBrush("AccentBlueBrush")),
             _ => ("UNKNOWN", FindBrush("TextSecondaryBrush"))
         };
     }

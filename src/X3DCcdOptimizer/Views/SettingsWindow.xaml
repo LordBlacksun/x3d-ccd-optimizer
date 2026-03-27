@@ -35,6 +35,20 @@
                             <ComboBoxItem Content="optimize" IsEnabled="{Binding HasVCache, RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.HasVCache}"/>
                         </ComboBox>
 
+                        <TextBlock Text="Optimization strategy:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"/>
+                        <ComboBox SelectedValue="{Binding OptimizeStrategy}" SelectedValuePath="Tag"
+                                  Width="280" HorizontalAlignment="Left"
+                                  IsEnabled="{Binding IsDriverAvailable}"
+                                  Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}">
+                            <ComboBoxItem Content="Affinity Pinning (default)" Tag="affinityPinning"/>
+                            <ComboBoxItem Content="Driver Preference (AMD V-Cache)" Tag="driverPreference"/>
+                        </ComboBox>
+                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Text="Affinity Pinning pins the game directly. Driver Preference uses AMD's amd3dvcache driver registry."/>
+                        <TextBlock Text="⚠ AMD V-Cache driver not detected — Driver Preference unavailable"
+                                   Foreground="{StaticResource AccentAmberBrush}" FontSize="11" Margin="0,4,0,0"
+                                   Visibility="{Binding DriverWarningVisibility}"/>
+
                         <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,16,0,4">
                             <Run Text="Polling interval:"/> <Run Text="{Binding PollingIntervalMs, StringFormat={}{0}ms}" FontWeight="SemiBold"/>
                         </TextBlock>

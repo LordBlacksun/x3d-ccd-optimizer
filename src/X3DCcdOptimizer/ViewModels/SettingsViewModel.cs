@@ -17,6 +17,7 @@ public class SettingsViewModel : ViewModelBase
     // General
     private bool _startWithWindows;
     private string _defaultMode;
+    private string _optimizeStrategy;
     private bool _startMinimized;
     private bool _notifications;
     private int _pollingIntervalMs;
@@ -41,7 +42,10 @@ public class SettingsViewModel : ViewModelBase
     // General
     public bool StartWithWindows { get => _startWithWindows; set => SetProperty(ref _startWithWindows, value); }
     public string DefaultMode { get => _defaultMode; set => SetProperty(ref _defaultMode, value); }
+    public string OptimizeStrategy { get => _optimizeStrategy; set => SetProperty(ref _optimizeStrategy, value); }
     public bool HasVCache => _topology.HasVCache;
+    public bool IsDriverAvailable => VCacheDriverManager.IsDriverAvailable;
+    public Visibility DriverWarningVisibility => VCacheDriverManager.IsDriverAvailable ? Visibility.Collapsed : Visibility.Visible;
     public bool StartMinimized { get => _startMinimized; set => SetProperty(ref _startMinimized, value); }
     public bool Notifications { get => _notifications; set => SetProperty(ref _notifications, value); }
     public int PollingIntervalMs { get => _pollingIntervalMs; set => SetProperty(ref _pollingIntervalMs, value); }
@@ -87,6 +91,7 @@ public class SettingsViewModel : ViewModelBase
         _config = config;
         _topology = topology;
         _defaultMode = config.OperationMode;
+        _optimizeStrategy = config.OptimizeStrategy;
 
         // Load current values
         _startWithWindows = StartupManager.IsEnabled();
@@ -207,6 +212,7 @@ public class SettingsViewModel : ViewModelBase
                 PixelShiftMinutes = defaults.Overlay.PixelShiftMinutes;
                 LogLevel = defaults.Logging.Level;
                 Notifications = defaults.Ui.Notifications;
+                OptimizeStrategy = defaults.OptimizeStrategy;
             }
         });
     }
@@ -221,6 +227,7 @@ public class SettingsViewModel : ViewModelBase
 
         // General
         _config.OperationMode = _defaultMode;
+        _config.OptimizeStrategy = _optimizeStrategy;
         _config.Ui.StartMinimized = _startMinimized;
         _config.Ui.Notifications = _notifications;
         _config.PollingIntervalMs = _pollingIntervalMs;

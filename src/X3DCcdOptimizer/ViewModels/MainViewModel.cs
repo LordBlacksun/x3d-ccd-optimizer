@@ -184,12 +184,21 @@ public class MainViewModel : ViewModelBase
             _sessionStart = DateTime.Now;
             _sessionTimer.Start();
 
-            Ccd0Panel.RoleLabel = _currentMode == OperationMode.Optimize
-                ? $"Gaming — {game.Name}"
-                : $"Observed — {game.Name}";
-            Ccd1Panel.RoleLabel = _currentMode == OperationMode.Optimize
-                ? "Background"
-                : "Idle";
+            var strat = _config.GetOptimizeStrategy();
+            if (_currentMode == OperationMode.Optimize)
+            {
+                Ccd0Panel.RoleLabel = strat == OptimizeStrategy.DriverPreference
+                    ? $"V-Cache Preferred — {game.Name}"
+                    : $"Gaming — {game.Name}";
+                Ccd1Panel.RoleLabel = strat == OptimizeStrategy.DriverPreference
+                    ? "Standard"
+                    : "Background";
+            }
+            else
+            {
+                Ccd0Panel.RoleLabel = $"Observed — {game.Name}";
+                Ccd1Panel.RoleLabel = "Idle";
+            }
 
             UpdateStatus();
             UpdateBorders();
@@ -216,11 +225,15 @@ public class MainViewModel : ViewModelBase
 
     private void UpdateStatus()
     {
+        var strategy = _config.GetOptimizeStrategy();
+
         if (_isGameActive)
         {
             if (_currentMode == OperationMode.Optimize)
             {
-                StatusText = $"Optimize — {_currentGameName} pinned to V-Cache CCD";
+                StatusText = strategy == OptimizeStrategy.DriverPreference
+                    ? $"Optimize — {_currentGameName} V-Cache preferred (driver)"
+                    : $"Optimize — {_currentGameName} pinned to V-Cache CCD";
                 StatusColor = FindBrush("AccentGreenBrush");
             }
             else

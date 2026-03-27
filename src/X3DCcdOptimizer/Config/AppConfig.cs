@@ -103,6 +103,9 @@ public class AppConfig
     [JsonPropertyName("operationMode")]
     public string OperationMode { get; set; } = "monitor";
 
+    [JsonPropertyName("optimizeStrategy")]
+    public string OptimizeStrategy { get; set; } = "affinityPinning";
+
     [JsonPropertyName("pollingIntervalMs")]
     public int PollingIntervalMs { get; set; } = 2000;
 
@@ -209,6 +212,13 @@ public class AppConfig
         return string.Equals(OperationMode, "optimize", StringComparison.OrdinalIgnoreCase)
             ? Models.OperationMode.Optimize
             : Models.OperationMode.Monitor;
+    }
+
+    public Models.OptimizeStrategy GetOptimizeStrategy()
+    {
+        return string.Equals(OptimizeStrategy, "driverPreference", StringComparison.OrdinalIgnoreCase)
+            ? Models.OptimizeStrategy.DriverPreference
+            : Models.OptimizeStrategy.AffinityPinning;
     }
 
     private static AppConfig CreateDefault() => new();

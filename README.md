@@ -172,3 +172,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how to get involved, and [SECURITY.md
 ## Acknowledgements
 
 Inspired by the Linux community's [x3d-toggle](https://github.com/pyrotiger/x3d-toggle) tool and the AMD `amd_x3d_vcache` kernel driver. Built because Windows users deserve the same level of control.
+
+- [vcache-tray](https://github.com/cocafe/vcache-tray) by cocafe — for discovering and documenting the AMD V-Cache driver registry interface. The Driver Preference optimization strategy builds on their work.

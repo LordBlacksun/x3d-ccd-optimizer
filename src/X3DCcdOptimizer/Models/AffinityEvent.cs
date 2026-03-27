@@ -9,7 +9,11 @@ public enum AffinityAction
     Error,
     WouldEngage,
     WouldMigrate,
-    WouldRestore
+    WouldRestore,
+    DriverSet,
+    DriverRestored,
+    WouldSetDriver,
+    WouldRestoreDriver
 }
 
 public record AffinityEvent
