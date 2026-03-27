@@ -52,103 +52,22 @@ public static class RecoveryManager
                 return;
             }
 
-            if (state?.ModifiedProcesses == null || state.ModifiedProcesses.Count == 0)
+            if (state == null)
             {
-                Log.Information("Recovery file empty — no processes to restore");
                 DeleteRecoveryFile();
                 return;
             }
 
-            Log.Information("Recovering {Count} processes from dirty shutdown (game was {Game})",
-                state.ModifiedProcesses.Count, state.GameProcess);
-
-            int restored = 0;
-            int skipped = 0;
-
-            // Get all running processes once
-            var runningProcesses = new Dictionary<string, List<Process>>(StringComparer.OrdinalIgnoreCase);
-            foreach (var proc in Process.GetProcesses())
+            // Strategy-aware recovery
+            if (string.Equals(state.Strategy, "DriverPreference", StringComparison.OrdinalIgnoreCase))
             {
-                try
-                {
-                    var name = proc.ProcessName;
-                    if (!runningProcesses.ContainsKey(name))
-                        runningProcesses[name] = [];
-                    runningProcesses[name].Add(proc);
-                }
-                catch
-                {
-                    proc.Dispose();
-                }
+                RecoverDriverPreference(state);
+            }
+            else
+            {
+                RecoverAffinityPinning(state);
             }
 
-            try
-            {
-                foreach (var entry in state.ModifiedProcesses)
-                {
-                    // Strip .exe for process name matching
-                    var nameWithoutExe = entry.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                        ? entry.Name[..^4] : entry.Name;
-
-                    if (!runningProcesses.TryGetValue(nameWithoutExe, out var matches))
-                    {
-                        Log.Debug("Recovery: {Name} (PID {Pid}) — process no longer running, skipped",
-                            entry.Name, entry.Pid);
-                        skipped++;
-                        continue;
-                    }
-
-                    // Reset affinity on all matching processes (PID may have changed after restart)
-                    foreach (var proc in matches)
-                    {
-                        try
-                        {
-                            var handle = Kernel32.OpenProcess(
-                                Kernel32.PROCESS_SET_INFORMATION, false, proc.Id);
-
-                            if (handle == IntPtr.Zero)
-                            {
-                                skipped++;
-                                continue;
-                            }
-
-                            try
-                            {
-                                // Reset to all cores (full system mask)
-                                var fullMask = new IntPtr(-1);
-                                if (Kernel32.SetProcessAffinityMask(handle, fullMask))
-                                {
-                                    restored++;
-                                    Log.Information("Recovery: restored {Name} (PID {Pid}) to all cores",
-                                        entry.Name, proc.Id);
-                                }
-                                else
-                                {
-                                    skipped++;
-                                }
-                            }
-                            finally
-                            {
-                                Kernel32.CloseHandle(handle);
-                            }
-                        }
-                        catch
-                        {
-                            skipped++;
-                        }
-                    }
-                }
-            }
-            finally
-            {
-                // Dispose all cached processes
-                foreach (var list in runningProcesses.Values)
-                    foreach (var proc in list)
-                        proc.Dispose();
-            }
-
-            Log.Information("Recovery complete: {Restored} restored, {Skipped} skipped/exited",
-                restored, skipped);
             DeleteRecoveryFile();
         }
         catch (Exception ex)
@@ -158,10 +77,135 @@ public static class RecoveryManager
         }
     }
 
+    private static void RecoverDriverPreference(RecoveryState state)
+    {
+        Log.Information("Recovering driver preference from dirty shutdown (game was {Game})",
+            state.GameProcess);
+
+        if (VCacheDriverManager.RestoreDefault())
+            Log.Information("Recovery: restored amd3dvcache DefaultType to PREFER_FREQ (default)");
+        else
+            Log.Warning("Recovery: failed to restore amd3dvcache DefaultType — driver may not be installed");
+    }
+
+    private static readonly HashSet<string> ProtectedProcesses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "System", "Idle", "csrss", "smss", "services", "wininit",
+        "lsass", "winlogon", "dwm", "audiodg", "fontdrvhost",
+        "Registry", "Memory Compression", "svchost", "X3DCcdOptimizer"
+    };
+
+    private static void RecoverAffinityPinning(RecoveryState state)
+    {
+        if (state.ModifiedProcesses == null || state.ModifiedProcesses.Count == 0)
+        {
+            Log.Information("Recovery file empty — no processes to restore");
+            return;
+        }
+
+        Log.Information("Recovering {Count} processes from dirty shutdown (game was {Game})",
+            state.ModifiedProcesses.Count, state.GameProcess);
+
+        int restored = 0;
+        int skipped = 0;
+
+        // Get all running processes once
+        var runningProcesses = new Dictionary<string, List<Process>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var proc in Process.GetProcesses())
+        {
+            try
+            {
+                var name = proc.ProcessName;
+                if (!runningProcesses.ContainsKey(name))
+                    runningProcesses[name] = [];
+                runningProcesses[name].Add(proc);
+            }
+            catch
+            {
+                proc.Dispose();
+            }
+        }
+
+        try
+        {
+            foreach (var entry in state.ModifiedProcesses)
+            {
+                // Strip .exe for process name matching
+                var nameWithoutExe = entry.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                    ? entry.Name[..^4] : entry.Name;
+
+                if (ProtectedProcesses.Contains(nameWithoutExe))
+                {
+                    Log.Warning("Recovery: skipping protected process {Name}", entry.Name);
+                    skipped++;
+                    continue;
+                }
+
+                if (!runningProcesses.TryGetValue(nameWithoutExe, out var matches))
+                {
+                    Log.Debug("Recovery: {Name} (PID {Pid}) — process no longer running, skipped",
+                        entry.Name, entry.Pid);
+                    skipped++;
+                    continue;
+                }
+
+                // Reset affinity on all matching processes (PID may have changed after restart)
+                foreach (var proc in matches)
+                {
+                    try
+                    {
+                        var handle = Kernel32.OpenProcess(
+                            Kernel32.PROCESS_SET_INFORMATION, false, proc.Id);
+
+                        if (handle == IntPtr.Zero)
+                        {
+                            skipped++;
+                            continue;
+                        }
+
+                        try
+                        {
+                            // Reset to all cores (full system mask)
+                            var fullMask = new IntPtr(-1);
+                            if (Kernel32.SetProcessAffinityMask(handle, fullMask))
+                            {
+                                restored++;
+                                Log.Information("Recovery: restored {Name} (PID {Pid}) to all cores",
+                                    entry.Name, proc.Id);
+                            }
+                            else
+                            {
+                                skipped++;
+                            }
+                        }
+                        finally
+                        {
+                            Kernel32.CloseHandle(handle);
+                        }
+                    }
+                    catch
+                    {
+                        skipped++;
+                    }
+                }
+            }
+        }
+        finally
+        {
+            // Dispose all cached processes
+            foreach (var list in runningProcesses.Values)
+                foreach (var proc in list)
+                    proc.Dispose();
+        }
+
+        Log.Information("Recovery complete: {Restored} restored, {Skipped} skipped/exited",
+            restored, skipped);
+    }
+
     /// <summary>
     /// Called when Optimize mode engages a game. Creates the recovery file.
     /// </summary>
-    public static void OnEngage(string gameName, int gamePid)
+    public static void OnEngage(string gameName, int gamePid, OptimizeStrategy strategy = OptimizeStrategy.AffinityPinning)
     {
         lock (_lock)
         {
@@ -171,7 +215,8 @@ public static class RecoveryManager
                 Timestamp = DateTime.UtcNow,
                 GameProcess = gameName,
                 GamePid = gamePid,
-                ModifiedProcesses = []
+                ModifiedProcesses = [],
+                Strategy = strategy.ToString()
             };
             WriteState();
         }
@@ -219,7 +264,9 @@ public static class RecoveryManager
         {
             Directory.CreateDirectory(RecoveryDir);
             var json = JsonSerializer.Serialize(_currentState, JsonOptions);
-            File.WriteAllText(RecoveryPath, json);
+            var tempPath = RecoveryPath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, RecoveryPath, overwrite: true);
         }
         catch (Exception ex)
         {

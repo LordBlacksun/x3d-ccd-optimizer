@@ -12,6 +12,7 @@ public class AffinityManager
     private readonly HashSet<string> _protectedProcesses;
     private readonly Dictionary<int, IntPtr> _originalMasks = new();
     private readonly object _syncLock = new();
+    private readonly OptimizeStrategy _strategy;
     private bool _engaged;
     private ProcessInfo? _currentGame;
 
@@ -37,10 +38,12 @@ public class AffinityManager
         get { lock (_syncLock) return _engaged; }
     }
 
-    public AffinityManager(CpuTopology topology, IEnumerable<string> configProtected, OperationMode initialMode)
+    public AffinityManager(CpuTopology topology, IEnumerable<string> configProtected, OperationMode initialMode,
+        OptimizeStrategy strategy = OptimizeStrategy.AffinityPinning)
     {
         _topology = topology;
         Mode = initialMode;
+        _strategy = strategy;
         _protectedProcesses = new HashSet<string>(HardcodedProtected, StringComparer.OrdinalIgnoreCase);
 
         foreach (var name in configProtected)
@@ -66,16 +69,39 @@ public class AffinityManager
             _currentGame = game;
             _originalMasks.Clear();
 
+            // Single-CCD processors have no second CCD to steer to
+            if (_topology.IsSingleCcd)
+            {
+                Emit(AffinityAction.Skipped, game.Name, game.Pid,
+                    "single-CCD processor — no CCD steering needed");
+                return;
+            }
+
             if (Mode == OperationMode.Optimize)
             {
-                RecoveryManager.OnEngage(game.Name, game.Pid);
-                EngageGame(game);
-                MigrateBackground(game.Pid);
+                RecoveryManager.OnEngage(game.Name, game.Pid, _strategy);
+
+                if (_strategy == OptimizeStrategy.DriverPreference)
+                {
+                    EngageGameViaDriver(game);
+                }
+                else
+                {
+                    EngageGame(game);
+                    MigrateBackground(game.Pid);
+                }
             }
             else
             {
-                SimulateEngage(game);
-                SimulateMigrateBackground(game.Pid);
+                if (_strategy == OptimizeStrategy.DriverPreference)
+                {
+                    SimulateEngageViaDriver(game);
+                }
+                else
+                {
+                    SimulateEngage(game);
+                    SimulateMigrateBackground(game.Pid);
+                }
             }
         }
     }
@@ -89,15 +115,33 @@ public class AffinityManager
 
             _engaged = false;
 
+            if (_topology.IsSingleCcd)
+            {
+                _currentGame = null;
+                return;
+            }
+
             if (Mode == OperationMode.Optimize)
             {
-                RestoreAll();
+                if (_strategy == OptimizeStrategy.DriverPreference)
+                    RestoreDriver();
+                else
+                    RestoreAll();
+
                 RecoveryManager.OnDisengage();
             }
             else
             {
-                Emit(AffinityAction.WouldRestore, "all", 0,
-                    "game exited — would have restored all affinities");
+                if (_strategy == OptimizeStrategy.DriverPreference)
+                {
+                    Emit(AffinityAction.WouldRestoreDriver, "amd3dvcache", 0,
+                        "game exited — would have restored driver default");
+                }
+                else
+                {
+                    Emit(AffinityAction.WouldRestore, "all", 0,
+                        "game exited — would have restored all affinities");
+                }
             }
 
             _currentGame = null;
@@ -117,9 +161,17 @@ public class AffinityManager
             if (_engaged && _currentGame != null)
             {
                 _originalMasks.Clear();
-                RecoveryManager.OnEngage(_currentGame.Name, _currentGame.Pid);
-                EngageGame(_currentGame);
-                MigrateBackground(_currentGame.Pid);
+                RecoveryManager.OnEngage(_currentGame.Name, _currentGame.Pid, _strategy);
+
+                if (_strategy == OptimizeStrategy.DriverPreference)
+                {
+                    EngageGameViaDriver(_currentGame);
+                }
+                else
+                {
+                    EngageGame(_currentGame);
+                    MigrateBackground(_currentGame.Pid);
+                }
             }
         }
     }
@@ -131,11 +183,17 @@ public class AffinityManager
             if (Mode == OperationMode.Monitor)
                 return;
 
-            var wasEngaged = _engaged && _originalMasks.Count > 0;
+            var wasEngagedAffinity = _engaged && _originalMasks.Count > 0;
+            var wasEngagedDriver = _engaged && _strategy == OptimizeStrategy.DriverPreference;
             Mode = OperationMode.Monitor;
             Log.Information("Switched to Monitor mode");
 
-            if (wasEngaged)
+            if (wasEngagedDriver)
+            {
+                RestoreDriver();
+                RecoveryManager.OnDisengage();
+            }
+            else if (wasEngagedAffinity)
             {
                 RestoreAll();
                 RecoveryManager.OnDisengage();
@@ -245,6 +303,40 @@ public class AffinityManager
             {
                 proc.Dispose();
             }
+        }
+    }
+
+    private void EngageGameViaDriver(ProcessInfo game)
+    {
+        if (VCacheDriverManager.SetCachePreferred())
+        {
+            Emit(AffinityAction.DriverSet, game.Name, game.Pid,
+                "amd3dvcache DefaultType=1 (PREFER_CACHE)");
+        }
+        else
+        {
+            Emit(AffinityAction.Error, game.Name, game.Pid,
+                "Failed to set amd3dvcache driver preference");
+        }
+    }
+
+    private void SimulateEngageViaDriver(ProcessInfo game)
+    {
+        Emit(AffinityAction.WouldSetDriver, game.Name, game.Pid,
+            "would set amd3dvcache DefaultType=1 (PREFER_CACHE)");
+    }
+
+    private void RestoreDriver()
+    {
+        if (VCacheDriverManager.RestoreDefault())
+        {
+            Emit(AffinityAction.DriverRestored, "amd3dvcache", 0,
+                "DefaultType=0 (PREFER_FREQ)");
+        }
+        else
+        {
+            Emit(AffinityAction.Error, "amd3dvcache", 0,
+                "Failed to restore amd3dvcache driver preference");
         }
     }
 
@@ -390,6 +482,18 @@ public class AffinityManager
                 break;
             case AffinityAction.WouldRestore:
                 Log.Information("[MONITOR] WOULD RESTORE: {Detail}", detail);
+                break;
+            case AffinityAction.DriverSet:
+                Log.Information("DRIVER SET: {Name} (PID {Pid}) {Detail}", processName, pid, detail);
+                break;
+            case AffinityAction.DriverRestored:
+                Log.Information("DRIVER RESTORE: {Detail}", detail);
+                break;
+            case AffinityAction.WouldSetDriver:
+                Log.Information("[MONITOR] WOULD SET DRIVER: {Name} (PID {Pid}) {Detail}", processName, pid, detail);
+                break;
+            case AffinityAction.WouldRestoreDriver:
+                Log.Information("[MONITOR] WOULD RESTORE DRIVER: {Detail}", detail);
                 break;
         }
 

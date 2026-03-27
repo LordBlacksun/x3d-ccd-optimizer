@@ -49,7 +49,13 @@ public class CcdPanelViewModel : ViewModelBase
 
         IsVCache = ccdIndex == 0 && topology.HasVCache;
         CcdName = $"CCD{ccdIndex}";
-        BadgeText = IsVCache ? "V-Cache" : "Frequency";
+        BadgeText = topology.Tier switch
+        {
+            ProcessorTier.SingleCcdX3D => "V-Cache CCD",
+            ProcessorTier.DualCcdX3D => ccdIndex == 0 ? "V-Cache" : "Frequency",
+            ProcessorTier.DualCcdStandard => $"CCD {ccdIndex}",
+            _ => $"CCD {ccdIndex}"
+        };
         L3SizeText = $"{l3Size} MB L3";
 
         if (cores.Length > 0)

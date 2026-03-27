@@ -28,12 +28,28 @@
                         <CheckBox Content="Show notifications" IsChecked="{Binding Notifications}"
                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"/>
 
-                        <TextBlock Text="Default mode on launch:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"/>
+                        <TextBlock Text="{Binding TierDescription}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="11" Margin="0,8,0,8"/>
+
+                        <TextBlock Text="Default mode on launch:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,4"/>
                         <ComboBox SelectedValue="{Binding DefaultMode}" Width="140" HorizontalAlignment="Left"
                                   Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}">
                             <ComboBoxItem Content="monitor"/>
-                            <ComboBoxItem Content="optimize" IsEnabled="{Binding HasVCache, RelativeSource={RelativeSource AncestorType=Window}, Path=DataContext.HasVCache}"/>
+                            <ComboBoxItem Content="optimize" IsEnabled="{Binding CanOptimize}"/>
                         </ComboBox>
+
+                        <TextBlock Text="Optimization strategy:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"/>
+                        <ComboBox SelectedValue="{Binding OptimizeStrategy}" SelectedValuePath="Tag"
+                                  Width="280" HorizontalAlignment="Left"
+                                  IsEnabled="{Binding IsStrategyAvailable}"
+                                  Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}">
+                            <ComboBoxItem Content="Affinity Pinning (default)" Tag="affinityPinning"/>
+                            <ComboBoxItem Content="Driver Preference (AMD V-Cache)" Tag="driverPreference" IsEnabled="{Binding IsDriverAvailable}"/>
+                        </ComboBox>
+                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Text="Affinity Pinning pins the game directly. Driver Preference uses AMD's amd3dvcache driver registry."/>
+                        <TextBlock Text="⚠ AMD V-Cache driver not detected — Driver Preference unavailable"
+                                   Foreground="{StaticResource AccentAmberBrush}" FontSize="11" Margin="0,4,0,0"
+                                   Visibility="{Binding DriverWarningVisibility}"/>
 
                         <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,16,0,4">
                             <Run Text="Polling interval:"/> <Run Text="{Binding PollingIntervalMs, StringFormat={}{0}ms}" FontWeight="SemiBold"/>

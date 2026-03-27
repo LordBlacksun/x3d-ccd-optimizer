@@ -25,9 +25,10 @@ public class MainViewModel : ViewModelBase
     private bool _isOverlayVisible;
 
     public CcdPanelViewModel Ccd0Panel { get; }
-    public CcdPanelViewModel Ccd1Panel { get; }
+    public CcdPanelViewModel? Ccd1Panel { get; }
+    public bool ShowSecondPanel { get; }
     public ActivityLogViewModel ActivityLog { get; } = new();
-    public ProcessRouterViewModel ProcessRouter { get; } = new();
+    public ProcessRouterViewModel ProcessRouter { get; }
 
     public OperationMode CurrentMode
     {
@@ -117,10 +118,16 @@ public class MainViewModel : ViewModelBase
         _config = config;
         _currentMode = affinityManager.Mode;
 
-        IsOptimizeEnabled = topology.HasVCache;
+        IsOptimizeEnabled = topology.IsDualCcd;
+        ShowSecondPanel = topology.IsDualCcd;
 
         Ccd0Panel = new CcdPanelViewModel(topology, 0);
-        Ccd1Panel = new CcdPanelViewModel(topology, 1);
+        Ccd1Panel = topology.IsDualCcd ? new CcdPanelViewModel(topology, 1) : null;
+
+        // Process router with CCD group names
+        var ccd0Name = Ccd0Panel.BadgeText;
+        var ccd1Name = Ccd1Panel?.BadgeText ?? "";
+        ProcessRouter = new ProcessRouterViewModel(ccd0Name, ccd1Name);
 
         _statusColor = FindBrush("AccentBlueBrush");
         FooterText = $"v0.2.0 | {topology.CpuModel} | {topology.TotalPhysicalCores} cores | {topology.TotalLogicalCores} threads | Polling: {config.PollingIntervalMs}ms";
@@ -162,7 +169,7 @@ public class MainViewModel : ViewModelBase
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             Ccd0Panel.UpdateSnapshots(snapshots);
-            Ccd1Panel.UpdateSnapshots(snapshots);
+            Ccd1Panel?.UpdateSnapshots(snapshots);
         });
     }
 
@@ -184,12 +191,29 @@ public class MainViewModel : ViewModelBase
             _sessionStart = DateTime.Now;
             _sessionTimer.Start();
 
-            Ccd0Panel.RoleLabel = _currentMode == OperationMode.Optimize
-                ? $"Gaming — {game.Name}"
-                : $"Observed — {game.Name}";
-            Ccd1Panel.RoleLabel = _currentMode == OperationMode.Optimize
-                ? "Background"
-                : "Idle";
+            var strat = _config.GetOptimizeStrategy();
+            if (_topology.IsSingleCcd)
+            {
+                Ccd0Panel.RoleLabel = $"Active — {game.Name}";
+            }
+            else if (_currentMode == OperationMode.Optimize)
+            {
+                Ccd0Panel.RoleLabel = _topology.Tier == ProcessorTier.DualCcdStandard
+                    ? $"Pinned — {game.Name}"
+                    : strat == OptimizeStrategy.DriverPreference
+                        ? $"V-Cache Preferred — {game.Name}"
+                        : $"Gaming — {game.Name}";
+                if (Ccd1Panel != null)
+                    Ccd1Panel.RoleLabel = strat == OptimizeStrategy.DriverPreference
+                        ? "Standard"
+                        : "Background";
+            }
+            else
+            {
+                Ccd0Panel.RoleLabel = $"Observed — {game.Name}";
+                if (Ccd1Panel != null)
+                    Ccd1Panel.RoleLabel = "Idle";
+            }
 
             UpdateStatus();
             UpdateBorders();
@@ -206,7 +230,7 @@ public class MainViewModel : ViewModelBase
             SessionDurationText = "";
 
             Ccd0Panel.RoleLabel = "Idle";
-            Ccd1Panel.RoleLabel = "Idle";
+            if (Ccd1Panel != null) Ccd1Panel.RoleLabel = "Idle";
             ProcessRouter.Clear();
 
             UpdateStatus();
@@ -216,22 +240,38 @@ public class MainViewModel : ViewModelBase
 
     private void UpdateStatus()
     {
+        var strategy = _config.GetOptimizeStrategy();
+
         if (_isGameActive)
         {
-            if (_currentMode == OperationMode.Optimize)
+            if (_topology.IsSingleCcd)
             {
-                StatusText = $"Optimize — {_currentGameName} pinned to V-Cache CCD";
+                StatusText = $"Monitor — {_currentGameName} on V-Cache CCD";
+                StatusColor = FindBrush("AccentBlueBrush");
+            }
+            else if (_currentMode == OperationMode.Optimize)
+            {
+                StatusText = _topology.Tier == ProcessorTier.DualCcdStandard
+                    ? $"Optimize — {_currentGameName} pinned to CCD 0"
+                    : strategy == OptimizeStrategy.DriverPreference
+                        ? $"Optimize — {_currentGameName} V-Cache preferred (driver)"
+                        : $"Optimize — {_currentGameName} pinned to V-Cache CCD";
                 StatusColor = FindBrush("AccentGreenBrush");
             }
             else
             {
-                StatusText = $"Monitor — observing {_currentGameName} on CCD0";
+                StatusText = $"Monitor — observing {_currentGameName} on CCD 0";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
         }
         else
         {
-            if (_currentMode == OperationMode.Optimize)
+            if (_topology.IsSingleCcd)
+            {
+                StatusText = "Monitor — single V-Cache CCD";
+                StatusColor = FindBrush("AccentBlueBrush");
+            }
+            else if (_currentMode == OperationMode.Optimize)
             {
                 StatusText = "Optimize — waiting for game";
                 StatusColor = FindBrush("AccentPurpleBrush");
@@ -248,7 +288,7 @@ public class MainViewModel : ViewModelBase
     {
         int? gameCcd = _isGameActive ? 0 : null;
         Ccd0Panel.UpdateBorderState(_currentMode, _isGameActive, gameCcd);
-        Ccd1Panel.UpdateBorderState(_currentMode, _isGameActive, _isGameActive ? 1 : null);
+        Ccd1Panel?.UpdateBorderState(_currentMode, _isGameActive, _isGameActive ? 1 : null);
     }
 
     private static SolidColorBrush FindBrush(string key)

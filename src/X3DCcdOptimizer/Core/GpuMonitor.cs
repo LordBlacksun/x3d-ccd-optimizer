@@ -88,8 +88,9 @@ public class GpuMonitor : IDisposable
             }
             return false;
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug("GPU counter test failed: {Error}", ex.Message);
             return false;
         }
     }

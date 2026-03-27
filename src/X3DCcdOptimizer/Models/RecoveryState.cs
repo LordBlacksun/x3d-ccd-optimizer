@@ -18,6 +18,9 @@ public class RecoveryState
 
     [JsonPropertyName("modifiedProcesses")]
     public List<RecoveryProcessEntry> ModifiedProcesses { get; set; } = [];
+
+    [JsonPropertyName("strategy")]
+    public string Strategy { get; set; } = "affinityPinning";
 }
 
 public class RecoveryProcessEntry

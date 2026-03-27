@@ -10,7 +10,8 @@ namespace X3DCcdOptimizer.Core;
 public static class CcdMapper
 {
     /// <summary>
-    /// Detects the CCD topology of the current AMD X3D processor.
+    /// Detects the CCD topology of the current AMD Ryzen processor.
+    /// Supports dual-CCD X3D, single-CCD X3D, and dual-CCD standard Ryzen.
     /// </summary>
     public static CpuTopology Detect(AppConfig config)
     {
@@ -49,7 +50,7 @@ public static class CcdMapper
                 {
                     throw new InvalidOperationException(
                         $"Failed to detect CCD topology for {topology.CpuModel}. " +
-                        "This may not be an AMD X3D dual-CCD processor. " +
+                        "This may not be an AMD Ryzen processor with identifiable L3 cache topology. " +
                         "You can set ccdOverride in config.json to manually specify core assignments.",
                         wmiEx);
                 }
@@ -80,25 +81,14 @@ public static class CcdMapper
 
             var l3Caches = ParseL3Caches(buffer, bufferSize);
 
-            if (l3Caches.Count < 2)
-                throw new InvalidOperationException(
-                    $"Expected 2 L3 caches (dual CCD) but found {l3Caches.Count}");
+            if (l3Caches.Count == 0)
+                throw new InvalidOperationException("No L3 caches detected");
 
             Log.Debug("Found {Count} L3 caches", l3Caches.Count);
             foreach (var (sizeMB, mask) in l3Caches)
                 Log.Debug("  L3: {Size}MB, Mask: 0x{Mask:X}", sizeMB, mask);
 
-            // Find the largest L3 (V-Cache CCD) and smallest (Frequency CCD)
-            var sorted = l3Caches.OrderByDescending(c => c.SizeMB).ToList();
-            var vCacheEntry = sorted[0];
-            var freqEntry = sorted[1];
-
-            topology.VCacheL3SizeMB = vCacheEntry.SizeMB;
-            topology.StandardL3SizeMB = freqEntry.SizeMB;
-            topology.VCacheMask = new IntPtr((long)vCacheEntry.Mask);
-            topology.FrequencyMask = new IntPtr((long)freqEntry.Mask);
-            topology.VCacheCores = MaskToCores(vCacheEntry.Mask);
-            topology.FrequencyCores = MaskToCores(freqEntry.Mask);
+            AssignTopologyFromCaches(topology, l3Caches);
         }
         finally
         {
@@ -154,6 +144,7 @@ public static class CcdMapper
 
         using var cacheSearcher = new ManagementObjectSearcher(
             "SELECT * FROM Win32_CacheMemory WHERE Level = 5"); // Level 5 = L3 in WMI
+        cacheSearcher.Options.Timeout = TimeSpan.FromSeconds(10);
 
         int coresSoFar = 0;
         foreach (var cache in cacheSearcher.Get())
@@ -176,20 +167,45 @@ public static class CcdMapper
             Log.Debug("WMI L3: {Size}MB, estimated mask: 0x{Mask:X}", sizeMB, mask);
         }
 
-        if (l3Caches.Count < 2)
-            throw new InvalidOperationException(
-                $"WMI found {l3Caches.Count} L3 caches, expected 2 for dual CCD");
+        if (l3Caches.Count == 0)
+            throw new InvalidOperationException("WMI found no L3 caches");
 
-        var sorted = l3Caches.OrderByDescending(c => c.SizeMB).ToList();
-        var vCacheEntry = sorted[0];
-        var freqEntry = sorted[1];
+        AssignTopologyFromCaches(topology, l3Caches);
+    }
 
-        topology.VCacheL3SizeMB = vCacheEntry.SizeMB;
-        topology.StandardL3SizeMB = freqEntry.SizeMB;
-        topology.VCacheMask = new IntPtr((long)vCacheEntry.Mask);
-        topology.FrequencyMask = new IntPtr((long)freqEntry.Mask);
-        topology.VCacheCores = MaskToCores(vCacheEntry.Mask);
-        topology.FrequencyCores = MaskToCores(freqEntry.Mask);
+    private static void AssignTopologyFromCaches(CpuTopology topology, List<(int SizeMB, ulong Mask)> l3Caches)
+    {
+        if (l3Caches.Count == 1)
+        {
+            // Single-CCD processor (e.g., 7800X3D, 9800X3D)
+            var entry = l3Caches[0];
+            topology.Tier = ProcessorTier.SingleCcdX3D;
+            topology.VCacheL3SizeMB = entry.SizeMB;
+            topology.StandardL3SizeMB = 0;
+            topology.VCacheMask = new IntPtr((long)entry.Mask);
+            topology.FrequencyMask = IntPtr.Zero;
+            topology.VCacheCores = MaskToCores(entry.Mask);
+            topology.FrequencyCores = [];
+        }
+        else
+        {
+            // Dual-CCD: sort by L3 size to identify V-Cache vs standard
+            var sorted = l3Caches.OrderByDescending(c => c.SizeMB).ToList();
+            var largerEntry = sorted[0];
+            var smallerEntry = sorted[1];
+
+            topology.VCacheL3SizeMB = largerEntry.SizeMB;
+            topology.StandardL3SizeMB = smallerEntry.SizeMB;
+            topology.VCacheMask = new IntPtr((long)largerEntry.Mask);
+            topology.FrequencyMask = new IntPtr((long)smallerEntry.Mask);
+            topology.VCacheCores = MaskToCores(largerEntry.Mask);
+            topology.FrequencyCores = MaskToCores(smallerEntry.Mask);
+
+            // Determine tier: if one L3 is >2x the other, it's X3D; otherwise standard dual-CCD
+            topology.Tier = largerEntry.SizeMB > smallerEntry.SizeMB * 2
+                ? ProcessorTier.DualCcdX3D
+                : ProcessorTier.DualCcdStandard;
+        }
     }
 
     private static void ApplyOverride(CpuTopology topology, CcdOverrideConfig ovr)
@@ -208,6 +224,7 @@ public static class CcdMapper
         {
             using var searcher = new ManagementObjectSearcher(
                 "SELECT Name, NumberOfCores FROM Win32_Processor");
+            searcher.Options.Timeout = TimeSpan.FromSeconds(10);
             foreach (var obj in searcher.Get())
             {
                 var name = obj["Name"]?.ToString()?.Trim() ?? "Unknown";
@@ -237,20 +254,32 @@ public static class CcdMapper
     {
         ulong mask = 0;
         foreach (var core in cores)
-            mask |= 1UL << core;
+        {
+            if (core >= 0 && core < 64)
+                mask |= 1UL << core;
+            else
+                Log.Warning("Ignoring out-of-range core index {Core} in CCD override", core);
+        }
         return new IntPtr((long)mask);
     }
 
     private static void ValidateTopology(CpuTopology topology)
     {
         if (topology.VCacheCores.Length == 0)
-            throw new InvalidOperationException("V-Cache CCD has no cores");
-        if (topology.FrequencyCores.Length == 0)
-            throw new InvalidOperationException("Frequency CCD has no cores");
+            throw new InvalidOperationException("Primary CCD has no cores");
 
-        Log.Information("CCD0 (V-Cache): Cores {Cores}, L3: {L3}MB, Mask: {Mask}",
+        // FrequencyCores can be empty for single-CCD processors
+        if (topology.IsDualCcd && topology.FrequencyCores.Length == 0)
+            throw new InvalidOperationException("Second CCD has no cores");
+
+        Log.Information("Tier: {Tier}", topology.Tier);
+        Log.Information("CCD0: Cores {Cores}, L3: {L3}MB, Mask: {Mask}",
             string.Join(",", topology.VCacheCores), topology.VCacheL3SizeMB, topology.VCacheMaskHex);
-        Log.Information("CCD1 (Frequency): Cores {Cores}, L3: {L3}MB, Mask: {Mask}",
-            string.Join(",", topology.FrequencyCores), topology.StandardL3SizeMB, topology.FrequencyMaskHex);
+
+        if (topology.IsDualCcd)
+        {
+            Log.Information("CCD1: Cores {Cores}, L3: {L3}MB, Mask: {Mask}",
+                string.Join(",", topology.FrequencyCores), topology.StandardL3SizeMB, topology.FrequencyMaskHex);
+        }
     }
 }

@@ -3,6 +3,7 @@ namespace X3DCcdOptimizer.Models;
 public class CpuTopology
 {
     public string CpuModel { get; set; } = "Unknown";
+    public ProcessorTier Tier { get; set; } = ProcessorTier.DualCcdX3D;
     public IntPtr VCacheMask { get; set; }
     public IntPtr FrequencyMask { get; set; }
     public int[] VCacheCores { get; set; } = [];
@@ -13,12 +14,16 @@ public class CpuTopology
     public int TotalLogicalCores { get; set; }
 
     public bool HasVCache => VCacheL3SizeMB > StandardL3SizeMB * 2;
+    public bool IsSingleCcd => Tier == ProcessorTier.SingleCcdX3D;
+    public bool IsDualCcd => Tier != ProcessorTier.SingleCcdX3D;
 
     public string VCacheMaskHex => $"0x{VCacheMask.ToInt64():X4}";
-    public string FrequencyMaskHex => $"0x{FrequencyMask.ToInt64():X4}";
+    public string FrequencyMaskHex => FrequencyMask != IntPtr.Zero ? $"0x{FrequencyMask.ToInt64():X4}" : "N/A";
 
     public int GetCcdIndex(int coreIndex)
     {
+        // For single-CCD, all cores are CCD 0
+        if (IsSingleCcd) return 0;
         return Array.Exists(VCacheCores, c => c == coreIndex) ? 0 : 1;
     }
 }

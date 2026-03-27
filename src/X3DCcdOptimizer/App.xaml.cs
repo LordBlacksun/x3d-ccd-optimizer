@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
 using Serilog;
@@ -30,11 +31,22 @@ public partial class App : System.Windows.Application
     private DashboardWindow? _dashboardWindow;
     private OverlayWindow? _overlayWindow;
     private TrayIconManager? _trayManager;
+    private Mutex? _singleInstanceMutex;
     private bool _hotkeyRegistered;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Single-instance enforcement (SEC-002)
+        _singleInstanceMutex = new Mutex(true, @"Global\X3DCcdOptimizer_SingleInstance", out var createdNew);
+        if (!createdNew)
+        {
+            MessageBox.Show("X3D CCD Optimizer is already running.",
+                "Already Running", MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown();
+            return;
+        }
 
         // Global exception handlers
         DispatcherUnhandledException += (_, args) =>
@@ -49,6 +61,7 @@ public partial class App : System.Windows.Application
         };
 
         _config = AppConfig.Load();
+        _config.Validate();
         AppLogger.Initialize(_config.Logging.Level);
         Log.Information("X3D Dual CCD Optimizer v{Version}", Version);
 
@@ -70,24 +83,39 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        Log.Information("CPU: {Model}", _topology.CpuModel);
-        Log.Information("CCD0 (V-Cache): Cores {Cores}, L3: {L3}MB, Mask: {Mask}",
-            string.Join(",", _topology.VCacheCores), _topology.VCacheL3SizeMB, _topology.VCacheMaskHex);
-        Log.Information("CCD1 (Frequency): Cores {Cores}, L3: {L3}MB, Mask: {Mask}",
-            string.Join(",", _topology.FrequencyCores), _topology.StandardL3SizeMB, _topology.FrequencyMaskHex);
+        Log.Information("CPU: {Model} | Tier: {Tier}", _topology.CpuModel, _topology.Tier);
 
         var mode = _config.GetOperationMode();
-        if (mode == OperationMode.Optimize && !_topology.HasVCache)
+
+        // Tier-based mode gating
+        if (_topology.IsSingleCcd && mode == OperationMode.Optimize)
         {
-            Log.Warning("Config says Optimize but no V-Cache detected — falling back to Monitor");
+            Log.Warning("Single-CCD processor — forcing Monitor mode (no CCD steering possible)");
             mode = OperationMode.Monitor;
+        }
+        else if (mode == OperationMode.Optimize && !_topology.IsDualCcd)
+        {
+            Log.Warning("Config says Optimize but topology doesn't support it — falling back to Monitor");
+            mode = OperationMode.Monitor;
+        }
+
+        var strategy = _config.GetOptimizeStrategy();
+        if (strategy == OptimizeStrategy.DriverPreference && !VCacheDriverManager.IsDriverAvailable)
+        {
+            Log.Warning("Config says DriverPreference but amd3dvcache driver not detected — falling back to AffinityPinning");
+            strategy = OptimizeStrategy.AffinityPinning;
+        }
+        if (strategy == OptimizeStrategy.DriverPreference && _topology.Tier != ProcessorTier.DualCcdX3D)
+        {
+            Log.Warning("DriverPreference only available for dual-CCD X3D — falling back to AffinityPinning");
+            strategy = OptimizeStrategy.AffinityPinning;
         }
 
         // Engine
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
         _gpuMonitor = new GpuMonitor();
         _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses);
-        _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode);
+        _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode, strategy);
         _processWatcher = new ProcessWatcher(
             _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground,
             _config.AutoDetection.Enabled, _config.AutoDetection.GpuThresholdPercent,
@@ -148,8 +176,8 @@ public partial class App : System.Windows.Application
         _perfMon.Start();
         _processWatcher.Start();
 
-        Log.Information("Monitoring started. Mode: {Mode}. Polling: {Interval}ms. Manual games: {Count}.",
-            mode, _config.PollingIntervalMs, _gameDetector.GameCount);
+        Log.Information("Monitoring started. Mode: {Mode}. Strategy: {Strategy}. Polling: {Interval}ms. Manual games: {Count}.",
+            mode, strategy, _config.PollingIntervalMs, _gameDetector.GameCount);
 
         // Register hotkey (after window is created so we have an HWND)
         _dashboardWindow.SourceInitialized += (_, _) => RegisterOverlayHotkey();
@@ -227,7 +255,7 @@ public partial class App : System.Windows.Application
                 if (hwnd != IntPtr.Zero)
                     User32.UnregisterHotKey(hwnd, HotkeyId);
             }
-            catch { /* shutting down */ }
+            catch (Exception ex) { Log.Debug(ex, "Failed to unregister hotkey during shutdown"); }
         }
 
         // Save state

@@ -14,7 +14,7 @@ public class ProcessWatcher : IDisposable
     private readonly int _detectionDelaySec;
     private readonly int _exitDelaySec;
     private readonly System.Timers.Timer _timer;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     // Auto-detection debounce state
     private int _autoDetectCandidatePid;
@@ -58,6 +58,8 @@ public class ProcessWatcher : IDisposable
 
     private void Poll()
     {
+        if (_disposed) return;
+
         try
         {
             // Check if currently tracked game is still running
@@ -176,7 +178,7 @@ public class ProcessWatcher : IDisposable
                         return;
                     }
                 }
-                catch { }
+                catch (Exception ex) { Log.Debug("Skipping process during scan: {Error}", ex.Message); }
                 finally
                 {
                     proc.Dispose();
@@ -191,7 +193,8 @@ public class ProcessWatcher : IDisposable
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "Error during process scan");
+            if (!_disposed)
+                Log.Warning(ex, "Error during process scan");
         }
     }
 
@@ -247,7 +250,7 @@ public class ProcessWatcher : IDisposable
             GameDetected?.Invoke(info);
         }
         catch (ArgumentException) { }
-        catch { }
+        catch (Exception ex) { Log.Debug("Auto-detect error for PID {Pid}: {Error}", foregroundPid, ex.Message); }
     }
 
     private void ResetAutoDetectState()

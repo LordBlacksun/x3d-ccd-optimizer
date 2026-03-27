@@ -17,8 +17,14 @@ public class GameDetector
     private readonly HashSet<string> _manualGames;
     private readonly Dictionary<string, string> _knownGames; // exe -> display name
     private readonly HashSet<string> _excludedProcesses;
+    private readonly object _gameLock = new();
+    private ProcessInfo? _currentGame;
 
-    public ProcessInfo? CurrentGame { get; set; }
+    public ProcessInfo? CurrentGame
+    {
+        get { lock (_gameLock) return _currentGame; }
+        set { lock (_gameLock) _currentGame = value; }
+    }
     public int GameCount => _manualGames.Count + _knownGames.Count;
 
     public GameDetector(IEnumerable<string> manualGames, IEnumerable<string>? excludedProcesses = null)

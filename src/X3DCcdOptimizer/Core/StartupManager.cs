@@ -48,8 +48,9 @@ public static class StartupManager
             using var key = Registry.CurrentUser.OpenSubKey(RunKey, false);
             return key?.GetValue(AppName) != null;
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Debug("Failed to check startup registration: {Error}", ex.Message);
             return false;
         }
     }
