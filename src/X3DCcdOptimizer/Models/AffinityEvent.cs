@@ -21,6 +21,7 @@ public record AffinityEvent
 {
     public DateTime Timestamp { get; init; } = DateTime.Now;
     public string ProcessName { get; init; } = "";
+    public string? DisplayName { get; init; }
     public int Pid { get; init; }
     public AffinityAction Action { get; init; }
     public string Detail { get; init; } = "";

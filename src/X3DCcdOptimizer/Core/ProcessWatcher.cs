@@ -164,12 +164,15 @@ public class ProcessWatcher : IDisposable
                         {
                             DetectionMethod.Manual => "manual",
                             DetectionMethod.Database => "database",
+                            DetectionMethod.LauncherScan => "launcher",
                             _ => "unknown"
                         };
 
+                        var displayName = _detector.GetDisplayName(name);
                         var info = new ProcessInfo
                         {
                             Name = name + ".exe",
+                            DisplayName = displayName,
                             Pid = proc.Id,
                             DetectionSource = $"[{source}]",
                             Method = method.Value
@@ -253,9 +256,11 @@ public class ProcessWatcher : IDisposable
                 return; // Still waiting
 
             // Auto-detected!
+            var autoDisplayName = _detector.GetDisplayName(name);
             var info = new ProcessInfo
             {
                 Name = name + ".exe",
+                DisplayName = autoDisplayName,
                 Pid = foregroundPid,
                 DetectionSource = $"[auto-detected, GPU: {gpuUsage:F0}%]",
                 Method = DetectionMethod.Auto,
