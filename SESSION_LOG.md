@@ -4,6 +4,26 @@ Development session history for X3D Dual CCD Optimizer.
 
 ---
 
+## Session 7 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Bug fixes, documentation, UI polish
+
+### What Was Done
+
+1. **Footer core/thread count fix** (`ac8d968`) — Footer showed "32 cores" using logical processor count. Added `TotalPhysicalCores` to CpuTopology via WMI `Win32_Processor.NumberOfCores`. Footer now shows "16 cores | 32 threads". `GetCpuModel()` renamed to `GetCpuInfo()` returning both model name and physical core count.
+
+2. **README known limitations** (`c83f429`) — Added section noting that the mini overlay requires borderless windowed or windowed mode (exclusive fullscreen takes over the display adapter).
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| `c83f429` | develop | docs: add known limitations section to README |
+| `ac8d968` | develop | fix: display correct physical core and thread count in footer |
+
+---
+
 ## Session 6 — 2026-03-27
 
 **Agent:** Claude Opus 4.6 (1M context)
