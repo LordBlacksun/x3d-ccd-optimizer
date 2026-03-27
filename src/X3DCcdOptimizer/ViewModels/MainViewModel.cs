@@ -118,7 +118,7 @@ public class MainViewModel : ViewModelBase
         Ccd1Panel = new CcdPanelViewModel(topology, 1);
 
         _statusColor = FindBrush("AccentBlueBrush");
-        FooterText = $"v0.2.0 | {topology.CpuModel} | {topology.TotalLogicalCores} cores | Polling: {config.PollingIntervalMs}ms";
+        FooterText = $"v0.2.0 | {topology.CpuModel} | {topology.TotalPhysicalCores} cores | {topology.TotalLogicalCores} threads | Polling: {config.PollingIntervalMs}ms";
 
         ToggleModeCommand = new RelayCommand(
             () => IsOptimizeMode = !IsOptimizeMode,

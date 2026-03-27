@@ -14,14 +14,16 @@ public static class CcdMapper
     /// </summary>
     public static CpuTopology Detect(AppConfig config)
     {
+        var (model, physicalCores) = GetCpuInfo();
         var topology = new CpuTopology
         {
-            CpuModel = GetCpuModel(),
+            CpuModel = model,
+            TotalPhysicalCores = physicalCores,
             TotalLogicalCores = Environment.ProcessorCount
         };
 
-        Log.Information("Detecting CCD topology for {CpuModel} ({Cores} logical cores)",
-            topology.CpuModel, topology.TotalLogicalCores);
+        Log.Information("Detecting CCD topology for {CpuModel} ({Physical} cores, {Logical} threads)",
+            topology.CpuModel, topology.TotalPhysicalCores, topology.TotalLogicalCores);
 
         try
         {
@@ -200,21 +202,24 @@ public static class CcdMapper
         topology.StandardL3SizeMB = 32;
     }
 
-    private static string GetCpuModel()
+    private static (string Model, int PhysicalCores) GetCpuInfo()
     {
         try
         {
-            using var searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_Processor");
+            using var searcher = new ManagementObjectSearcher(
+                "SELECT Name, NumberOfCores FROM Win32_Processor");
             foreach (var obj in searcher.Get())
             {
-                return obj["Name"]?.ToString()?.Trim() ?? "Unknown";
+                var name = obj["Name"]?.ToString()?.Trim() ?? "Unknown";
+                var cores = Convert.ToInt32(obj["NumberOfCores"]);
+                return (name, cores);
             }
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "Failed to query CPU model via WMI");
+            Log.Warning(ex, "Failed to query CPU info via WMI");
         }
-        return "Unknown";
+        return ("Unknown", Environment.ProcessorCount / 2);
     }
 
     private static int[] MaskToCores(ulong mask)
