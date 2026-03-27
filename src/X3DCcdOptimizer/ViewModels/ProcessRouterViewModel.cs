@@ -36,11 +36,12 @@ public class ProcessRouterViewModel : ViewModelBase
 
     public void OnAffinityChanged(AffinityEvent evt)
     {
+        var displayName = evt.DisplayName ?? evt.ProcessName;
         switch (evt.Action)
         {
             case AffinityAction.Engaged:
             case AffinityAction.WouldEngage:
-                AddOrUpdate(evt.ProcessName, evt.Pid, "V-Cache", true, evt.Detail,
+                AddOrUpdate(displayName, evt.Pid, "V-Cache", true, evt.Detail,
                     evt.Action == AffinityAction.WouldEngage, _ccd0Name, isGame: true);
                 break;
 
@@ -53,7 +54,7 @@ public class ProcessRouterViewModel : ViewModelBase
 
             case AffinityAction.DriverSet:
             case AffinityAction.WouldSetDriver:
-                AddOrUpdate(evt.ProcessName, evt.Pid, "V-Cache (Driver)", true, evt.Detail,
+                AddOrUpdate(displayName, evt.Pid, "V-Cache (Driver)", true, evt.Detail,
                     evt.Action == AffinityAction.WouldSetDriver, _ccd0Name, isGame: true);
                 break;
 

@@ -67,7 +67,7 @@ public class AffinityManager
             if (_topology.IsSingleCcd)
             {
                 Emit(AffinityAction.Skipped, game.Name, game.Pid,
-                    "single-CCD processor — no CCD steering needed");
+                    "single-CCD processor — no CCD steering needed", game.DisplayName);
                 return;
             }
 
@@ -205,7 +205,7 @@ public class AffinityManager
         {
             var err = Marshal.GetLastWin32Error();
             Emit(AffinityAction.Error, game.Name, game.Pid,
-                $"Failed to open process (error {err})");
+                $"Failed to open process (error {err})", game.DisplayName);
             return;
         }
 
@@ -226,13 +226,13 @@ public class AffinityManager
                 RecoveryManager.AddModifiedProcess(game.Name, game.Pid,
                     _originalMasks.GetValueOrDefault(game.Pid, new IntPtr(-1)));
                 Emit(AffinityAction.Engaged, game.Name, game.Pid,
-                    $"→ CCD0 (V-Cache, mask {_topology.VCacheMaskHex})");
+                    $"→ CCD0 (V-Cache, mask {_topology.VCacheMaskHex})", game.DisplayName);
             }
             else
             {
                 var err = Marshal.GetLastWin32Error();
                 Emit(AffinityAction.Error, game.Name, game.Pid,
-                    $"SetProcessAffinityMask failed (error {err})");
+                    $"SetProcessAffinityMask failed (error {err})", game.DisplayName);
             }
         }
         finally
@@ -309,19 +309,19 @@ public class AffinityManager
         if (VCacheDriverManager.SetCachePreferred())
         {
             Emit(AffinityAction.DriverSet, game.Name, game.Pid,
-                "amd3dvcache DefaultType=1 (PREFER_CACHE)");
+                "amd3dvcache DefaultType=1 (PREFER_CACHE)", game.DisplayName);
         }
         else
         {
             Emit(AffinityAction.Error, game.Name, game.Pid,
-                "Failed to set amd3dvcache driver preference");
+                "Failed to set amd3dvcache driver preference", game.DisplayName);
         }
     }
 
     private void SimulateEngageViaDriver(ProcessInfo game)
     {
         Emit(AffinityAction.WouldSetDriver, game.Name, game.Pid,
-            "would set amd3dvcache DefaultType=1 (PREFER_CACHE)");
+            "would set amd3dvcache DefaultType=1 (PREFER_CACHE)", game.DisplayName);
     }
 
     private void RestoreDriver()
@@ -341,7 +341,7 @@ public class AffinityManager
     private void SimulateEngage(ProcessInfo game)
     {
         Emit(AffinityAction.WouldEngage, game.Name, game.Pid,
-            $"→ CCD0 (V-Cache, mask {_topology.VCacheMaskHex})");
+            $"→ CCD0 (V-Cache, mask {_topology.VCacheMaskHex})", game.DisplayName);
     }
 
     private void SimulateMigrateBackground(int gamePid)
@@ -449,12 +449,14 @@ public class AffinityManager
         return _protectedProcesses.Contains(processName);
     }
 
-    private void Emit(AffinityAction action, string processName, int pid, string detail)
+    private void Emit(AffinityAction action, string processName, int pid, string detail,
+        string? displayName = null)
     {
         var evt = new AffinityEvent
         {
             Action = action,
             ProcessName = processName,
+            DisplayName = displayName,
             Pid = pid,
             Detail = detail
         };

@@ -158,10 +158,13 @@ public partial class App : System.Windows.Application
             }
         }
 
+        // Scan installed game launchers (Steam, Epic)
+        var launcherGames = GameLibraryScanner.LoadOrScan();
+
         // Engine
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
         _gpuMonitor = new GpuMonitor();
-        _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses);
+        _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses, launcherGames);
         _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode, strategy);
         _processWatcher = new ProcessWatcher(
             _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground,
@@ -210,7 +213,6 @@ public partial class App : System.Windows.Application
 
         // Wire engine events
         _perfMon.SnapshotReady += _mainViewModel.OnSnapshotReady;
-        _perfMon.SnapshotReady += _overlayViewModel.OnSnapshotReady;
         _affinityManager.AffinityChanged += _mainViewModel.OnAffinityChanged;
         _affinityManager.AffinityChanged += _overlayViewModel.OnAffinityChanged;
         _processWatcher.DetectionSkipped += _mainViewModel.OnAffinityChanged;
@@ -229,6 +231,24 @@ public partial class App : System.Windows.Application
 
         Log.Information("Monitoring started. Mode: {Mode}. Strategy: {Strategy}. Polling: {Interval}ms. Manual games: {Count}.",
             mode, strategy, _config.PollingIntervalMs, _gameDetector.GameCount);
+
+        // Background rescan if launcher cache is stale (>7 days)
+        if (GameLibraryScanner.IsCacheStale())
+        {
+            Task.Run(() =>
+            {
+                try
+                {
+                    var freshGames = GameLibraryScanner.ScanAll();
+                    GameLibraryScanner.SaveCache(freshGames);
+                    _gameDetector.UpdateLauncherGames(freshGames);
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Background launcher rescan failed");
+                }
+            });
+        }
 
         // Register hotkey (after window is created so we have an HWND)
         _dashboardWindow.SourceInitialized += (_, _) => RegisterOverlayHotkey();
@@ -287,10 +307,9 @@ public partial class App : System.Windows.Application
     protected override void OnExit(ExitEventArgs e)
     {
         // Unwire events before disposing to prevent callbacks into disposed objects
-        if (_perfMon != null && _mainViewModel != null && _overlayViewModel != null)
+        if (_perfMon != null && _mainViewModel != null)
         {
             _perfMon.SnapshotReady -= _mainViewModel.OnSnapshotReady;
-            _perfMon.SnapshotReady -= _overlayViewModel.OnSnapshotReady;
         }
         if (_affinityManager != null && _mainViewModel != null && _overlayViewModel != null)
         {

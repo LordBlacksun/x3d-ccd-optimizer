@@ -21,6 +21,7 @@ public class MainViewModel : ViewModelBase
     private bool _isGameActive;
     private string _sessionDurationText = "";
     private string _currentGameName = "";
+    private string _currentGameDisplayName = "";
     private DateTime _sessionStart;
     private bool _isOverlayVisible;
 
@@ -194,22 +195,24 @@ public class MainViewModel : ViewModelBase
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             _currentGameName = game.Name;
+            _currentGameDisplayName = game.DisplayName ?? game.Name;
             IsGameActive = true;
             _sessionStart = DateTime.Now;
             _sessionTimer.Start();
 
+            var display = _currentGameDisplayName;
             var strat = _config.GetOptimizeStrategy();
             if (_topology.IsSingleCcd)
             {
-                Ccd0Panel.RoleLabel = $"Active — {game.Name}";
+                Ccd0Panel.RoleLabel = $"Active \u2014 {display}";
             }
             else if (_currentMode == OperationMode.Optimize)
             {
                 Ccd0Panel.RoleLabel = _topology.Tier == ProcessorTier.DualCcdStandard
-                    ? $"Pinned — {game.Name}"
+                    ? $"Pinned \u2014 {display}"
                     : strat == OptimizeStrategy.DriverPreference
-                        ? $"V-Cache Preferred — {game.Name}"
-                        : $"Gaming — {game.Name}";
+                        ? $"V-Cache Preferred \u2014 {display}"
+                        : $"Gaming \u2014 {display}";
                 if (Ccd1Panel != null)
                     Ccd1Panel.RoleLabel = strat == OptimizeStrategy.DriverPreference
                         ? "Standard"
@@ -217,7 +220,7 @@ public class MainViewModel : ViewModelBase
             }
             else
             {
-                Ccd0Panel.RoleLabel = $"Observed — {game.Name}";
+                Ccd0Panel.RoleLabel = $"Observed \u2014 {display}";
                 if (Ccd1Panel != null)
                     Ccd1Panel.RoleLabel = "Idle";
             }
@@ -232,6 +235,7 @@ public class MainViewModel : ViewModelBase
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             _currentGameName = "";
+            _currentGameDisplayName = "";
             IsGameActive = false;
             _sessionTimer.Stop();
             SessionDurationText = "";
@@ -248,28 +252,29 @@ public class MainViewModel : ViewModelBase
     private void UpdateStatus()
     {
         var strategy = _config.GetOptimizeStrategy();
+        var display = _currentGameDisplayName;
 
         if (_isGameActive)
         {
             if (_topology.IsSingleCcd)
             {
                 StatusText = _topology.Tier == ProcessorTier.SingleCcdX3D
-                    ? $"Monitor — {_currentGameName} on V-Cache CCD"
-                    : $"Monitor — {_currentGameName} on CCD 0";
+                    ? $"Monitor \u2014 {display} on V-Cache CCD"
+                    : $"Monitor \u2014 {display} on CCD 0";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
             else if (_currentMode == OperationMode.Optimize)
             {
                 StatusText = _topology.Tier == ProcessorTier.DualCcdStandard
-                    ? $"Optimize — {_currentGameName} pinned to CCD 0"
+                    ? $"Optimize \u2014 {display} pinned to CCD 0"
                     : strategy == OptimizeStrategy.DriverPreference
-                        ? $"Optimize — {_currentGameName} V-Cache preferred (driver)"
-                        : $"Optimize — {_currentGameName} pinned to V-Cache CCD";
+                        ? $"Optimize \u2014 {display} V-Cache preferred (driver)"
+                        : $"Optimize \u2014 {display} pinned to V-Cache CCD";
                 StatusColor = FindBrush("AccentGreenBrush");
             }
             else
             {
-                StatusText = $"Monitor — observing {_currentGameName} on CCD 0";
+                StatusText = $"Monitor \u2014 observing {display} on CCD 0";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
         }

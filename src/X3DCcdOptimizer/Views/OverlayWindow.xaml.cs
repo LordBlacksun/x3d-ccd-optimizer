@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using X3DCcdOptimizer.Config;
 using X3DCcdOptimizer.Models;
@@ -14,6 +15,7 @@ public partial class OverlayWindow : Window
     private readonly OverlayConfig _overlayConfig;
     private OverlayViewModel? _viewModel;
     private bool _eventsSubscribed;
+    private const double SlideDistance = 60;
 
     public OverlayWindow(OverlayConfig overlayConfig)
     {
@@ -37,10 +39,14 @@ public partial class OverlayWindow : Window
         else
         {
             // Default: top-right corner with margin
-            Left = SystemParameters.PrimaryScreenWidth - Width - 20;
+            Left = SystemParameters.PrimaryScreenWidth - 320;
             Top = 20;
             WindowStartupLocation = WindowStartupLocation.Manual;
         }
+
+        // Start hidden for slide-in
+        Opacity = 0;
+        SlideTransform.X = SlideDistance;
 
         Loaded += OnLoaded;
     }
@@ -57,6 +63,9 @@ public partial class OverlayWindow : Window
             ContextMenu = BuildContextMenu();
             _eventsSubscribed = true;
         }
+
+        // Slide in on first show
+        SlideIn();
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -64,19 +73,34 @@ public partial class OverlayWindow : Window
         if (e.PropertyName == nameof(OverlayViewModel.IsFadedOut))
         {
             if (_viewModel!.IsFadedOut)
-                AnimateOpacity(0.0, 500);
+                SlideOut();
             else
-                AnimateOpacity(_overlayConfig.Opacity, 200);
+                SlideIn();
         }
     }
 
-    private void AnimateOpacity(double to, int durationMs)
+    private void SlideIn()
     {
-        var anim = new DoubleAnimation(to, TimeSpan.FromMilliseconds(durationMs))
-        {
-            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        };
-        BeginAnimation(OpacityProperty, anim);
+        var duration = TimeSpan.FromMilliseconds(300);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseOut };
+
+        var slideAnim = new DoubleAnimation(0, duration) { EasingFunction = ease };
+        SlideTransform.BeginAnimation(TranslateTransform.XProperty, slideAnim);
+
+        var fadeAnim = new DoubleAnimation(_overlayConfig.Opacity, duration) { EasingFunction = ease };
+        BeginAnimation(OpacityProperty, fadeAnim);
+    }
+
+    private void SlideOut()
+    {
+        var duration = TimeSpan.FromMilliseconds(250);
+        var ease = new CubicEase { EasingMode = EasingMode.EaseIn };
+
+        var slideAnim = new DoubleAnimation(SlideDistance, duration) { EasingFunction = ease };
+        SlideTransform.BeginAnimation(TranslateTransform.XProperty, slideAnim);
+
+        var fadeAnim = new DoubleAnimation(0, duration) { EasingFunction = ease };
+        BeginAnimation(OpacityProperty, fadeAnim);
     }
 
     private void OnPixelShift(double dx, double dy)
@@ -89,8 +113,8 @@ public partial class OverlayWindow : Window
         var st = SystemParameters.VirtualScreenTop;
         var sw = SystemParameters.VirtualScreenWidth;
         var sh = SystemParameters.VirtualScreenHeight;
-        newLeft = Math.Clamp(newLeft, sl, sl + sw - Width);
-        newTop = Math.Clamp(newTop, st, st + sh - Height);
+        newLeft = Math.Clamp(newLeft, sl, sl + sw - ActualWidth);
+        newTop = Math.Clamp(newTop, st, st + sh - ActualHeight);
 
         Left = newLeft;
         Top = newTop;

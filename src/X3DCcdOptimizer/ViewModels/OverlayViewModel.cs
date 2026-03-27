@@ -15,21 +15,11 @@ public class OverlayViewModel : ViewModelBase
     private readonly Random _rng = new();
     private readonly OverlayConfig _overlayConfig;
 
-    private string _modeText = "Monitor";
     private SolidColorBrush _modeDotColor;
-    private string _gameName = "No game detected";
-    private SolidColorBrush _gameNameColor;
-    private double _ccd0Load;
-    private double _ccd1Load;
-    private string _lastActionText = "";
+    private string _primaryText = "Monitoring";
+    private string _secondaryText = "";
     private double _overlayOpacity;
     private bool _isFadedOut;
-
-    public string ModeText
-    {
-        get => _modeText;
-        set => SetProperty(ref _modeText, value);
-    }
 
     public SolidColorBrush ModeDotColor
     {
@@ -37,47 +27,27 @@ public class OverlayViewModel : ViewModelBase
         set => SetProperty(ref _modeDotColor, value);
     }
 
-    public string GameName
+    public string PrimaryText
     {
-        get => _gameName;
-        set => SetProperty(ref _gameName, value);
-    }
-
-    public SolidColorBrush GameNameColor
-    {
-        get => _gameNameColor;
-        set => SetProperty(ref _gameNameColor, value);
-    }
-
-    public double Ccd0Load
-    {
-        get => _ccd0Load;
+        get => _primaryText;
         set
         {
-            if (SetProperty(ref _ccd0Load, value))
-                OnPropertyChanged(nameof(Ccd0LoadText));
+            if (SetProperty(ref _primaryText, value))
+                OnPropertyChanged(nameof(IsTwoLine));
         }
     }
 
-    public string Ccd0LoadText => $"{_ccd0Load:F0}%";
-
-    public double Ccd1Load
+    public string SecondaryText
     {
-        get => _ccd1Load;
+        get => _secondaryText;
         set
         {
-            if (SetProperty(ref _ccd1Load, value))
-                OnPropertyChanged(nameof(Ccd1LoadText));
+            if (SetProperty(ref _secondaryText, value))
+                OnPropertyChanged(nameof(IsTwoLine));
         }
     }
 
-    public string Ccd1LoadText => $"{_ccd1Load:F0}%";
-
-    public string LastActionText
-    {
-        get => _lastActionText;
-        set => SetProperty(ref _lastActionText, value);
-    }
+    public bool IsTwoLine => !string.IsNullOrEmpty(_secondaryText);
 
     public double OverlayOpacity
     {
@@ -100,7 +70,6 @@ public class OverlayViewModel : ViewModelBase
         _overlayConfig = overlayConfig;
         _overlayOpacity = overlayConfig.Opacity;
         _modeDotColor = FindBrush("AccentBlueBrush");
-        _gameNameColor = FindBrush("TextTertiaryBrush");
 
         _autoHideTimer = new DispatcherTimer
         {
@@ -128,43 +97,39 @@ public class OverlayViewModel : ViewModelBase
         _autoHideTimer.Start();
     }
 
-    public void OnSnapshotReady(CoreSnapshot[] snapshots)
-    {
-        Application.Current?.Dispatcher.BeginInvoke(() =>
-        {
-            var ccd0 = snapshots.Where(s => s.CcdIndex == 0);
-            var ccd1 = snapshots.Where(s => s.CcdIndex == 1);
-
-            var c0 = ccd0.ToArray();
-            var c1 = ccd1.ToArray();
-
-            Ccd0Load = c0.Length > 0 ? c0.Average(s => s.LoadPercent) : 0;
-            Ccd1Load = c1.Length > 0 ? c1.Average(s => s.LoadPercent) : 0;
-        });
-    }
-
     public void OnAffinityChanged(AffinityEvent evt)
     {
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
-            var prefix = evt.Action switch
+            var display = evt.DisplayName ?? evt.ProcessName;
+            switch (evt.Action)
             {
-                AffinityAction.Engaged => "ENGAGE",
-                AffinityAction.Migrated => "MIGRATE",
-                AffinityAction.Restored => "RESTORE",
-                AffinityAction.WouldEngage => "[M] WOULD ENGAGE",
-                AffinityAction.WouldMigrate => "[M] WOULD MIGRATE",
-                AffinityAction.WouldRestore => "[M] WOULD RESTORE",
-                AffinityAction.Skipped => "SKIP",
-                AffinityAction.Error => "ERROR",
-                AffinityAction.DriverSet => "DRIVER SET",
-                AffinityAction.DriverRestored => "DRIVER RESTORE",
-                AffinityAction.WouldSetDriver => "[M] DRIVER SET",
-                AffinityAction.WouldRestoreDriver => "[M] DRIVER RESTORE",
-                AffinityAction.DetectionSkipped => "[AUTO] BELOW THRESHOLD",
-                _ => ""
-            };
-            LastActionText = $"{prefix}: {evt.ProcessName}";
+                case AffinityAction.Engaged:
+                    SecondaryText = $"\u2192 V-Cache CCD";
+                    break;
+                case AffinityAction.WouldEngage:
+                    SecondaryText = $"\u2192 V-Cache CCD (monitor)";
+                    break;
+                case AffinityAction.DriverSet:
+                    SecondaryText = "V-Cache preferred (driver)";
+                    break;
+                case AffinityAction.WouldSetDriver:
+                    SecondaryText = "V-Cache preferred (monitor)";
+                    break;
+                case AffinityAction.Restored:
+                case AffinityAction.WouldRestore:
+                case AffinityAction.DriverRestored:
+                case AffinityAction.WouldRestoreDriver:
+                    SecondaryText = "Affinities restored";
+                    break;
+                case AffinityAction.Error:
+                    PrimaryText = display;
+                    SecondaryText = "Error: " + evt.Detail;
+                    break;
+                default:
+                    return; // Don't reset auto-hide for Migrated/Skipped/etc.
+            }
+
             ResetAutoHide();
         });
     }
@@ -173,8 +138,8 @@ public class OverlayViewModel : ViewModelBase
     {
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
-            GameName = game.Name;
-            GameNameColor = FindBrush("TextPrimaryBrush");
+            PrimaryText = game.DisplayName ?? game.Name;
+            // SecondaryText will be set by the subsequent AffinityChanged event
             ResetAutoHide();
         });
     }
@@ -183,16 +148,14 @@ public class OverlayViewModel : ViewModelBase
     {
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
-            GameName = "No game detected";
-            GameNameColor = FindBrush("TextTertiaryBrush");
-            LastActionText = "";
+            PrimaryText = game.DisplayName ?? game.Name;
+            SecondaryText = "Session ended";
             ResetAutoHide();
         });
     }
 
     public void OnModeChanged(OperationMode mode, bool gameActive)
     {
-        ModeText = mode.ToString();
         ModeDotColor = mode switch
         {
             OperationMode.Monitor => FindBrush("AccentBlueBrush"),
@@ -200,6 +163,13 @@ public class OverlayViewModel : ViewModelBase
             OperationMode.Optimize => FindBrush("AccentPurpleBrush"),
             _ => FindBrush("AccentBlueBrush")
         };
+
+        if (!gameActive)
+        {
+            PrimaryText = mode == OperationMode.Optimize ? "Optimize \u2014 ready" : "Monitoring";
+            SecondaryText = "";
+        }
+
         ResetAutoHide();
     }
 
