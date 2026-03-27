@@ -1,6 +1,7 @@
 <Window x:Class="X3DCcdOptimizer.Views.OverlayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:converters="clr-namespace:X3DCcdOptimizer.Converters"
         Title="X3D Overlay"
         SizeToContent="WidthAndHeight"
         WindowStyle="None"
@@ -13,6 +14,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <converters:LoadBarWidthConverter x:Key="LoadBarWidth"/>
     </Window.Resources>
 
     <Border x:Name="ToastBorder" CornerRadius="20" Padding="14,8"
@@ -45,6 +47,66 @@
                        Margin="16,2,0,0"
                        MaxWidth="340"
                        Visibility="{Binding IsTwoLine, Converter={StaticResource BoolToVis}}"/>
+
+            <!-- CCD0 load bar (visible when ShowLoadBars is true) -->
+            <Grid Margin="0,4,0,0"
+                  Visibility="{Binding ShowLoadBars, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="50"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="32"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Ccd0Label}"
+                           FontFamily="{StaticResource FontMono}" FontSize="9"
+                           Foreground="{StaticResource TextTertiaryBrush}"
+                           VerticalAlignment="Center"/>
+                <Border Grid.Column="1" Height="8" CornerRadius="4"
+                        Background="#30FFFFFF">
+                    <Border CornerRadius="4" HorizontalAlignment="Left"
+                            Background="#1D9E75">
+                        <Border.Width>
+                            <MultiBinding Converter="{StaticResource LoadBarWidth}">
+                                <Binding Path="Ccd0Load"/>
+                                <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Border}"/>
+                            </MultiBinding>
+                        </Border.Width>
+                    </Border>
+                </Border>
+                <TextBlock Grid.Column="2" Text="{Binding Ccd0LoadText}"
+                           FontFamily="{StaticResource FontMono}" FontSize="9"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- CCD1 load bar (visible when ShowLoadBars + dual CCD) -->
+            <Grid Margin="0,2,0,0"
+                  Visibility="{Binding ShowSecondBar, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="50"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="32"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="{Binding Ccd1Label}"
+                           FontFamily="{StaticResource FontMono}" FontSize="9"
+                           Foreground="{StaticResource TextTertiaryBrush}"
+                           VerticalAlignment="Center"/>
+                <Border Grid.Column="1" Height="8" CornerRadius="4"
+                        Background="#30FFFFFF">
+                    <Border CornerRadius="4" HorizontalAlignment="Left"
+                            Background="#378ADD">
+                        <Border.Width>
+                            <MultiBinding Converter="{StaticResource LoadBarWidth}">
+                                <Binding Path="Ccd1Load"/>
+                                <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Border}"/>
+                            </MultiBinding>
+                        </Border.Width>
+                    </Border>
+                </Border>
+                <TextBlock Grid.Column="2" Text="{Binding Ccd1LoadText}"
+                           FontFamily="{StaticResource FontMono}" FontSize="9"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
         </StackPanel>
     </Border>
 </Window>

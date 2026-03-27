@@ -213,6 +213,7 @@ public partial class App : System.Windows.Application
 
         // Wire engine events
         _perfMon.SnapshotReady += _mainViewModel.OnSnapshotReady;
+        _perfMon.SnapshotReady += _overlayViewModel.OnSnapshotReady;
         _affinityManager.AffinityChanged += _mainViewModel.OnAffinityChanged;
         _affinityManager.AffinityChanged += _overlayViewModel.OnAffinityChanged;
         _processWatcher.DetectionSkipped += _mainViewModel.OnAffinityChanged;
@@ -310,6 +311,8 @@ public partial class App : System.Windows.Application
         if (_perfMon != null && _mainViewModel != null)
         {
             _perfMon.SnapshotReady -= _mainViewModel.OnSnapshotReady;
+            if (_overlayViewModel != null)
+                _perfMon.SnapshotReady -= _overlayViewModel.OnSnapshotReady;
         }
         if (_affinityManager != null && _mainViewModel != null && _overlayViewModel != null)
         {

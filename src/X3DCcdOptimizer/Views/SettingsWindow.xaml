@@ -197,6 +197,10 @@
                               Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
                               ToolTip="Show a compact always-on-top overlay with CCD load info while gaming."
                               AutomationProperties.Name="Enable overlay checkbox"/>
+                    <CheckBox Content="Show CCD load bars" IsChecked="{Binding ShowOverlayBars}"
+                              Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
+                              ToolTip="Display per-CCD average load bars in the overlay."
+                              AutomationProperties.Name="Show CCD load bars checkbox"/>
 
                     <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
                         <Run Text="Opacity:"/> <Run Text="{Binding OverlayOpacity, StringFormat={}{0:F0}%}" FontWeight="SemiBold"/>

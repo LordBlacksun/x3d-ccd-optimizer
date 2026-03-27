@@ -35,6 +35,7 @@ public class SettingsViewModel : ViewModelBase
     private double _overlayOpacity;
     private int _autoHideSeconds;
     private int _pixelShiftMinutes;
+    private bool _showOverlayBars;
 
     // Advanced
     private string _logLevel;
@@ -73,6 +74,7 @@ public class SettingsViewModel : ViewModelBase
     public double OverlayOpacity { get => _overlayOpacity; set => SetProperty(ref _overlayOpacity, value); }
     public int AutoHideSeconds { get => _autoHideSeconds; set => SetProperty(ref _autoHideSeconds, value); }
     public int PixelShiftMinutes { get => _pixelShiftMinutes; set => SetProperty(ref _pixelShiftMinutes, value); }
+    public bool ShowOverlayBars { get => _showOverlayBars; set => SetProperty(ref _showOverlayBars, value); }
 
     // Advanced
     public string LogLevel { get => _logLevel; set => SetProperty(ref _logLevel, value); }
@@ -120,6 +122,7 @@ public class SettingsViewModel : ViewModelBase
         _overlayOpacity = config.Overlay.Opacity * 100;
         _autoHideSeconds = config.Overlay.AutoHideSeconds;
         _pixelShiftMinutes = config.Overlay.PixelShiftMinutes;
+        _showOverlayBars = config.Overlay.ShowLoadBars;
 
         _logLevel = config.Logging.Level;
 
@@ -258,6 +261,7 @@ public class SettingsViewModel : ViewModelBase
         _config.Overlay.Opacity = _overlayOpacity / 100.0;
         _config.Overlay.AutoHideSeconds = _autoHideSeconds;
         _config.Overlay.PixelShiftMinutes = _pixelShiftMinutes;
+        _config.Overlay.ShowLoadBars = _showOverlayBars;
 
         // Advanced
         _config.Logging.Level = _logLevel;

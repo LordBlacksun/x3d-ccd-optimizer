@@ -70,6 +70,9 @@ public class OverlayConfig
     [JsonPropertyName("opacity")]
     public double Opacity { get; set; } = 0.8;
 
+    [JsonPropertyName("showLoadBars")]
+    public bool ShowLoadBars { get; set; } = true;
+
     [JsonPropertyName("position")]
     public int[]? Position { get; set; }
 }

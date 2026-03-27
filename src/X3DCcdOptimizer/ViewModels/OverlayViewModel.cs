@@ -20,6 +20,8 @@ public class OverlayViewModel : ViewModelBase
     private string _secondaryText = "";
     private double _overlayOpacity;
     private bool _isFadedOut;
+    private double _ccd0Load;
+    private double _ccd1Load;
 
     public SolidColorBrush ModeDotColor
     {
@@ -61,6 +63,37 @@ public class OverlayViewModel : ViewModelBase
         set => SetProperty(ref _isFadedOut, value);
     }
 
+    // CCD load bars
+    public bool ShowLoadBars => _overlayConfig.ShowLoadBars;
+    public bool ShowSecondBar => _overlayConfig.ShowLoadBars && _topology.IsDualCcd;
+
+    public double Ccd0Load
+    {
+        get => _ccd0Load;
+        set
+        {
+            if (SetProperty(ref _ccd0Load, value))
+                OnPropertyChanged(nameof(Ccd0LoadText));
+        }
+    }
+
+    public string Ccd0LoadText => $"{_ccd0Load:F0}%";
+
+    public double Ccd1Load
+    {
+        get => _ccd1Load;
+        set
+        {
+            if (SetProperty(ref _ccd1Load, value))
+                OnPropertyChanged(nameof(Ccd1LoadText));
+        }
+    }
+
+    public string Ccd1LoadText => $"{_ccd1Load:F0}%";
+
+    public string Ccd0Label => _topology.HasVCache ? "V-Cache" : "CCD0";
+    public string Ccd1Label => _topology.HasVCache ? "Freq" : "CCD1";
+
     // Pixel shift requests — the view subscribes to this
     public event Action<double, double>? PixelShiftRequested;
 
@@ -95,6 +128,20 @@ public class OverlayViewModel : ViewModelBase
 
         // Start auto-hide countdown
         _autoHideTimer.Start();
+    }
+
+    public void OnSnapshotReady(CoreSnapshot[] snapshots)
+    {
+        if (!_overlayConfig.ShowLoadBars) return;
+
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            var c0 = snapshots.Where(s => s.CcdIndex == 0).ToArray();
+            var c1 = snapshots.Where(s => s.CcdIndex == 1).ToArray();
+
+            Ccd0Load = c0.Length > 0 ? c0.Average(s => s.LoadPercent) : 0;
+            Ccd1Load = c1.Length > 0 ? c1.Average(s => s.LoadPercent) : 0;
+        });
     }
 
     public void OnAffinityChanged(AffinityEvent evt)
