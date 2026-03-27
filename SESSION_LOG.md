@@ -6,15 +6,17 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 18
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 19
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
 - **Three-tier processor support:** DualCcdX3D (full: affinity pinning + driver preference), SingleCcdX3D (monitoring + dashboard, no CCD steering), DualCcdStandard (affinity pinning, no driver preference). ProcessorTier enum, tier auto-detected from L3 cache topology.
-- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (3-tier: manual → 65-game DB → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy+tier-aware, lock-based), VCacheDriverManager (amd3dvcache registry)
+- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (4-tier: manual → 65-game DB → launcher scan → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy+tier-aware, lock-based), VCacheDriverManager (amd3dvcache registry), GameLibraryScanner (Steam + Epic)
+- **Game launcher scanning:** GameLibraryScanner scans Steam (registry → VDF/ACF parsing → exe directory scan) and Epic (JSON manifests in ProgramData). Results cached to `installed_games.json` in %APPDATA%, background rescan if >7 days stale. VDF parser handles Valve KeyValues format. Filters non-game exes (UnityCrashHandler, redist, setup, etc.). GOG skipped (requires SQLite dependency). Found 532 games on dev machine.
+- **Display name resolution:** ProcessInfo.DisplayName populated at detection time from known_games.json or launcher scan. Propagated through AffinityEvent.DisplayName. All UI surfaces (status bar, CCD role labels, activity log, process router, overlay) show resolved game names. Fallback: strip .exe extension.
 - **Optimization strategies:** AffinityPinning (default, SetProcessAffinityMask) or DriverPreference (AMD amd3dvcache registry interface, discovered by cocafe/vcache-tray). Strategy stored in config, selectable in Settings, gated by driver availability and tier.
 - **WPF dashboard:** MVVM, dark theme, CCD panels (1 or 2 based on tier) with 4x2 core tile heatmaps, grouped process router (by CCD with game badges), activity log, animated pill toggle (Monitor/Optimize), polished UI
-- **Compact overlay:** 280x160 always-on-top, OLED-safe (auto-hide 10s, pixel shift 3min), Ctrl+Shift+O hotkey, draggable, position persisted
+- **Compact overlay:** Discord-style toast/pill (auto-width 200-400px), slide-in/out animation (300ms cubic ease), semi-transparent dark (#1A1A1A at 85%), single/two-line contextual messages, OLED-safe (auto-hide, pixel shift), Ctrl+Shift+O hotkey, draggable, position persisted
 - **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
 - **Monitor/Optimize dual-mode:** Monitor (default, observe-only, all tiers), Optimize (active affinity or driver preference, dual-CCD only, tier-gated)
 - **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
@@ -23,7 +25,7 @@ Development session history for X3D Dual CCD Optimizer.
 - **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Session 17 defensive coding audit (0 critical, 0 high, 2 medium, 6 low, 22 info — all 8 actionable findings fixed in session 18). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
 
-**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (3-tier), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
+**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (4-tier), `Core/GameLibraryScanner.cs` (Steam+Epic scanner), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
 
 **What's next:** Phase 4 (CI/CD, trimmed build, installer, release)
 
@@ -36,6 +38,61 @@ Development session history for X3D Dual CCD Optimizer.
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
 - SingleCcdX3D sets FrequencyCores=[] and FrequencyMask=IntPtr.Zero — all code referencing these must null/empty guard. CcdMapper, AffinityManager, MainViewModel (Ccd1Panel nullable), OverlayViewModel all audited and guarded.
 - WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
+- WPF relative Icon paths resolve from XAML file's namespace location, not project root — use pack URIs for embedded resources
+- Steam VDF files use Valve KeyValues format (not JSON) — need custom parser; escaped backslashes in paths
+
+---
+
+## Session 19 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Game launcher scanning, display name resolution, overlay redesign for 1.0
+
+### What Was Done
+
+1. **Fix: app.ico embedded resource** — DashboardWindow.xaml used a relative Icon path that WPF resolved to `Views/Resources/app.ico` (nonexistent in publish). Changed to pack URI + `<Resource>` embed. TrayIconManager switched from file-based loading to `Application.GetResourceStream`. Published single-file exe no longer crashes on startup.
+
+2. **Game Launcher Scanner** — New `Core/GameLibraryScanner.cs` (446 lines). Scans Steam (registry `HKCU\Software\Valve\Steam\SteamPath` → `libraryfolders.vdf` → `appmanifest_*.acf` → exe directory scan) and Epic (JSON manifests in `C:\ProgramData\Epic\...\Manifests\*.item`). Includes a minimal VDF parser for Valve KeyValues format. Filters non-game exes (UnityCrashHandler, CrashReporter, redist, setup, installer, etc.). GOG Galaxy skipped — requires SQLite NuGet dependency, violates no-unnecessary-deps convention. Found 532 games on dev machine.
+
+3. **Launcher scan caching** — Results saved to `installed_games.json` in `%APPDATA%\X3DCCDOptimizer\` with atomic writes. On startup: loads cache if fresh (<7 days), uses immediately. If stale, kicks off background `Task.Run` rescan. `GameDetector.UpdateLauncherGames()` hot-swaps the dictionary (volatile reference swap, safe for concurrent reads).
+
+4. **4-tier game detection** — Added `DetectionMethod.LauncherScan` enum value. GameDetector now checks: manual list → known_games.json → launcher scan → GPU auto. Detection source shown in activity log as `[launcher]`.
+
+5. **Display name resolution** — Added `ProcessInfo.DisplayName` (nullable). Populated at detection time in ProcessWatcher via `GameDetector.GetDisplayName()` which checks known_games.json → launcher scan → strips .exe fallback. Added `AffinityEvent.DisplayName` propagated through AffinityManager's Emit calls for game-related events. All UI surfaces updated: status bar, CCD role labels, activity log (`LogEntryViewModel`), process router (`ProcessRouterViewModel`), overlay.
+
+6. **Overlay redesign (Discord-style toast)** — Complete rewrite of OverlayViewModel, OverlayWindow.xaml, OverlayWindow.xaml.cs. Changed from 280x160 fixed rectangle with CCD load bars to compact auto-width pill (200-400px, `SizeToContent="WidthAndHeight"`). Single line for idle ("Monitoring"), two lines for events (game name + action). Slide-in/out animation (300ms/250ms cubic ease, 60px translate + opacity fade). Semi-transparent dark background (`#D91A1A1A` = 85% opacity, `CornerRadius="20"`). Removed CCD load bars and `OnSnapshotReady` subscription — overlay now shows contextual event messages only. Kept: auto-hide timer, pixel shift, Ctrl+Shift+O hotkey, OLED-safe design, draggable, position persistence.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| 29fc5c2 | develop, master | fix: embed app.ico as WPF resource — fixes crash in single-file publish |
+| 4726eab | develop, master | feat: game launcher scanner, display name resolution, overlay redesign |
+
+### Files Created (1)
+
+```
+Core/GameLibraryScanner.cs — Steam + Epic scanner with VDF parser and caching
+```
+
+### Files Modified (11)
+
+```
+App.xaml.cs — wire GameLibraryScanner, background rescan, remove overlay SnapshotReady
+Core/AffinityManager.cs — pass DisplayName through Emit for game events
+Core/GameDetector.cs — 4th tier (LauncherScan), launcher games dict, enhanced GetDisplayName
+Core/ProcessWatcher.cs — populate DisplayName on ProcessInfo at detection time
+Models/AffinityEvent.cs — add DisplayName property
+ViewModels/MainViewModel.cs — display names in status text + CCD role labels
+ViewModels/OverlayViewModel.cs — complete rewrite for toast/pill style
+ViewModels/LogEntryViewModel.cs — use DisplayName in detail text
+ViewModels/ProcessRouterViewModel.cs — use DisplayName for game entries
+Views/OverlayWindow.xaml — complete rewrite: pill shape, auto-width, slide transform
+Views/OverlayWindow.xaml.cs — slide-in/out animation, updated positioning
+X3DCcdOptimizer.csproj — app.ico as embedded Resource
+Views/DashboardWindow.xaml — pack URI for icon
+Tray/TrayIconManager.cs — load icon from embedded resource stream
+```
 
 ---
 
