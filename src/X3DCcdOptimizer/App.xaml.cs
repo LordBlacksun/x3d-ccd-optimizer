@@ -52,6 +52,9 @@ public partial class App : System.Windows.Application
         AppLogger.Initialize(_config.Logging.Level);
         Log.Information("X3D Dual CCD Optimizer v{Version}", Version);
 
+        // Recover from dirty shutdown (before anything else)
+        RecoveryManager.RecoverFromDirtyShutdown();
+
         try
         {
             _topology = CcdMapper.Detect(_config);
@@ -207,6 +210,9 @@ public partial class App : System.Windows.Application
         _perfMon?.Stop();
         _perfMon?.Dispose();
         _gpuMonitor?.Dispose();
+
+        // Clean shutdown — clear recovery state
+        RecoveryManager.OnDisengage();
 
         _overlayViewModel?.StopTimers();
 
