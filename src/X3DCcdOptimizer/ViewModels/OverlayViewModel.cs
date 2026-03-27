@@ -161,6 +161,7 @@ public class OverlayViewModel : ViewModelBase
                 AffinityAction.DriverRestored => "DRIVER RESTORE",
                 AffinityAction.WouldSetDriver => "[M] DRIVER SET",
                 AffinityAction.WouldRestoreDriver => "[M] DRIVER RESTORE",
+                AffinityAction.DetectionSkipped => "[AUTO] BELOW THRESHOLD",
                 _ => ""
             };
             LastActionText = $"{prefix}: {evt.ProcessName}";
