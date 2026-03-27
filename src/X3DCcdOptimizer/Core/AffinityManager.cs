@@ -11,7 +11,9 @@ public class AffinityManager
     private readonly CpuTopology _topology;
     private readonly HashSet<string> _protectedProcesses;
     private readonly Dictionary<int, IntPtr> _originalMasks = new();
+    private readonly object _syncLock = new();
     private bool _engaged;
+    private ProcessInfo? _currentGame;
 
     private static readonly HashSet<string> HardcodedProtected = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -23,14 +25,26 @@ public class AffinityManager
 
     public event Action<AffinityEvent>? AffinityChanged;
 
-    public AffinityManager(CpuTopology topology, IEnumerable<string> configProtected)
+    public OperationMode Mode { get; private set; }
+
+    public ProcessInfo? CurrentGame
+    {
+        get { lock (_syncLock) return _currentGame; }
+    }
+
+    public bool IsEngaged
+    {
+        get { lock (_syncLock) return _engaged; }
+    }
+
+    public AffinityManager(CpuTopology topology, IEnumerable<string> configProtected, OperationMode initialMode)
     {
         _topology = topology;
+        Mode = initialMode;
         _protectedProcesses = new HashSet<string>(HardcodedProtected, StringComparer.OrdinalIgnoreCase);
 
         foreach (var name in configProtected)
         {
-            // Store without .exe for matching against ProcessName
             var clean = name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                 ? name[..^4]
                 : name;
@@ -40,29 +54,90 @@ public class AffinityManager
 
     public void OnGameDetected(ProcessInfo game)
     {
-        if (_engaged)
+        lock (_syncLock)
         {
-            Log.Warning("Already engaged — ignoring duplicate game detection");
-            return;
+            if (_engaged)
+            {
+                Log.Warning("Already engaged — ignoring duplicate game detection");
+                return;
+            }
+
+            _engaged = true;
+            _currentGame = game;
+            _originalMasks.Clear();
+
+            if (Mode == OperationMode.Optimize)
+            {
+                EngageGame(game);
+                MigrateBackground(game.Pid);
+            }
+            else
+            {
+                SimulateEngage(game);
+                SimulateMigrateBackground(game.Pid);
+            }
         }
-
-        _engaged = true;
-        _originalMasks.Clear();
-
-        // Pin the game to V-Cache CCD
-        EngageGame(game);
-
-        // Migrate background processes to Frequency CCD
-        MigrateBackground(game.Pid);
     }
 
     public void OnGameExited(ProcessInfo game)
     {
-        if (!_engaged)
-            return;
+        lock (_syncLock)
+        {
+            if (!_engaged)
+                return;
 
-        _engaged = false;
-        RestoreAll();
+            _engaged = false;
+
+            if (Mode == OperationMode.Optimize)
+            {
+                RestoreAll();
+            }
+            else
+            {
+                Emit(AffinityAction.WouldRestore, "all", 0,
+                    "game exited — would have restored all affinities");
+            }
+
+            _currentGame = null;
+        }
+    }
+
+    public void SwitchToOptimize()
+    {
+        lock (_syncLock)
+        {
+            if (Mode == OperationMode.Optimize)
+                return;
+
+            Mode = OperationMode.Optimize;
+            Log.Information("Switched to Optimize mode");
+
+            if (_engaged && _currentGame != null)
+            {
+                _originalMasks.Clear();
+                EngageGame(_currentGame);
+                MigrateBackground(_currentGame.Pid);
+            }
+        }
+    }
+
+    public void SwitchToMonitor()
+    {
+        lock (_syncLock)
+        {
+            if (Mode == OperationMode.Monitor)
+                return;
+
+            var wasEngaged = _engaged && _originalMasks.Count > 0;
+            Mode = OperationMode.Monitor;
+            Log.Information("Switched to Monitor mode");
+
+            if (wasEngaged)
+            {
+                RestoreAll();
+                // Still tracking the game, just in Monitor mode now
+            }
+        }
     }
 
     private void EngageGame(ProcessInfo game)
@@ -81,7 +156,6 @@ public class AffinityManager
 
         try
         {
-            // Store original mask
             if (Kernel32.GetProcessAffinityMask(handle, out var originalMask, out _))
                 _originalMasks[game.Pid] = originalMask;
 
@@ -127,14 +201,13 @@ public class AffinityManager
                 if (handle == IntPtr.Zero)
                 {
                     var err = Marshal.GetLastWin32Error();
-                    if (err == 5) // ACCESS_DENIED
+                    if (err == 5)
                         Emit(AffinityAction.Skipped, name + ".exe", proc.Id, "access denied");
                     continue;
                 }
 
                 try
                 {
-                    // Store original mask
                     if (Kernel32.GetProcessAffinityMask(handle, out var originalMask, out _))
                     {
                         _originalMasks[proc.Id] = originalMask;
@@ -162,6 +235,63 @@ public class AffinityManager
         }
     }
 
+    private void SimulateEngage(ProcessInfo game)
+    {
+        Emit(AffinityAction.WouldEngage, game.Name, game.Pid,
+            $"→ CCD0 (V-Cache, mask {_topology.VCacheMaskHex})");
+    }
+
+    private void SimulateMigrateBackground(int gamePid)
+    {
+        int wouldMigrate = 0;
+
+        foreach (var proc in Process.GetProcesses())
+        {
+            try
+            {
+                if (proc.Id == gamePid || proc.Id <= 4)
+                    continue;
+
+                string name = proc.ProcessName;
+
+                if (IsProtected(name))
+                    continue;
+
+                // Check if we can open it (to accurately report what would happen)
+                var handle = Kernel32.OpenProcess(
+                    Kernel32.PROCESS_QUERY_LIMITED_INFORMATION,
+                    false, proc.Id);
+
+                if (handle == IntPtr.Zero)
+                    continue;
+
+                Kernel32.CloseHandle(handle);
+                wouldMigrate++;
+
+                // Only emit individual events for the first few to avoid log spam
+                if (wouldMigrate <= 5)
+                {
+                    Emit(AffinityAction.WouldMigrate, name + ".exe", proc.Id,
+                        $"→ CCD1 (Frequency, mask {_topology.FrequencyMaskHex})");
+                }
+            }
+            catch
+            {
+                // Skip
+            }
+            finally
+            {
+                proc.Dispose();
+            }
+        }
+
+        if (wouldMigrate > 5)
+        {
+            Emit(AffinityAction.WouldMigrate, "...", 0,
+                $"and {wouldMigrate - 5} more processes");
+        }
+    }
+
     private void RestoreAll()
     {
         int restored = 0;
@@ -183,13 +313,9 @@ public class AffinityManager
                 try
                 {
                     if (Kernel32.SetProcessAffinityMask(handle, originalMask))
-                    {
                         restored++;
-                    }
                     else
-                    {
                         failed++;
-                    }
                 }
                 finally
                 {
@@ -226,7 +352,6 @@ public class AffinityManager
             Detail = detail
         };
 
-        // Log based on action type
         switch (action)
         {
             case AffinityAction.Engaged:
@@ -243,6 +368,15 @@ public class AffinityManager
                 break;
             case AffinityAction.Error:
                 Log.Error("ERROR: {Name} (PID {Pid}) — {Detail}", processName, pid, detail);
+                break;
+            case AffinityAction.WouldEngage:
+                Log.Information("[MONITOR] WOULD ENGAGE: {Name} (PID {Pid}) {Detail}", processName, pid, detail);
+                break;
+            case AffinityAction.WouldMigrate:
+                Log.Information("[MONITOR] WOULD MIGRATE: {Name} (PID {Pid}) {Detail}", processName, pid, detail);
+                break;
+            case AffinityAction.WouldRestore:
+                Log.Information("[MONITOR] WOULD RESTORE: {Detail}", detail);
                 break;
         }
 

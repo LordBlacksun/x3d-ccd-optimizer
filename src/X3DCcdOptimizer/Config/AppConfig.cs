@@ -1,5 +1,7 @@
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using X3DCcdOptimizer.Models;
 
 namespace X3DCcdOptimizer.Config;
 
@@ -69,7 +71,10 @@ public class AppConfig
     };
 
     [JsonPropertyName("version")]
-    public int Version { get; set; } = 2;
+    public int Version { get; set; } = 3;
+
+    [JsonPropertyName("operationMode")]
+    public string OperationMode { get; set; } = "monitor";
 
     [JsonPropertyName("pollingIntervalMs")]
     public int PollingIntervalMs { get; set; } = 2000;
@@ -137,6 +142,13 @@ public class AppConfig
         Directory.CreateDirectory(ConfigDir);
         var json = JsonSerializer.Serialize(this, JsonOptions);
         File.WriteAllText(ConfigPath, json);
+    }
+
+    public Models.OperationMode GetOperationMode()
+    {
+        return string.Equals(OperationMode, "optimize", StringComparison.OrdinalIgnoreCase)
+            ? Models.OperationMode.Optimize
+            : Models.OperationMode.Monitor;
     }
 
     private static AppConfig CreateDefault() => new();

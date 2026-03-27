@@ -1,0 +1,63 @@
+<UserControl x:Class="X3DCcdOptimizer.Views.CoreTile"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Style="{StaticResource CoreTileStyle}"
+            Background="{Binding LoadColor}"
+            Opacity="{Binding TileOpacity}">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Core index -->
+            <TextBlock Grid.Row="0" Grid.Column="0"
+                       Text="{Binding CoreLabel}"
+                       FontFamily="{StaticResource FontMono}"
+                       FontSize="10" FontWeight="SemiBold"
+                       Foreground="{StaticResource TextTertiaryBrush}"
+                       HorizontalAlignment="Left"/>
+
+            <!-- Frequency -->
+            <TextBlock Grid.Row="0" Grid.Column="1"
+                       Text="{Binding FrequencyText}"
+                       FontFamily="{StaticResource FontMono}"
+                       FontSize="10"
+                       Foreground="{StaticResource TextTertiaryBrush}"
+                       HorizontalAlignment="Right"/>
+
+            <!-- Load percentage — big mono number -->
+            <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+                       Text="{Binding LoadText}"
+                       Style="{StaticResource BigNumber}"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Margin="0,0,0,0"/>
+
+            <!-- Load bar at bottom — thin accent indicator -->
+            <Border Grid.Row="2" Grid.ColumnSpan="2"
+                    Height="2" CornerRadius="1"
+                    Background="{StaticResource BorderSubtleBrush}"
+                    Margin="0,4,0,0">
+                <Border CornerRadius="1" HorizontalAlignment="Left"
+                        Background="{StaticResource AccentGreenBrush}"
+                        Opacity="0.7">
+                    <Border.Width>
+                        <MultiBinding>
+                            <MultiBinding.Converter>
+                                <local:LoadBarWidthConverter xmlns:local="clr-namespace:X3DCcdOptimizer.Converters"/>
+                            </MultiBinding.Converter>
+                            <Binding Path="LoadPercent"/>
+                            <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Border}"/>
+                        </MultiBinding>
+                    </Border.Width>
+                </Border>
+            </Border>
+        </Grid>
+    </Border>
+</UserControl>

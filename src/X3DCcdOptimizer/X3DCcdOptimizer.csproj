@@ -1,14 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <AssemblyName>X3DCcdOptimizer</AssemblyName>
     <RootNamespace>X3DCcdOptimizer</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Windows" Alias="WpfWindow" Static="false" />
+  </ItemGroup>
+
+  <!-- Remove WinForms implicit namespace from global usings to avoid conflicts -->
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Serilog" Version="4.2.0" />
