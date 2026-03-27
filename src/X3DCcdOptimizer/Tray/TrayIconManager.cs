@@ -110,6 +110,12 @@ public class TrayIconManager : IDisposable
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
+        var settingsItem = new WinForms.ToolStripMenuItem("Settings...");
+        settingsItem.Click += (_, _) =>
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+                _viewModel.OpenSettingsCommand.Execute(null));
+        menu.Items.Add(settingsItem);
+
         var logItem = new WinForms.ToolStripMenuItem("View Log File...");
         logItem.Click += (_, _) =>
         {

@@ -154,7 +154,9 @@ public partial class App : System.Windows.Application
         // Register hotkey (after window is created so we have an HWND)
         _dashboardWindow.SourceInitialized += (_, _) => RegisterOverlayHotkey();
 
-        if (!_config.Ui.StartMinimized)
+        var startMinimized = _config.Ui.StartMinimized ||
+            (e.Args.Length > 0 && e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase));
+        if (!startMinimized)
             _dashboardWindow.Show();
 
         if (_config.Overlay.Enabled)

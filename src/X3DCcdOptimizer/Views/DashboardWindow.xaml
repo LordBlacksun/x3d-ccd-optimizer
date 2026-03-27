@@ -190,10 +190,15 @@
             <Rectangle Height="1" Margin="24,2,24,0"
                        Fill="{StaticResource FooterSeparatorBrush}"/>
             <DockPanel Margin="16,6,16,8">
-                <Button DockPanel.Dock="Right" Style="{StaticResource SubtleButtonStyle}"
-                        Command="{Binding ToggleOverlayCommand}"
-                        Content="{Binding OverlayButtonText}"
-                        FontSize="11" Padding="10,4" Margin="8,0,0,0"/>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Style="{StaticResource SubtleButtonStyle}"
+                            Command="{Binding OpenSettingsCommand}"
+                            Content="Settings" FontSize="11" Padding="10,4"/>
+                    <Button Style="{StaticResource SubtleButtonStyle}"
+                            Command="{Binding ToggleOverlayCommand}"
+                            Content="{Binding OverlayButtonText}"
+                            FontSize="11" Padding="10,4" Margin="6,0,0,0"/>
+                </StackPanel>
                 <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
                            VerticalAlignment="Center"/>
             </DockPanel>
