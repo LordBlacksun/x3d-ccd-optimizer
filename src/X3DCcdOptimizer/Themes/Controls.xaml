@@ -191,4 +191,20 @@
         <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
     </Style>
 
+    <!-- Dark ComboBox — override system colours used by the default template -->
+    <Style TargetType="ComboBox">
+        <Setter Property="Foreground" Value="#E0E0E0"/>
+        <Setter Property="Background" Value="{StaticResource BgTertiaryBrush}"/>
+        <Style.Resources>
+            <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#2A2A2E"/>
+            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#404048"/>
+            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
+            <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#E0E0E0"/>
+        </Style.Resources>
+    </Style>
+
+    <Style TargetType="ComboBoxItem">
+        <Setter Property="Foreground" Value="#E0E0E0"/>
+    </Style>
+
 </ResourceDictionary>
