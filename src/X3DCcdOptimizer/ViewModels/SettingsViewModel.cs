@@ -44,8 +44,17 @@ public class SettingsViewModel : ViewModelBase
     public string DefaultMode { get => _defaultMode; set => SetProperty(ref _defaultMode, value); }
     public string OptimizeStrategy { get => _optimizeStrategy; set => SetProperty(ref _optimizeStrategy, value); }
     public bool HasVCache => _topology.HasVCache;
-    public bool IsDriverAvailable => VCacheDriverManager.IsDriverAvailable;
-    public Visibility DriverWarningVisibility => VCacheDriverManager.IsDriverAvailable ? Visibility.Collapsed : Visibility.Visible;
+    public bool CanOptimize => _topology.IsDualCcd;
+    public bool IsStrategyAvailable => _topology.IsDualCcd;
+    public bool IsDriverAvailable => VCacheDriverManager.IsDriverAvailable && _topology.Tier == ProcessorTier.DualCcdX3D;
+    public Visibility DriverWarningVisibility => IsDriverAvailable ? Visibility.Collapsed : Visibility.Visible;
+    public string TierDescription => _topology.Tier switch
+    {
+        ProcessorTier.SingleCcdX3D => "Single-CCD X3D — monitoring only, no CCD steering needed",
+        ProcessorTier.DualCcdStandard => "Dual-CCD (no V-Cache) — affinity pinning available",
+        ProcessorTier.DualCcdX3D => "Dual-CCD X3D — full optimization available",
+        _ => ""
+    };
     public bool StartMinimized { get => _startMinimized; set => SetProperty(ref _startMinimized, value); }
     public bool Notifications { get => _notifications; set => SetProperty(ref _notifications, value); }
     public int PollingIntervalMs { get => _pollingIntervalMs; set => SetProperty(ref _pollingIntervalMs, value); }

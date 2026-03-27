@@ -69,6 +69,14 @@ public class AffinityManager
             _currentGame = game;
             _originalMasks.Clear();
 
+            // Single-CCD processors have no second CCD to steer to
+            if (_topology.IsSingleCcd)
+            {
+                Emit(AffinityAction.Skipped, game.Name, game.Pid,
+                    "single-CCD processor — no CCD steering needed");
+                return;
+            }
+
             if (Mode == OperationMode.Optimize)
             {
                 RecoveryManager.OnEngage(game.Name, game.Pid, _strategy);
@@ -106,6 +114,12 @@ public class AffinityManager
                 return;
 
             _engaged = false;
+
+            if (_topology.IsSingleCcd)
+            {
+                _currentGame = null;
+                return;
+            }
 
             if (Mode == OperationMode.Optimize)
             {

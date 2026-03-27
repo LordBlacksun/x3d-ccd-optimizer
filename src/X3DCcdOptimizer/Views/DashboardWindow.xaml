@@ -8,6 +8,10 @@
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgPrimaryBrush}">
 
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </Window.Resources>
+
     <Grid Margin="0">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -77,38 +81,61 @@
         <!-- Row 1: CCD Panels -->
         <UniformGrid Grid.Row="1" Rows="1" Columns="2" Margin="8,8">
             <views:CcdPanel DataContext="{Binding Ccd0Panel}"/>
-            <views:CcdPanel DataContext="{Binding Ccd1Panel}"/>
+            <views:CcdPanel DataContext="{Binding Ccd1Panel}"
+                            Visibility="{Binding ShowSecondPanel, Converter={StaticResource BoolToVis}}"/>
         </UniformGrid>
 
-        <!-- Row 2: Process Router -->
+        <!-- Row 2: Process Router (grouped by CCD) -->
         <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="12,4">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="Process Router" Style="{StaticResource EmphasisText}"
                            Margin="0,0,0,8"/>
+                <!-- Empty state -->
+                <TextBlock DockPanel.Dock="Top" Text="No managed processes"
+                           Foreground="{StaticResource TextTertiaryBrush}" FontSize="11"
+                           HorizontalAlignment="Center" Margin="0,8,0,0"
+                           Visibility="{Binding ProcessRouter.EmptyVisibility}"/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding ProcessRouter.Processes}"
-                                  AlternationCount="2">
+                    <ItemsControl ItemsSource="{Binding ProcessRouter.ProcessView}">
+                        <ItemsControl.GroupStyle>
+                            <GroupStyle>
+                                <GroupStyle.HeaderTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="6,3" Margin="0,2,0,1"
+                                                BorderThickness="2,0,0,0" BorderBrush="{StaticResource AccentBlueBrush}">
+                                            <TextBlock FontSize="11" FontWeight="SemiBold"
+                                                       Foreground="{StaticResource TextSecondaryBrush}">
+                                                <Run Text="{Binding Name, Mode=OneWay}"/>
+                                                <Run Text="{Binding ItemCount, StringFormat='({0})', Mode=OneWay}"
+                                                     Foreground="{StaticResource TextTertiaryBrush}"/>
+                                            </TextBlock>
+                                        </Border>
+                                    </DataTemplate>
+                                </GroupStyle.HeaderTemplate>
+                            </GroupStyle>
+                        </ItemsControl.GroupStyle>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="4,4" CornerRadius="4" Margin="0,1">
+                                <Border Padding="4,3" Margin="8,0,0,0">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Grid.Column="0" Text="{Binding ProcessName}"
-                                                   FontFamily="{StaticResource FontMono}" FontSize="12"
+                                                   FontFamily="{StaticResource FontMono}" FontSize="11"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
-                                                   VerticalAlignment="Center"/>
-                                        <Border Grid.Column="1" CornerRadius="4" Padding="8,2"
-                                                Background="{Binding BadgeColor}" Margin="10,0">
-                                            <TextBlock Text="{Binding CcdBadge}" Foreground="White"
-                                                       FontSize="10" FontWeight="Bold"/>
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Border Grid.Column="1" CornerRadius="3" Padding="6,1" Margin="6,0"
+                                                Background="{Binding TypeBadgeColor}"
+                                                Visibility="{Binding IsGame, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="GAME" Foreground="White" FontSize="9" FontWeight="Bold"/>
                                         </Border>
-                                        <TextBlock Grid.Column="2" Text="{Binding Detail}"
-                                                   Style="{StaticResource SmallText}"
-                                                   VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding PidText}"
+                                                   FontFamily="{StaticResource FontMono}" FontSize="10"
+                                                   Foreground="{StaticResource TextTertiaryBrush}"
+                                                   VerticalAlignment="Center"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

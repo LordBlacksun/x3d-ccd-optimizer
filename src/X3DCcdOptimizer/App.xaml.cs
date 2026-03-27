@@ -83,16 +83,19 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        Log.Information("CPU: {Model}", _topology.CpuModel);
-        Log.Information("CCD0 (V-Cache): Cores {Cores}, L3: {L3}MB, Mask: {Mask}",
-            string.Join(",", _topology.VCacheCores), _topology.VCacheL3SizeMB, _topology.VCacheMaskHex);
-        Log.Information("CCD1 (Frequency): Cores {Cores}, L3: {L3}MB, Mask: {Mask}",
-            string.Join(",", _topology.FrequencyCores), _topology.StandardL3SizeMB, _topology.FrequencyMaskHex);
+        Log.Information("CPU: {Model} | Tier: {Tier}", _topology.CpuModel, _topology.Tier);
 
         var mode = _config.GetOperationMode();
-        if (mode == OperationMode.Optimize && !_topology.HasVCache)
+
+        // Tier-based mode gating
+        if (_topology.IsSingleCcd && mode == OperationMode.Optimize)
         {
-            Log.Warning("Config says Optimize but no V-Cache detected — falling back to Monitor");
+            Log.Warning("Single-CCD processor — forcing Monitor mode (no CCD steering possible)");
+            mode = OperationMode.Monitor;
+        }
+        else if (mode == OperationMode.Optimize && !_topology.IsDualCcd)
+        {
+            Log.Warning("Config says Optimize but topology doesn't support it — falling back to Monitor");
             mode = OperationMode.Monitor;
         }
 
@@ -100,6 +103,11 @@ public partial class App : System.Windows.Application
         if (strategy == OptimizeStrategy.DriverPreference && !VCacheDriverManager.IsDriverAvailable)
         {
             Log.Warning("Config says DriverPreference but amd3dvcache driver not detected — falling back to AffinityPinning");
+            strategy = OptimizeStrategy.AffinityPinning;
+        }
+        if (strategy == OptimizeStrategy.DriverPreference && _topology.Tier != ProcessorTier.DualCcdX3D)
+        {
+            Log.Warning("DriverPreference only available for dual-CCD X3D — falling back to AffinityPinning");
             strategy = OptimizeStrategy.AffinityPinning;
         }
 

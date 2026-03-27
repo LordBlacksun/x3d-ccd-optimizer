@@ -1,6 +1,6 @@
 # X3D Dual CCD Optimizer
 
-A lightweight, open-source Windows tool for AMD dual-CCD Ryzen processors. Real-time CCD dashboard, automatic game detection, intelligent process routing, and a compact gaming overlay — all with Monitor/Optimize dual-mode for safety and control.
+A lightweight, open-source Windows tool for AMD Ryzen processors. Real-time CCD dashboard, automatic game detection, intelligent process routing, and a compact gaming overlay — with three-tier processor support from single-CCD X3D to dual-CCD standard Ryzen.
 
 ## The Problem
 
@@ -31,26 +31,46 @@ On Linux, AMD contributed a proper kernel-level scheduler. Windows users got a G
 
 ## Supported Processors
 
-| CPU | Cores | V-Cache CCD | Modes |
-|-----|-------|-------------|-------|
-| Ryzen 9 7950X3D | 16 cores / 32 threads | CCD0 (96MB L3) | Monitor + Optimize |
-| Ryzen 9 7900X3D | 12 cores / 24 threads | CCD0 (96MB L3) | Monitor + Optimize |
-| Ryzen 9 9950X3D | 16 cores / 32 threads | CCD0 (96MB L3) | Monitor + Optimize |
-| Ryzen 9 9900X3D | 12 cores / 24 threads | CCD0 (96MB L3) | Monitor + Optimize |
-| Other dual-CCD Ryzen | varies | N/A | Monitor only |
+### Tier 1 — Dual-CCD X3D (full feature set)
+
+| CPU | Cores | V-Cache | Features |
+|-----|-------|---------|----------|
+| Ryzen 9 9950X3D | 16C/32T | 96MB L3 | Monitor + Optimize, Affinity Pinning, Driver Preference |
+| Ryzen 9 9900X3D | 12C/24T | 96MB L3 | Monitor + Optimize, Affinity Pinning, Driver Preference |
+| Ryzen 9 7950X3D | 16C/32T | 96MB L3 | Monitor + Optimize, Affinity Pinning, Driver Preference |
+| Ryzen 9 7900X3D | 12C/24T | 96MB L3 | Monitor + Optimize, Affinity Pinning, Driver Preference |
+
+### Tier 2 — Single-CCD X3D (monitoring + dashboard)
+
+| CPU | Cores | V-Cache | Features |
+|-----|-------|---------|----------|
+| Ryzen 7 9800X3D | 8C/16T | 96MB L3 | Monitor only — per-core heatmap, game detection, overlay |
+| Ryzen 7 7800X3D | 8C/16T | 96MB L3 | Monitor only — per-core heatmap, game detection, overlay |
+
+All cores already run on V-Cache — no CCD steering needed.
+
+### Tier 3 — Dual-CCD Standard Ryzen (affinity management)
+
+| CPU | Cores | Features |
+|-----|-------|----------|
+| Ryzen 9 9950X | 16C/32T | Monitor + Optimize, Affinity Pinning (pin to CCD 0 or CCD 1) |
+| Ryzen 9 7950X | 16C/32T | Monitor + Optimize, Affinity Pinning (pin to CCD 0 or CCD 1) |
+| Other dual-CCD Ryzen | varies | Monitor + Optimize, Affinity Pinning |
+
+No V-Cache distinction, but you can still pin games to a specific CCD.
 
 ## Status
 
-**Phase 2.5 complete** — WPF dashboard, Monitor/Optimize mode toggle, polished dark theme UI, compact OLED-safe overlay, GPU auto-detection with 65-game database, full code audit with 12 issues fixed.
+**Pre-1.0** — Three-tier processor support, settings window, dirty shutdown recovery, security audit, AMD V-Cache driver preference strategy.
 
-Phase 3 (Settings UI + Start with Windows) and Phase 4 (CI/CD + Release) are next.
+Phase 4 (CI/CD, trimmed build, installer) is next.
 
 ## Getting Started
 
 ### Requirements
 
 - Windows 10 21H2+ or Windows 11
-- An AMD dual-CCD Ryzen processor (X3D for Optimize mode, any dual-CCD for Monitor)
+- An AMD Ryzen processor (dual-CCD for full features, single-CCD X3D for monitoring)
 - .NET 8 SDK (for building from source)
 
 ### Build and Run

@@ -6,16 +6,17 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 0.4.0 | **Status:** Phase 3 in progress | **Branch:** develop | **Last session:** 11
+**Version:** 0.5.0 | **Status:** Pre-1.0, Phase 4 next | **Branch:** develop | **Last session:** 12
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
-- **Core engine:** CcdMapper (P/Invoke topology), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (3-tier: manual → 65-game DB → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode-aware + strategy-aware, lock-based), VCacheDriverManager (amd3dvcache registry)
-- **Optimization strategies:** AffinityPinning (default, SetProcessAffinityMask) or DriverPreference (AMD amd3dvcache registry interface, discovered by cocafe/vcache-tray). Strategy stored in config, selectable in Settings, gated by driver availability.
-- **WPF dashboard:** MVVM, dark theme, two CCD panels with 4x2 core tile heatmaps, process router, activity log, animated pill toggle (Monitor/Optimize), polished UI (Cascadia Mono numbers, load bars, accent edges, pulsing dot, gradient separator)
+- **Three-tier processor support:** DualCcdX3D (full: affinity pinning + driver preference), SingleCcdX3D (monitoring + dashboard, no CCD steering), DualCcdStandard (affinity pinning, no driver preference). ProcessorTier enum, tier auto-detected from L3 cache topology.
+- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (3-tier: manual → 65-game DB → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy+tier-aware, lock-based), VCacheDriverManager (amd3dvcache registry)
+- **Optimization strategies:** AffinityPinning (default, SetProcessAffinityMask) or DriverPreference (AMD amd3dvcache registry interface, discovered by cocafe/vcache-tray). Strategy stored in config, selectable in Settings, gated by driver availability and tier.
+- **WPF dashboard:** MVVM, dark theme, CCD panels (1 or 2 based on tier) with 4x2 core tile heatmaps, grouped process router (by CCD with game badges), activity log, animated pill toggle (Monitor/Optimize), polished UI
 - **Compact overlay:** 280x160 always-on-top, OLED-safe (auto-hide 10s, pixel shift 3min), Ctrl+Shift+O hotkey, draggable, position persisted
 - **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
-- **Monitor/Optimize dual-mode:** Monitor (default, observe-only, any dual-CCD Ryzen), Optimize (active affinity or driver preference, X3D only, HasVCache-gated)
+- **Monitor/Optimize dual-mode:** Monitor (default, observe-only, all tiers), Optimize (active affinity or driver preference, dual-CCD only, tier-gated)
 - **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
 - **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
@@ -24,7 +25,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 **Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (3-tier), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
 
-**What's next:** Ryzen-wide support (single CCD + symmetric dual CCD tiers), Process Router grouped view redesign, Phase 4 (CI/CD, trimmed build, installer)
+**What's next:** Phase 4 (CI/CD, trimmed build, installer, release)
 
 **Known gotchas:**
 - CACHE_RELATIONSHIP struct needs 18-byte `Reserved` field (not 2-byte) — was a real bug
@@ -33,6 +34,74 @@ Development session history for X3D Dual CCD Optimizer.
 - Overlay requires borderless windowed (exclusive fullscreen blocks standard overlays)
 - ComboBox SelectedValue binding for default mode — don't use RadioButton with complex converters in XAML, just use ComboBox
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
+- SingleCcdX3D sets FrequencyCores=[] and FrequencyMask=IntPtr.Zero — all code referencing these must null/empty guard. CcdMapper, AffinityManager, MainViewModel (Ccd1Panel nullable), OverlayViewModel all audited and guarded.
+- WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
+
+---
+
+## Session 12 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Ryzen-wide 3-tier processor support + Process Router grouped view redesign
+
+### What Was Done
+
+1. **Three-tier processor support**
+   - `ProcessorTier` enum: `DualCcdX3D`, `SingleCcdX3D`, `DualCcdStandard`
+   - `CpuTopology`: new `Tier`, `IsSingleCcd`, `IsDualCcd` properties. `GetCcdIndex()` returns 0 for all cores on single-CCD. `FrequencyMaskHex` handles zero mask.
+   - `CcdMapper`: shared `AssignTopologyFromCaches()` handles 1 or 2 L3 caches. Tier determined by cache count + size ratio. Relaxed `ValidateTopology` — `FrequencyCores` can be empty for single-CCD. Both P/Invoke and WMI paths updated.
+   - `AffinityManager`: early-returns with `Skipped` event for single-CCD in both `OnGameDetected` and `OnGameExited` — no engagement, migration, or restoration attempted.
+   - `App.xaml.cs`: forces Monitor mode for single-CCD, gates DriverPreference to DualCcdX3D only. Logs tier at startup.
+
+2. **Tier-aware UI throughout**
+   - `MainViewModel`: `Ccd1Panel` is nullable (null for single-CCD), all 7 references null-guarded with `?.` or `!= null`. `ShowSecondPanel` for XAML binding. `IsOptimizeEnabled` uses `IsDualCcd`. Tier-aware status text and role labels for all three tiers.
+   - `CcdPanelViewModel`: badge text varies by tier — "V-Cache CCD" / "V-Cache"+"Frequency" / "CCD 0"+"CCD 1".
+   - `SettingsViewModel`: `CanOptimize`, `IsStrategyAvailable`, `TierDescription` properties. `IsDriverAvailable` gated to DualCcdX3D. Mode and strategy dropdowns tier-gated in XAML.
+   - `DashboardWindow.xaml`: second CCD panel hidden via `BooleanToVisibilityConverter` when `ShowSecondPanel` is false.
+
+3. **Process Router grouped view redesign**
+   - `ProcessEntryViewModel`: new `CcdGroup`, `IsGame`, `SortOrder`, `PidText`, `TypeBadgeColor` properties.
+   - `ProcessRouterViewModel`: takes CCD names in constructor. `ProcessView` (`ICollectionView`) with `PropertyGroupDescription("CcdGroup")` + sort by game-first then name. `EmptyVisibility` for empty-state placeholder.
+   - `DashboardWindow.xaml`: `GroupStyle` with header template (CCD name + item count), indented process entries, green "GAME" badge for game processes, "No managed processes" empty state.
+
+4. **Full FrequencyCores/FrequencyMask/Ccd1Panel audit**
+   - Traced every reference across the entire codebase (grep found 30+ references)
+   - `AffinityManager.MigrateBackground` / `SimulateMigrateBackground`: unreachable for single-CCD due to early return guard
+   - `SwitchToOptimize`: unreachable for single-CCD because `IsOptimizeEnabled` disables the UI toggle
+   - `OverlayViewModel.OnSnapshotReady`: already safe — `c1.Length > 0 ? ... : 0` handles empty CCD1
+   - `CcdPanelViewModel(topology, 1)`: never constructed for single-CCD — `Ccd1Panel` is null
+   - `PerformanceMonitor.GetCcdIndex`: returns 0 for all cores on single-CCD
+
+5. **README update** — Three-tier supported processor table (Tier 1/2/3), updated status to Pre-1.0.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| (pending) | develop | feat: add three-tier Ryzen processor support and grouped process router |
+
+### Files Created (1 new)
+
+```
+src/X3DCcdOptimizer/Models/ProcessorTier.cs
+```
+
+### Files Modified (12)
+
+```
+Models/CpuTopology.cs — Tier, IsSingleCcd, IsDualCcd, safe GetCcdIndex, safe FrequencyMaskHex
+Core/CcdMapper.cs — AssignTopologyFromCaches, 1-CCD support, tier detection, relaxed validation
+Core/AffinityManager.cs — single-CCD early return guard in OnGameDetected + OnGameExited
+App.xaml.cs — tier-based mode/strategy gating at startup
+ViewModels/CcdPanelViewModel.cs — tier-aware badge text
+ViewModels/MainViewModel.cs — nullable Ccd1Panel, ShowSecondPanel, tier-aware status/labels, ProcessRouter with CCD names
+ViewModels/SettingsViewModel.cs — CanOptimize, IsStrategyAvailable, TierDescription, tier-gated IsDriverAvailable
+ViewModels/ProcessEntryViewModel.cs — CcdGroup, IsGame, SortOrder, PidText, TypeBadgeColor
+ViewModels/ProcessRouterViewModel.cs — CollectionViewSource grouping, CCD names, EmptyVisibility
+Views/DashboardWindow.xaml — BooleanToVisibilityConverter, hidden second panel, grouped process router
+Views/SettingsWindow.xaml — tier description, tier-gated mode/strategy dropdowns
+README.md — three-tier processor table, updated status
+```
 
 ---
 
