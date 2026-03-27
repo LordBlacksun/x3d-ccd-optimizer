@@ -47,6 +47,12 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+## Build prompts (not part of the project)
+*_PROMPT.md
+
+## Publish output
+publish/
+
 ## OS
 Thumbs.db
 ehthumbs.db
