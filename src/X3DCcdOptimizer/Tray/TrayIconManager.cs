@@ -85,10 +85,10 @@ public class TrayIconManager : IDisposable
     {
         try
         {
-            var iconPath = Path.Combine(AppContext.BaseDirectory, "Resources", "app.ico");
-            if (File.Exists(iconPath))
+            var sri = Application.GetResourceStream(new Uri("pack://application:,,,/Resources/app.ico"));
+            if (sri != null)
             {
-                var icon = new System.Drawing.Icon(iconPath);
+                var icon = new System.Drawing.Icon(sri.Stream);
                 IconGenerator.SetBaseIcon(icon);
             }
         }

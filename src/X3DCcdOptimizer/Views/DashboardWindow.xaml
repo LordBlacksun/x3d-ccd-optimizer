@@ -7,7 +7,7 @@
         MinWidth="680" MinHeight="540"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgPrimaryBrush}"
-        Icon="Resources/app.ico"
+        Icon="pack://application:,,,/Resources/app.ico"
         AutomationProperties.Name="X3D CCD Optimizer dashboard">
 
     <Window.Resources>

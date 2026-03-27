@@ -26,9 +26,7 @@
     <None Update="Data\known_games.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Resources\app.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <Resource Include="Resources\app.ico" />
   </ItemGroup>
 
   <ItemGroup>
