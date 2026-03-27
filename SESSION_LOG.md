@@ -4,16 +4,53 @@ Development session history for X3D Dual CCD Optimizer.
 
 ---
 
-## Session 7 — 2026-03-27
+## Current State (for new sessions — read this first)
+
+**Version:** 0.4.0 | **Status:** Phase 2.5 complete | **Branch:** develop | **Last session:** 8
+
+**What exists:**
+- .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
+- **Core engine:** CcdMapper (P/Invoke topology), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (3-tier: manual → 65-game DB → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode-aware, lock-based)
+- **WPF dashboard:** MVVM, dark theme, two CCD panels with 4x2 core tile heatmaps, process router, activity log, animated pill toggle (Monitor/Optimize), polished UI (Cascadia Mono numbers, load bars, accent edges, pulsing dot, gradient separator)
+- **Compact overlay:** 280x160 always-on-top, OLED-safe (auto-hide 10s, pixel shift 3min), Ctrl+Shift+O hotkey, draggable, position persisted
+- **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay toggle
+- **Monitor/Optimize dual-mode:** Monitor (default, observe-only, any dual-CCD Ryzen), Optimize (active affinity, X3D only, HasVCache-gated)
+- **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce settings
+- **Code audit done:** 2 critical, 3 high, 7 medium issues fixed (config safety, global exception handler, thread-safe disposal, handle leaks, multi-monitor positions)
+- **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
+
+**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode-aware), `Core/GameDetector.cs` (3-tier), `ViewModels/MainViewModel.cs` (orchestrator), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay)
+
+**What's next:** Phase 3 (Settings window, start-with-Windows), Phase 4 (CI/CD, trimmed build, installer)
+
+**Known gotchas:**
+- CACHE_RELATIONSHIP struct needs 18-byte `Reserved` field (not 2-byte) — was a real bug
+- Hardcodet.NotifyIcon.Wpf is incompatible with .NET 8 — use WinForms NotifyIcon instead
+- WPF + WinForms namespace conflicts — removed WinForms global using, disambiguate with full type names
+- Overlay requires borderless windowed (exclusive fullscreen blocks standard overlays)
+
+---
+
+## Session 8 — 2026-03-27
 
 **Agent:** Claude Opus 4.6 (1M context)
-**Goal:** Bug fixes, documentation, UI polish
+**Goal:** Comprehensive documentation update and repo prettification (v0.4.0)
 
 ### What Was Done
 
-1. **Footer core/thread count fix** (`ac8d968`) — Footer showed "32 cores" using logical processor count. Added `TotalPhysicalCores` to CpuTopology via WMI `Win32_Processor.NumberOfCores`. Footer now shows "16 cores | 32 threads". `GetCpuModel()` renamed to `GetCpuInfo()` returning both model name and physical core count.
+1. **Blueprint v0.4.0** (`158761a`) — Complete rewrite. Phases 1, 2, 2.5 marked complete. Added GpuMonitor, overlay, tray modules to architecture. Updated project structure, config schema (version 3 + overlay), risk register, compatibility. Phase 3/4 scoped. Author changed to LordBlacksun throughout.
 
-2. **README known limitations** (`c83f429`) — Added section noting that the mini overlay requires borderless windowed or windowed mode (exclusive fullscreen takes over the display adapter).
+2. **CLAUDE.md rewrite** — Full rewrite with overlay, GPU monitor, 3-tier detection pipeline, updated project structure (all ViewModels/Views/Converters/Tray/Themes), coding conventions (CACHE_RELATIONSHIP padding, thread safety, config safety), 8-value AffinityAction enum.
+
+3. **README.md rewrite** — Updated features (overlay, GPU auto-detect, dual-mode), status (Phase 2.5 complete), added configuration section (manual games, auto-detection, overlay), known limitations (fullscreen, 155MB exe, GPU counters), expanded roadmap.
+
+4. **CONTRIBUTING.md update** — Added known_games.json contribution workflow with exact format, issue template links, updated code guidelines and project structure.
+
+5. **GitHub issue templates** — Created `.github/ISSUE_TEMPLATE/bug_report.md` (OS, CPU, mode, logs, screenshots) and `game_request.md` (game title, exe name, launcher, V-Cache notes).
+
+6. **Footer core/thread fix** (`ac8d968`) — Added `TotalPhysicalCores` to CpuTopology from WMI `NumberOfCores`. Footer shows "16 cores | 32 threads" instead of "32 cores".
+
+7. **README known limitations** (`c83f429`) — Overlay requires borderless windowed mode.
 
 ### Commits
 
@@ -21,6 +58,7 @@ Development session history for X3D Dual CCD Optimizer.
 |------|--------|---------|
 | `c83f429` | develop | docs: add known limitations section to README |
 | `ac8d968` | develop | fix: display correct physical core and thread count in footer |
+| `158761a` | develop | docs: comprehensive documentation update and repo prettification (v0.4.0) |
 
 ---
 
