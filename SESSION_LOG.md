@@ -6,28 +6,93 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 0.4.0 | **Status:** Phase 2.5 complete | **Branch:** develop | **Last session:** 8
+**Version:** 0.4.0 | **Status:** Phase 3 in progress | **Branch:** develop | **Last session:** 9
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
 - **Core engine:** CcdMapper (P/Invoke topology), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (3-tier: manual → 65-game DB → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode-aware, lock-based)
 - **WPF dashboard:** MVVM, dark theme, two CCD panels with 4x2 core tile heatmaps, process router, activity log, animated pill toggle (Monitor/Optimize), polished UI (Cascadia Mono numbers, load bars, accent edges, pulsing dot, gradient separator)
 - **Compact overlay:** 280x160 always-on-top, OLED-safe (auto-hide 10s, pixel shift 3min), Ctrl+Shift+O hotkey, draggable, position persisted
-- **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay toggle
+- **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
 - **Monitor/Optimize dual-mode:** Monitor (default, observe-only, any dual-CCD Ryzen), Optimize (active affinity, X3D only, HasVCache-gated)
+- **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
+- **Dirty shutdown recovery:** RecoveryManager writes recovery.json while affinities are engaged. On next launch, restores all modified processes to full CPU affinity. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce settings
 - **Code audit done:** 2 critical, 3 high, 7 medium issues fixed (config safety, global exception handler, thread-safe disposal, handle leaks, multi-monitor positions)
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
 
-**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode-aware), `Core/GameDetector.cs` (3-tier), `ViewModels/MainViewModel.cs` (orchestrator), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay)
+**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode-aware), `Core/GameDetector.cs` (3-tier), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
 
-**What's next:** Phase 3 (Settings window, start-with-Windows), Phase 4 (CI/CD, trimmed build, installer)
+**What's next:** Ryzen-wide support (single CCD + symmetric dual CCD tiers), Process Router grouped view redesign, Phase 4 (CI/CD, trimmed build, installer)
 
 **Known gotchas:**
 - CACHE_RELATIONSHIP struct needs 18-byte `Reserved` field (not 2-byte) — was a real bug
 - Hardcodet.NotifyIcon.Wpf is incompatible with .NET 8 — use WinForms NotifyIcon instead
 - WPF + WinForms namespace conflicts — removed WinForms global using, disambiguate with full type names
 - Overlay requires borderless windowed (exclusive fullscreen blocks standard overlays)
+- ComboBox SelectedValue binding for default mode — don't use RadioButton with complex converters in XAML, just use ComboBox
+
+---
+
+## Session 9 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Pre-1.0 build — dirty shutdown recovery, settings window
+
+### What Was Done
+
+1. **Dirty shutdown recovery** (`f189230`)
+   - `RecoveryManager.cs`: writes `recovery.json` to `%APPDATA%` while affinities are engaged, listing all modified processes with original masks
+   - On next launch: if recovery.json exists, resets all listed processes to full CPU affinity (all cores)
+   - Handles corrupted JSON (delete and continue), exited processes (skip), restarted processes (match by name)
+   - `RecoveryState.cs`: data model for recovery JSON (engaged, timestamp, game, modified processes)
+   - AffinityManager integration: `OnEngage()` on game detect, `AddModifiedProcess()` on each migration, `OnDisengage()` on clean restore/exit
+   - App.xaml.cs calls `RecoverFromDirtyShutdown()` before normal startup
+
+2. **Settings window with live-apply** (`f81cade`)
+   - 5-tab modal SettingsWindow: General, Games, Detection, Overlay, Advanced
+   - **General:** start-with-Windows (registry HKCU Run key), default mode, start minimized, notifications, polling/refresh interval sliders
+   - **Games:** manual game list with add/remove, read-only known games DB view (65 entries)
+   - **Detection:** GPU auto-detect toggle, threshold/delay sliders, foreground requirement, exclusion list management
+   - **Overlay:** enable toggle, opacity/auto-hide/pixel-shift sliders
+   - **Advanced:** log level dropdown, open log/config folders, reset to defaults
+   - OK/Cancel/Apply buttons — Apply writes to config and takes effect immediately
+   - `StartupManager.cs`: registry HKCU Run key management with `--minimized` flag
+   - App.xaml.cs handles `--minimized` command-line argument
+   - Accessible from dashboard footer "Settings" button and tray context menu
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| `f189230` | develop | feat: add dirty shutdown recovery — restores CPU affinities after crash |
+| `f81cade` | develop | feat: add settings window with live-apply and start-with-Windows support |
+| `303d3e6` | master | merge of develop |
+
+### Files Created (6 new)
+
+```
+src/X3DCcdOptimizer/Core/RecoveryManager.cs
+src/X3DCcdOptimizer/Core/StartupManager.cs
+src/X3DCcdOptimizer/Models/RecoveryState.cs
+src/X3DCcdOptimizer/ViewModels/SettingsViewModel.cs
+src/X3DCcdOptimizer/Views/SettingsWindow.xaml + .cs
+```
+
+### Files Modified (5)
+
+```
+App.xaml.cs — recovery on startup, --minimized flag
+Core/AffinityManager.cs — RecoveryManager integration
+ViewModels/MainViewModel.cs — OpenSettingsCommand
+Views/DashboardWindow.xaml — Settings + Overlay buttons in footer
+Tray/TrayIconManager.cs — Settings menu item
+```
+
+### Not completed (deferred to next session)
+
+- Task 3: Ryzen-wide support (single CCD, symmetric dual CCD tiers)
+- Task 4: Process Router grouped view redesign
 
 ---
 
