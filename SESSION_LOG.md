@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 16
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 17
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -36,6 +36,29 @@ Development session history for X3D Dual CCD Optimizer.
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
 - SingleCcdX3D sets FrequencyCores=[] and FrequencyMask=IntPtr.Zero — all code referencing these must null/empty guard. CcdMapper, AffinityManager, MainViewModel (Ccd1Panel nullable), OverlayViewModel all audited and guarded.
 - WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
+
+---
+
+## Session 17 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Defensive coding audit — robustness, crash prevention, graceful degradation
+
+### What Was Done
+
+1. **Comprehensive defensive coding audit** — Read all 37 source files. Analyzed null safety, defensive casts, collection safety, arithmetic safety, resource cleanup, async/threading, external dependency resilience, startup/shutdown resilience, and edge case data handling.
+
+2. **35 findings:** 0 critical, 0 high, 2 medium, 6 low, 22 info (already handled well). Report saved as `DEFENSIVE_AUDIT.md` (internal, not shipped).
+
+3. **Key positive findings:** All P/Invoke handles properly cleaned up. All event invocations null-safe. All dispatcher calls use BeginInvoke (no deadlocks). No async void. Single lock per class. Config uses atomic writes. Shutdown handles partial init. Enum parsing uses safe defaults.
+
+4. **Top 2 actionable:** DEF-009 (Process.GetProcesses() not wrapped in try/catch at enumeration level in 3 locations), DEF-001 (RelayCommand._execute not null-checked).
+
+### Files Created (1)
+
+```
+DEFENSIVE_AUDIT.md — internal audit report
+```
 
 ---
 
