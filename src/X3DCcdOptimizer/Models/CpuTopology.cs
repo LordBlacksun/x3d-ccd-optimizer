@@ -14,8 +14,8 @@ public class CpuTopology
     public int TotalLogicalCores { get; set; }
 
     public bool HasVCache => VCacheL3SizeMB > StandardL3SizeMB * 2;
-    public bool IsSingleCcd => Tier == ProcessorTier.SingleCcdX3D;
-    public bool IsDualCcd => Tier != ProcessorTier.SingleCcdX3D;
+    public bool IsSingleCcd => Tier is ProcessorTier.SingleCcdX3D or ProcessorTier.SingleCcdStandard;
+    public bool IsDualCcd => !IsSingleCcd;
 
     public string VCacheMaskHex => $"0x{VCacheMask.ToInt64():X4}";
     public string FrequencyMaskHex => FrequencyMask != IntPtr.Zero ? $"0x{FrequencyMask.ToInt64():X4}" : "N/A";

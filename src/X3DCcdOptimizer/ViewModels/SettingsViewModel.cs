@@ -51,6 +51,7 @@ public class SettingsViewModel : ViewModelBase
     public string TierDescription => _topology.Tier switch
     {
         ProcessorTier.SingleCcdX3D => "Single-CCD X3D — monitoring only, no CCD steering needed",
+        ProcessorTier.SingleCcdStandard => "Single-CCD — monitoring only",
         ProcessorTier.DualCcdStandard => "Dual-CCD (no V-Cache) — affinity pinning available",
         ProcessorTier.DualCcdX3D => "Dual-CCD X3D — full optimization available",
         _ => ""

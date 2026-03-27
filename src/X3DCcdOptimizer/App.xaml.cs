@@ -16,7 +16,7 @@ namespace X3DCcdOptimizer;
 
 public partial class App : System.Windows.Application
 {
-    private const string Version = "0.2.0";
+    private const string Version = "1.0.0";
     private const int HotkeyId = 9001;
 
     private AppConfig _config = null!;
@@ -76,7 +76,9 @@ public partial class App : System.Windows.Application
         {
             Log.Fatal(ex, "Failed to detect CCD topology");
             MessageBox.Show(
-                $"Failed to detect CCD topology:\n\n{ex.Message}\n\nThis may not be an AMD dual-CCD processor.",
+                "This application requires an AMD Ryzen processor with identifiable L3 cache topology.\n\n" +
+                "It is not compatible with Intel or older AMD processors.\n\n" +
+                "If you believe this is an error, check the log file for details.",
                 "X3D CCD Optimizer — Startup Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();

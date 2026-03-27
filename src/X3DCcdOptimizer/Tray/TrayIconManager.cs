@@ -131,7 +131,7 @@ public class TrayIconManager : IDisposable
         aboutItem.Click += (_, _) =>
             System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
                 System.Windows.MessageBox.Show(
-                    "X3D Dual CCD Optimizer v0.2.0\n\nMonitor and optimize CCD affinity for AMD X3D processors.\n\nGPL v2 — github.com/LordBlacksun/x3d-ccd-optimizer",
+                    "X3D Dual CCD Optimizer v1.0.0\n\nMonitor and optimize CCD affinity for AMD Ryzen processors.\n\nGPL v2 — github.com/LordBlacksun/x3d-ccd-optimizer",
                     "About", MessageBoxButton.OK, MessageBoxImage.Information));
         menu.Items.Add(aboutItem);
         menu.Items.Add(new WinForms.ToolStripSeparator());

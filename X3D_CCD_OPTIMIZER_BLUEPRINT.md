@@ -1,6 +1,6 @@
 # X3D Dual CCD Optimizer — Project Blueprint
 
-**Version:** 0.4.0
+**Version:** 1.0.0
 **Author:** LordBlacksun
 **License:** GPL v2
 **Repository:** github.com/LordBlacksun/x3d-ccd-optimizer
