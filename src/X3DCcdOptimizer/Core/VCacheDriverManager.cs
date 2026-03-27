@@ -20,16 +20,9 @@ public static class VCacheDriverManager
     private const int PREFER_FREQ = 0;
     private const int PREFER_CACHE = 1;
 
-    private static bool? _isDriverAvailable;
+    private static readonly Lazy<bool> _isDriverAvailable = new(CheckDriverInstalled);
 
-    public static bool IsDriverAvailable
-    {
-        get
-        {
-            _isDriverAvailable ??= CheckDriverInstalled();
-            return _isDriverAvailable.Value;
-        }
-    }
+    public static bool IsDriverAvailable => _isDriverAvailable.Value;
 
     /// <summary>
     /// Read the current DefaultType preference from the driver registry.
@@ -45,7 +38,12 @@ public static class VCacheDriverManager
 
             var value = key.GetValue(RegValueName);
             if (value is int intVal)
-                return intVal;
+            {
+                if (intVal is PREFER_FREQ or PREFER_CACHE)
+                    return intVal;
+                Log.Warning("amd3dvcache DefaultType has unexpected value: {Value}", intVal);
+                return null;
+            }
 
             return null;
         }
@@ -96,6 +94,9 @@ public static class VCacheDriverManager
 
     private static bool WritePreference(int value)
     {
+        if (value is not (PREFER_FREQ or PREFER_CACHE))
+            throw new ArgumentOutOfRangeException(nameof(value), value, "Expected 0 (PREFER_FREQ) or 1 (PREFER_CACHE)");
+
         try
         {
             using var key = Registry.LocalMachine.OpenSubKey(RegKeyPath, writable: true);

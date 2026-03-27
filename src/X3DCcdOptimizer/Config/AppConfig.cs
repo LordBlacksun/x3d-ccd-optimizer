@@ -199,11 +199,34 @@ public class AppConfig
         {
             Directory.CreateDirectory(ConfigDir);
             var json = JsonSerializer.Serialize(this, JsonOptions);
-            File.WriteAllText(ConfigPath, json);
+            var tempPath = ConfigPath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, ConfigPath, overwrite: true);
         }
         catch (Exception ex)
         {
             try { Serilog.Log.Warning(ex, "Failed to save config"); } catch { }
+        }
+    }
+
+    public void Validate()
+    {
+        PollingIntervalMs = Math.Clamp(PollingIntervalMs, 500, 30000);
+        DashboardRefreshMs = Math.Clamp(DashboardRefreshMs, 500, 30000);
+        AutoDetection.GpuThresholdPercent = Math.Clamp(AutoDetection.GpuThresholdPercent, 1, 100);
+        AutoDetection.DetectionDelaySeconds = Math.Clamp(AutoDetection.DetectionDelaySeconds, 1, 60);
+        AutoDetection.ExitDelaySeconds = Math.Clamp(AutoDetection.ExitDelaySeconds, 1, 120);
+        Overlay.AutoHideSeconds = Math.Clamp(Overlay.AutoHideSeconds, 1, 300);
+        Overlay.PixelShiftMinutes = Math.Clamp(Overlay.PixelShiftMinutes, 1, 60);
+        Overlay.Opacity = Math.Clamp(Overlay.Opacity, 0.1, 1.0);
+
+        if (CcdOverride is { VCacheCores: { } vc, FrequencyCores: { } fc })
+        {
+            if (vc.Any(c => c < 0 || c > 63) || fc.Any(c => c < 0 || c > 63))
+            {
+                try { Serilog.Log.Warning("CcdOverride contains out-of-range core indices — ignoring override"); } catch { }
+                CcdOverride = null;
+            }
         }
     }
 

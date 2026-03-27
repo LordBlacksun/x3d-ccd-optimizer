@@ -88,6 +88,13 @@ public static class RecoveryManager
             Log.Warning("Recovery: failed to restore amd3dvcache DefaultType — driver may not be installed");
     }
 
+    private static readonly HashSet<string> ProtectedProcesses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "System", "Idle", "csrss", "smss", "services", "wininit",
+        "lsass", "winlogon", "dwm", "audiodg", "fontdrvhost",
+        "Registry", "Memory Compression", "svchost", "X3DCcdOptimizer"
+    };
+
     private static void RecoverAffinityPinning(RecoveryState state)
     {
         if (state.ModifiedProcesses == null || state.ModifiedProcesses.Count == 0)
@@ -126,6 +133,13 @@ public static class RecoveryManager
                 // Strip .exe for process name matching
                 var nameWithoutExe = entry.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                     ? entry.Name[..^4] : entry.Name;
+
+                if (ProtectedProcesses.Contains(nameWithoutExe))
+                {
+                    Log.Warning("Recovery: skipping protected process {Name}", entry.Name);
+                    skipped++;
+                    continue;
+                }
 
                 if (!runningProcesses.TryGetValue(nameWithoutExe, out var matches))
                 {
@@ -250,7 +264,9 @@ public static class RecoveryManager
         {
             Directory.CreateDirectory(RecoveryDir);
             var json = JsonSerializer.Serialize(_currentState, JsonOptions);
-            File.WriteAllText(RecoveryPath, json);
+            var tempPath = RecoveryPath + ".tmp";
+            File.WriteAllText(tempPath, json);
+            File.Move(tempPath, RecoveryPath, overwrite: true);
         }
         catch (Exception ex)
         {

@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 0.4.0 | **Status:** Phase 3 in progress | **Branch:** develop | **Last session:** 10
+**Version:** 0.4.0 | **Status:** Phase 3 in progress | **Branch:** develop | **Last session:** 11
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -19,7 +19,7 @@ Development session history for X3D Dual CCD Optimizer.
 - **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
 - **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
-- **Code audit done:** 2 critical, 3 high, 7 medium issues fixed (config safety, global exception handler, thread-safe disposal, handle leaks, multi-monitor positions)
+- **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
 
 **Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (3-tier), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
@@ -33,6 +33,69 @@ Development session history for X3D Dual CCD Optimizer.
 - Overlay requires borderless windowed (exclusive fullscreen blocks standard overlays)
 - ComboBox SelectedValue binding for default mode — don't use RadioButton with complex converters in XAML, just use ComboBox
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
+
+---
+
+## Session 11 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Comprehensive security audit + fix all actionable findings
+
+### What Was Done
+
+1. **Full codebase security audit** — read every source file (45+ files). Produced `SECURITY_AUDIT.md` with 17 findings (0 critical, 3 high, 6 medium, 4 low, 4 info). Covered registry ops, process manipulation, file I/O, WMI queries, input validation, thread safety, exception handling, admin elevation, overlay/UI, dependencies, secrets, and startup/shutdown.
+
+2. **SEC-002 — Single-instance mutex** — Added `Global\X3DCcdOptimizer_SingleInstance` named mutex in `App.OnStartup` before any other work. Shows MessageBox and shuts down if already running.
+
+3. **SEC-001 — Atomic file writes** — Both `AppConfig.Save()` and `RecoveryManager.WriteState()` now write to `.tmp` then `File.Move(overwrite: true)`. Prevents corruption on crash/power loss.
+
+4. **SEC-006 — Config validation** — Added `AppConfig.Validate()` clamping all numeric values to sane ranges (polling 500–30000ms, GPU threshold 1–100%, overlay opacity 0.1–1.0, etc.). CcdOverride core indices validated 0–63. Called after `Load()` in startup.
+
+5. **SEC-003 — Protected process filter in recovery** — `RecoverAffinityPinning()` now skips System, csrss, lsass, dwm, svchost and 10 other protected process names. Prevents malicious recovery.json from modifying critical system processes.
+
+6. **SEC-008 — WMI timeouts** — Added 10-second timeouts to both WMI queries in `CcdMapper.cs` (Win32_CacheMemory, Win32_Processor). Prevents startup hang if WMI is stuck.
+
+7. **SEC-010 — Admin elevation** — Changed `app.manifest` from `asInvoker` to `requireAdministrator`. App writes HKLM and sets process affinities — it must run elevated.
+
+8. **SEC-005 — GameDetector thread safety** — Replaced auto-property `CurrentGame` with lock-protected backing field.
+
+9. **SEC-004 — VCacheDriverManager thread-safe init** — Replaced `bool? + ??=` with `Lazy<bool>` for `IsDriverAvailable`.
+
+10. **SEC-009 — ProcessWatcher dispose race** — Made `_disposed` volatile, added early exit at top of `Poll()`, suppressed logging during shutdown.
+
+11. **SEC-007 — Registry value validation** — `GetCurrentPreference()` validates int is 0 or 1 (warns + returns null otherwise). `WritePreference()` throws `ArgumentOutOfRangeException` on invalid values.
+
+12. **SEC-011 — Empty catch blocks** — Added `Log.Debug()` to all 5 silent catch blocks (ProcessWatcher ×2, App.xaml.cs, GpuMonitor, StartupManager).
+
+13. **SEC-013 — Core index bounds** — `CcdMapper.CoresMask()` skips and warns on core indices outside 0–63 instead of silently wrapping.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| (pending) | develop | audit: comprehensive security audit of full codebase |
+| (pending) | develop | fix: implement all 12 actionable security audit findings |
+
+### Files Created (1 new)
+
+```
+SECURITY_AUDIT.md — full audit report (internal, not in shipping build)
+```
+
+### Files Modified (10)
+
+```
+App.xaml.cs — single-instance mutex, config validation call, debug logging in catch
+Config/AppConfig.cs — atomic writes, Validate() method
+Core/RecoveryManager.cs — atomic writes, protected process filter
+Core/CcdMapper.cs — WMI timeouts, core index bounds check
+Core/GameDetector.cs — lock-protected CurrentGame
+Core/VCacheDriverManager.cs — Lazy<bool>, registry value validation
+Core/ProcessWatcher.cs — volatile _disposed, early exit in Poll, debug logging
+Core/GpuMonitor.cs — debug logging in catch
+Core/StartupManager.cs — debug logging in catch
+app.manifest — requireAdministrator
+```
 
 ---
 

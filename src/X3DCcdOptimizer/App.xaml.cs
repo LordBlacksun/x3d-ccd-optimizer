@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Threading;
 using System.Windows;
 using System.Windows.Interop;
 using Serilog;
@@ -30,11 +31,22 @@ public partial class App : System.Windows.Application
     private DashboardWindow? _dashboardWindow;
     private OverlayWindow? _overlayWindow;
     private TrayIconManager? _trayManager;
+    private Mutex? _singleInstanceMutex;
     private bool _hotkeyRegistered;
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+
+        // Single-instance enforcement (SEC-002)
+        _singleInstanceMutex = new Mutex(true, @"Global\X3DCcdOptimizer_SingleInstance", out var createdNew);
+        if (!createdNew)
+        {
+            MessageBox.Show("X3D CCD Optimizer is already running.",
+                "Already Running", MessageBoxButton.OK, MessageBoxImage.Information);
+            Shutdown();
+            return;
+        }
 
         // Global exception handlers
         DispatcherUnhandledException += (_, args) =>
@@ -49,6 +61,7 @@ public partial class App : System.Windows.Application
         };
 
         _config = AppConfig.Load();
+        _config.Validate();
         AppLogger.Initialize(_config.Logging.Level);
         Log.Information("X3D Dual CCD Optimizer v{Version}", Version);
 
@@ -234,7 +247,7 @@ public partial class App : System.Windows.Application
                 if (hwnd != IntPtr.Zero)
                     User32.UnregisterHotKey(hwnd, HotkeyId);
             }
-            catch { /* shutting down */ }
+            catch (Exception ex) { Log.Debug(ex, "Failed to unregister hotkey during shutdown"); }
         }
 
         // Save state

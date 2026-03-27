@@ -154,6 +154,7 @@ public static class CcdMapper
 
         using var cacheSearcher = new ManagementObjectSearcher(
             "SELECT * FROM Win32_CacheMemory WHERE Level = 5"); // Level 5 = L3 in WMI
+        cacheSearcher.Options.Timeout = TimeSpan.FromSeconds(10);
 
         int coresSoFar = 0;
         foreach (var cache in cacheSearcher.Get())
@@ -208,6 +209,7 @@ public static class CcdMapper
         {
             using var searcher = new ManagementObjectSearcher(
                 "SELECT Name, NumberOfCores FROM Win32_Processor");
+            searcher.Options.Timeout = TimeSpan.FromSeconds(10);
             foreach (var obj in searcher.Get())
             {
                 var name = obj["Name"]?.ToString()?.Trim() ?? "Unknown";
@@ -237,7 +239,12 @@ public static class CcdMapper
     {
         ulong mask = 0;
         foreach (var core in cores)
-            mask |= 1UL << core;
+        {
+            if (core >= 0 && core < 64)
+                mask |= 1UL << core;
+            else
+                Log.Warning("Ignoring out-of-range core index {Core} in CCD override", core);
+        }
         return new IntPtr((long)mask);
     }
 
