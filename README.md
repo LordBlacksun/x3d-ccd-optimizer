@@ -1,6 +1,6 @@
 # X3D Dual CCD Optimizer
 
-A lightweight, open-source Windows tool that manages CPU core affinity on AMD dual-CCD X3D processors. Features a real-time dashboard showing per-core CCD activity, automatic game detection, and intelligent process routing.
+A lightweight, open-source Windows tool for AMD dual-CCD Ryzen processors. Real-time CCD dashboard, automatic game detection, intelligent process routing, and a compact gaming overlay — all with Monitor/Optimize dual-mode for safety and control.
 
 ## The Problem
 
@@ -20,33 +20,37 @@ On Linux, AMD contributed a proper kernel-level scheduler. Windows users got a G
 
 ## What It Does
 
-- **Detects your CCD topology automatically** — identifies which cores have V-Cache and which don't
-- **Pins your game to the V-Cache CCD** when it launches — manual game list + automatic detection
-- **Migrates background processes to the frequency CCD** — Discord, Spotify, browsers, etc. actually use your other cores instead of sitting idle
-- **Restores everything when you're done gaming** — all affinities go back to default
-- **Shows you exactly what's happening** — real-time dashboard with per-core load, frequency, process routing, and a live activity log
+- **Two operating modes** — Monitor mode (default) observes without touching anything. Optimize mode actively pins games to V-Cache. Switch between them with a single click.
+- **Real-time CCD dashboard** — per-core load heatmap, frequency display, process-to-CCD routing table, and a live activity log
+- **Automatic game detection** — three-tier: manual game list, 65-game known database, GPU usage heuristic with debounce
+- **Compact gaming overlay** — always-on-top mini display for single-monitor setups, with OLED burn-in protection (auto-hide, pixel shift)
+- **System tray** — color-coded icon (blue=Monitor, purple=Optimize idle, green=Optimize active), right-click menu with mode toggle
+- **Detects CCD topology automatically** — identifies V-Cache vs frequency CCD by L3 cache size
+- **Migrates background processes** — Discord, browsers, Spotify move to the frequency CCD
+- **Restores everything on game exit** — all affinities return to default
 
 ## Supported Processors
 
-| CPU | Cores | V-Cache CCD |
-|-----|-------|-------------|
-| Ryzen 9 7950X3D | 8+8 | CCD0 (96MB L3) |
-| Ryzen 9 7900X3D | 6+6 | CCD0 (96MB L3) |
-| Ryzen 9 9950X3D | 8+8 | CCD0 (96MB L3) |
-| Ryzen 9 9900X3D | 6+6 | CCD0 (96MB L3) |
+| CPU | Cores | V-Cache CCD | Modes |
+|-----|-------|-------------|-------|
+| Ryzen 9 7950X3D | 16 cores / 32 threads | CCD0 (96MB L3) | Monitor + Optimize |
+| Ryzen 9 7900X3D | 12 cores / 24 threads | CCD0 (96MB L3) | Monitor + Optimize |
+| Ryzen 9 9950X3D | 16 cores / 32 threads | CCD0 (96MB L3) | Monitor + Optimize |
+| Ryzen 9 9900X3D | 12 cores / 24 threads | CCD0 (96MB L3) | Monitor + Optimize |
+| Other dual-CCD Ryzen | varies | N/A | Monitor only |
 
 ## Status
 
-**Phase 1 (Foundation)** — Core engine complete. Console-mode operation with topology detection, per-core monitoring, game detection, affinity management, and logging.
+**Phase 2.5 complete** — WPF dashboard, Monitor/Optimize mode toggle, polished dark theme UI, compact OLED-safe overlay, GPU auto-detection with 65-game database, full code audit with 12 issues fixed.
 
-Phase 2 (Dashboard UI) and Phase 3 (Auto-Detection + Settings) are in progress.
+Phase 3 (Settings UI + Start with Windows) and Phase 4 (CI/CD + Release) are next.
 
 ## Getting Started
 
 ### Requirements
 
 - Windows 10 21H2+ or Windows 11
-- An AMD dual-CCD X3D processor (see supported list above)
+- An AMD dual-CCD Ryzen processor (X3D for Optimize mode, any dual-CCD for Monitor)
 - .NET 8 SDK (for building from source)
 
 ### Build and Run
@@ -60,38 +64,69 @@ dotnet run --project src/X3DCcdOptimizer
 
 ### Configuration
 
-On first run, a config file is created at `%APPDATA%\X3DCCDOptimizer\config.json`. You can add your games to the manual list:
+On first run, a config file is created at `%APPDATA%\X3DCCDOptimizer\config.json`.
 
+**Add games to the manual list** (highest detection priority):
 ```json
 {
   "manualGames": [
     "elitedangerous64.exe",
-    "ffxiv_dx11.exe",
-    "stellaris.exe",
-    "helldivers2.exe",
     "yourgame.exe"
   ]
 }
 ```
 
+**Configure auto-detection:**
+```json
+{
+  "autoDetection": {
+    "enabled": true,
+    "gpuThresholdPercent": 50,
+    "requireForeground": true,
+    "detectionDelaySeconds": 5,
+    "exitDelaySeconds": 10
+  }
+}
+```
+
+**Configure the overlay:**
+```json
+{
+  "overlay": {
+    "enabled": false,
+    "autoHideSeconds": 10,
+    "pixelShiftMinutes": 3,
+    "opacity": 0.8
+  }
+}
+```
+
+The app also ships with a 65-game known games database (`Data/known_games.json`) that is checked automatically.
+
 ## How It Works
 
-1. On startup, the tool queries your CPU's cache topology to identify which cores belong to the V-Cache CCD and which belong to the standard CCD
-2. It monitors running processes against your game list (and optionally via GPU usage heuristics)
-3. When a game is detected in the foreground, it uses the Windows `SetProcessAffinityMask` API to:
-   - Pin the game to the V-Cache CCD cores
-   - Migrate background processes to the frequency CCD cores
-4. When the game exits, all process affinities are restored to their defaults
-5. Every action is logged with timestamps for full transparency
+1. On startup, the tool queries your CPU's cache topology to identify V-Cache and frequency CCDs
+2. It monitors running processes against the manual list, known games database, and GPU usage heuristics
+3. **In Monitor mode:** shows what it *would* do without touching anything — `[MONITOR] WOULD ENGAGE`
+4. **In Optimize mode:** uses `SetProcessAffinityMask` to pin the game to V-Cache and migrate background processes
+5. When the game exits, all process affinities are restored to defaults
+6. Every action is logged with timestamps, detection source, and full transparency
 
-This is **not** a kernel driver — it uses standard Windows APIs that don't require admin privileges or driver signing. It supplements AMD's chipset drivers, not replaces them.
+This is **not** a kernel driver — it uses standard Windows APIs that don't require admin privileges.
 
 ## Roadmap
 
 - [x] **Phase 1** — Core engine: topology detection, affinity management, console output
-- [ ] **Phase 2** — Real-time dashboard with per-core CCD visualization
-- [ ] **Phase 3** — Auto-detection via GPU heuristics, settings UI, start-with-Windows
-- [ ] **Phase 4** — Single-file release build, installer, CI/CD
+- [x] **Phase 2** — WPF dashboard with Monitor/Optimize toggle, dark theme, per-core heatmap
+- [x] **Phase 2.5** — OLED-safe overlay, code audit, GPU auto-detection with 65-game database
+- [ ] **Phase 3** — Settings window, start-with-Windows, per-game profiles
+- [ ] **Phase 4** — CI/CD, trimmed single-file build, installer, release
+
+## Known Limitations
+
+- **The mini overlay requires borderless windowed or windowed mode.** Exclusive fullscreen games take over the display adapter and no standard Windows overlay can render on top. Switch your game to borderless windowed for overlay support — performance impact is negligible on Windows 11.
+- **Self-contained exe is ~155MB.** Includes the full .NET 8 runtime + WPF + WinForms. Trimming is planned for Phase 4.
+- **GPU auto-detection requires Windows GPU performance counters.** If your GPU driver doesn't expose them, auto-detection is disabled and the tool falls back to manual list + known database.
 
 ## Why Not Just Use Process Lasso?
 
@@ -114,10 +149,6 @@ The known games database (`src/X3DCcdOptimizer/Data/known_games.json`) is a grea
 ## License
 
 GPL v2. See [LICENSE](LICENSE) for details.
-
-## Known Limitations
-
-- **The mini overlay requires borderless windowed or windowed mode.** Exclusive fullscreen games take over the display adapter and no standard Windows overlay can render on top. Switch your game to borderless windowed for overlay support — performance impact is negligible on Windows 11.
 
 ## How This Was Built
 

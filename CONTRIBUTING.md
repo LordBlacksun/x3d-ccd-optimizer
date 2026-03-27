@@ -34,23 +34,34 @@ dotnet run --project src/X3DCcdOptimizer
 
 ## How to Contribute
 
+### Adding Games to the Known Games Database
+
+The easiest and most impactful contribution. Edit `src/X3DCcdOptimizer/Data/known_games.json`:
+
+```json
+{
+  "games": [
+    { "exe": "yourgame.exe", "name": "Your Game Title" }
+  ]
+}
+```
+
+Include in your PR:
+- The exact executable name (check Task Manager while the game is running)
+- The full game title
+- The launcher (Steam/Epic/GOG) if relevant
+- Whether the game benefits from V-Cache (most do, but note if you've tested)
+
+You can also use the [game request issue template](https://github.com/LordBlacksun/x3d-ccd-optimizer/issues/new?template=game_request.md) to suggest games without submitting code.
+
 ### Reporting Bugs
 
-Open an issue with:
-- Your CPU model (e.g., Ryzen 9 7950X3D, Ryzen 9 9950X)
+Use the [bug report template](https://github.com/LordBlacksun/x3d-ccd-optimizer/issues/new?template=bug_report.md). Include:
+- Your CPU model (e.g., Ryzen 9 7950X3D)
 - Windows version
 - Which mode you were using (Monitor or Optimize)
 - Steps to reproduce
-- Console output or log file from `%APPDATA%\X3DCCDOptimizer\logs\`
-
-### Adding Games to the Known Games List
-
-The easiest way to contribute — add game executables that should be detected automatically. Edit the `manualGames` default list in `src/X3DCcdOptimizer/Config/AppConfig.cs` or (when available) `src/X3DCcdOptimizer/Data/known_games.json`.
-
-Include:
-- Exact executable name (e.g., `game.exe`)
-- Full game title in your PR description
-- Whether the game benefits from V-Cache (most do, but verify if possible)
+- Log file from `%APPDATA%\X3DCCDOptimizer\logs\`
 
 ### Code Contributions
 
@@ -64,12 +75,13 @@ Include:
 
 ### Code Reviews
 
-Code reviews are one of the most impactful contributions you can make. The implementation is AI-generated, which means it benefits enormously from human review. Areas where review is particularly valuable:
+Code reviews are one of the most impactful contributions you can make. Areas where review is particularly valuable:
 
-- **P/Invoke correctness** — are the signatures, struct layouts, and marshalling right?
-- **Edge cases** — what happens with unusual CPU topologies, process states, or permission scenarios?
-- **Affinity management safety** — does the mode-aware logic in AffinityManager correctly gate all Win32 calls behind the mode check?
-- **Resource cleanup** — are all native handles, PDH queries, and timers properly disposed?
+- **P/Invoke correctness** — signatures, struct layouts, marshalling
+- **Thread safety** — lock coverage in AffinityManager, Dispatcher usage, disposal races
+- **Edge cases** — unusual CPU topologies, process states, permission scenarios
+- **Affinity management safety** — mode-aware logic gates all Win32 calls behind the mode check
+- **Resource cleanup** — native handles, PDH queries, timers, icon handles
 
 ## Branch Strategy
 
@@ -79,28 +91,37 @@ Code reviews are one of the most impactful contributions you can make. The imple
 
 ## Code Guidelines
 
-- Target .NET 8 (`net8.0-windows`)
+- Target .NET 8 (`net8.0-windows`), WPF + WinForms (for NotifyIcon)
 - Enable nullable reference types
 - All P/Invoke calls must have `SetLastError = true` and proper error checking
 - All process operations wrapped in try/catch — never crash on a single process failure
 - AffinityManager must check `operationMode` before every `SetProcessAffinityMask` call
+- CACHE_RELATIONSHIP struct: 18-byte `Reserved` field, not 2-byte — this was a real bug
 - Log significant actions at INFO, failures at WARNING or ERROR
 - Use `IDisposable` for anything holding native handles or timers
 - Use events for inter-module communication, not callbacks
 - Case-insensitive process name matching everywhere
+- Config load/save wrapped in try/catch — never crash on corrupted config
+- MVVM for WPF: Views bind to ViewModels, no logic in code-behind except window management
+- All engine events marshalled to UI via `Dispatcher.BeginInvoke` (not `Invoke`)
 - Read the [blueprint](X3D_CCD_OPTIMIZER_BLUEPRINT.md) before making architectural changes
 
 ## Project Structure
 
 ```
 src/X3DCcdOptimizer/
-├── Native/     # P/Invoke signatures (Kernel32, User32, PDH)
-├── Models/     # Data models (CpuTopology, CoreSnapshot, AffinityEvent)
-├── Config/     # JSON configuration (includes operationMode)
+├── Core/       # Engine (CcdMapper, PerformanceMonitor, ProcessWatcher, GameDetector, GpuMonitor, AffinityManager)
+├── ViewModels/ # MVVM ViewModels (Main, CcdPanel, CoreTile, ActivityLog, ProcessRouter, Overlay)
+├── Views/      # WPF XAML (DashboardWindow, CcdPanel, CoreTile, OverlayWindow)
+├── Themes/     # Resource dictionaries (DarkTheme, Typography, Controls)
+├── Converters/ # WPF value converters
+├── Tray/       # System tray (TrayIconManager, IconGenerator)
+├── Config/     # JSON configuration (AppConfig with nested types)
 ├── Logging/    # Serilog setup
-├── Core/       # Engine (CcdMapper, PerformanceMonitor, ProcessWatcher, GameDetector, AffinityManager)
-├── UI/         # Dashboard + settings (Phase 2+)
-└── Program.cs  # Entry point
+├── Native/     # P/Invoke (Kernel32, User32, Pdh, Structs)
+├── Models/     # Data models (CpuTopology, CoreSnapshot, AffinityEvent, OperationMode)
+├── Data/       # Known games database (known_games.json)
+└── App.xaml    # WPF Application entry point
 ```
 
 ## License

@@ -7,11 +7,14 @@ X3D Dual CCD Optimizer is a lightweight open-source Windows application with two
 - **Monitor Mode (default):** Real-time CCD dashboard showing per-core load, frequency, process-to-CCD mapping, and game detection — without touching any process affinity. Works on any dual-CCD Ryzen.
 - **Optimize Mode (opt-in):** Everything Monitor does, plus active CPU affinity management — pins games to the V-Cache CCD and migrates background processes to the frequency CCD. Requires confirmed V-Cache detection (X3D processors only).
 
+The app also includes a compact always-on-top overlay for single-monitor gaming, GPU-based automatic game detection, and a 65-game known games database.
+
 ## Architecture
 
-The app has two layers:
-- **Core Engine** — topology detection, process monitoring, game detection, mode-aware affinity management
-- **UI Layer** — system tray (NotifyIcon) + dashboard window (WinForms) — Phase 2+
+The app has three layers:
+- **Core Engine** — topology detection, performance monitoring, game detection, GPU monitoring, mode-aware affinity management
+- **UI Layer** — WPF dashboard window, compact overlay window, system tray (WinForms NotifyIcon)
+- **Configuration** — JSON config with game lists, exclusions, overlay settings, auto-detection parameters
 
 All design decisions and module specs are in `X3D_CCD_OPTIMIZER_BLUEPRINT.md` at the project root. This is the single source of truth. Read it before making architectural changes.
 
@@ -20,32 +23,43 @@ All design decisions and module specs are in `X3D_CCD_OPTIMIZER_BLUEPRINT.md` at
 The application operates in Monitor or Optimize mode at all times. Mode is stored in config as `operationMode` and persists across restarts.
 
 **Mode-independent modules** (run identically in both modes):
-- `CcdMapper` — topology detection
-- `PerformanceMonitor` — per-core load/frequency collection
-- `ProcessWatcher` — process polling and game detection events
-- `GameDetector` — game identification (manual list, known DB, auto-detection)
+- `CcdMapper` — topology detection, `HasVCache` output
+- `PerformanceMonitor` — per-core load/frequency collection via PDH
+- `ProcessWatcher` — process polling, game detection events, GPU heuristic integration
+- `GameDetector` — three-tier game identification (manual → known DB → GPU heuristic)
+- `GpuMonitor` — per-process GPU 3D engine utilization via WMI
 
 **Mode-aware module:**
 - `AffinityManager` — checks `operationMode` before every `SetProcessAffinityMask` call
   - **Monitor mode:** emits `WouldEngage`, `WouldMigrate`, `WouldRestore` events. Never calls Win32 affinity APIs.
-  - **Optimize mode:** emits `Engaged`, `Migrated`, `Restored` events. Calls `SetProcessAffinityMask` to modify process affinity.
+  - **Optimize mode:** emits `Engaged`, `Migrated`, `Restored` events. Calls `SetProcessAffinityMask`.
 
-The event stream structure is identical in both modes — only the `AffinityAction` type and whether Win32 APIs are called differ. This means the dashboard, logging, and any future consumers work unchanged regardless of mode.
+The event stream structure is identical in both modes — only the `AffinityAction` type and whether Win32 APIs are called differ.
 
 **Mode switching mid-game:**
 - Monitor → Optimize: immediately engages (pins game, migrates background)
 - Optimize → Monitor: immediately restores all affinities to original values
 
-**Optimize toggle gating:** The Optimize toggle is disabled (greyed out) when `CpuTopology.HasVCache == false`. If config says `"optimize"` but V-Cache is not detected at startup, the app falls back to Monitor with a warning.
+**Optimize toggle gating:** Disabled when `CpuTopology.HasVCache == false`. Config fallback to Monitor with warning.
+
+### Game Detection Pipeline
+
+Three-tier priority:
+1. **Manual list** (config `manualGames`) — highest priority, instant match
+2. **Known games database** (`Data/known_games.json`, 65 entries) — case-insensitive exe match
+3. **GPU heuristic** (via `GpuMonitor`) — lowest priority, requires foreground + GPU > threshold for 5s
+
+Detection source shown in activity log: `[manual]`, `[database]`, `[auto-detected, GPU: XX%]`
 
 ## Tech Stack
 
 - **Language:** C# 12 / .NET 8
 - **Target:** `net8.0-windows` (Windows-specific APIs required)
-- **UI:** WinForms (NotifyIcon for tray, Forms for dashboard/settings)
+- **UI:** WPF (dashboard + overlay) + WinForms (NotifyIcon for tray)
 - **Win32 API:** P/Invoke via `DllImport` in `Native/` folder
 - **Performance counters:** PDH (Performance Data Helper) via P/Invoke
-- **WMI:** `System.Management` for CPU topology fallback and GPU detection
+- **GPU monitoring:** WMI `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine`
+- **WMI:** `System.Management` for CPU topology fallback, GPU detection, core counts
 - **Config:** `System.Text.Json`, stored at `%APPDATA%\X3DCCDOptimizer\config.json`
 - **Logging:** Serilog with console + file sinks
 - **Distribution:** Self-contained single-file publish (`dotnet publish -r win-x64 --self-contained`)
@@ -55,38 +69,68 @@ The event stream structure is identical in both modes — only the `AffinityActi
 ```
 x3d-ccd-optimizer/
 ├── src/X3DCcdOptimizer/
-│   ├── Program.cs                 # Entry point
-│   ├── Core/                      # Engine modules
-│   │   ├── CcdMapper.cs           # CCD topology detection (HasVCache output)
-│   │   ├── PerformanceMonitor.cs  # Per-core load/freq via PDH (mode-independent)
-│   │   ├── ProcessWatcher.cs      # Process polling + game detection (mode-independent)
-│   │   ├── GameDetector.cs        # Game identification (mode-independent)
-│   │   └── AffinityManager.cs     # Mode-aware affinity management
-│   ├── UI/                        # Dashboard + settings (Phase 2+)
-│   ├── Config/AppConfig.cs        # JSON config model + I/O (includes operationMode)
-│   ├── Logging/AppLogger.cs       # Serilog setup
-│   ├── Native/                    # P/Invoke declarations
-│   │   ├── Kernel32.cs            # Affinity, topology APIs
-│   │   ├── User32.cs              # Foreground window APIs
-│   │   ├── Pdh.cs                 # Performance counter APIs
-│   │   └── Structs.cs             # Native struct definitions
-│   ├── Models/                    # Shared data types
-│   │   ├── CpuTopology.cs         # Includes HasVCache bool
+│   ├── App.xaml + App.xaml.cs         # WPF entry point, engine wiring, hotkey registration
+│   ├── app.manifest                   # PerMonitorV2 DPI awareness
+│   ├── Core/                          # Engine modules
+│   │   ├── CcdMapper.cs              # CCD topology detection (HasVCache, physical core count)
+│   │   ├── PerformanceMonitor.cs     # Per-core load/freq via PDH (thread-safe disposal)
+│   │   ├── ProcessWatcher.cs         # Process polling + game detection + GPU debounce
+│   │   ├── GameDetector.cs           # Three-tier: manual → known DB → GPU heuristic
+│   │   ├── GpuMonitor.cs            # Per-process GPU 3D utilization via WMI
+│   │   └── AffinityManager.cs       # Mode-aware affinity management (lock-based thread safety)
+│   ├── ViewModels/                    # MVVM ViewModels
+│   │   ├── ViewModelBase.cs          # INotifyPropertyChanged base
+│   │   ├── RelayCommand.cs           # ICommand implementation
+│   │   ├── MainViewModel.cs          # Orchestrator — mode toggle, status, session timer
+│   │   ├── CcdPanelViewModel.cs      # Per-CCD panel with core tiles
+│   │   ├── CoreTileViewModel.cs      # Per-core load/frequency/color
+│   │   ├── ActivityLogViewModel.cs   # Ring buffer of log entries (max 200)
+│   │   ├── LogEntryViewModel.cs      # Single log entry with color/style
+│   │   ├── ProcessRouterViewModel.cs # Process-to-CCD assignment table
+│   │   ├── ProcessEntryViewModel.cs  # Single process entry
+│   │   └── OverlayViewModel.cs       # Overlay: CCD averages, auto-hide, pixel shift
+│   ├── Views/                         # WPF XAML views
+│   │   ├── DashboardWindow.xaml/.cs  # Main dashboard (5-row grid, close-to-tray)
+│   │   ├── CcdPanel.xaml/.cs         # CCD UserControl with core grid
+│   │   ├── CoreTile.xaml/.cs         # Core tile with load bar
+│   │   └── OverlayWindow.xaml/.cs    # Compact overlay (OLED-safe, draggable, auto-hide)
+│   ├── Themes/                        # WPF resource dictionaries
+│   │   ├── DarkTheme.xaml            # Colors, brushes, gradients
+│   │   ├── Typography.xaml           # Font families, text styles
+│   │   └── Controls.xaml             # Card, toggle, tile, button styles
+│   ├── Converters/                    # WPF value converters
+│   │   ├── LoadColorConverter.cs     # Load% → brush
+│   │   ├── LoadBarWidthConverter.cs  # Load% + parent width → bar width
+│   │   └── BoolToFontStyleConverter.cs
+│   ├── Tray/                          # System tray
+│   │   ├── TrayIconManager.cs        # WinForms NotifyIcon lifecycle + context menu
+│   │   └── IconGenerator.cs          # Programmatic colored circle icons
+│   ├── Config/AppConfig.cs           # JSON config model (version 3, overlay, auto-detection)
+│   ├── Logging/AppLogger.cs          # Serilog setup (console + rolling file)
+│   ├── Native/                        # P/Invoke declarations
+│   │   ├── Kernel32.cs               # Affinity, topology APIs
+│   │   ├── User32.cs                 # Foreground window, RegisterHotKey
+│   │   ├── Pdh.cs                    # Performance counter APIs
+│   │   └── Structs.cs                # Native struct definitions
+│   ├── Models/                        # Shared data types
+│   │   ├── CpuTopology.cs            # HasVCache, TotalPhysicalCores, TotalLogicalCores
 │   │   ├── CoreSnapshot.cs
-│   │   └── AffinityEvent.cs       # AffinityAction enum with real + Would* values
-│   └── Data/known_games.json      # Bundled game executable database
+│   │   ├── AffinityEvent.cs          # 8-value AffinityAction enum + event record
+│   │   └── OperationMode.cs          # Monitor/Optimize enum
+│   └── Data/known_games.json         # 65 game executables
 ├── tests/X3DCcdOptimizer.Tests/
 ├── X3DCcdOptimizer.sln
-├── X3D_CCD_OPTIMIZER_BLUEPRINT.md # Full project spec — READ THIS
+├── X3D_CCD_OPTIMIZER_BLUEPRINT.md    # Full project spec — READ THIS
 └── README.md
 ```
 
 ## Build Phases
 
-- **Phase 1 (COMPLETE):** Core engine with console output. Topology detection, affinity management, per-core monitoring, manual game list.
-- **Phase 2 (NEXT):** Monitor Mode + Dashboard Window — mode toggle as first-class UI, real-time CCD panels, process router table, activity log with real/simulated styling, system tray with mode-aware icons.
-- **Phase 3:** Auto-detection via GPU heuristics, settings UI, start-with-Windows.
-- **Phase 4:** Polish, single-file build, installer, CI/CD.
+- **Phase 1 (COMPLETE):** Core engine with console output. Topology detection, affinity management, per-core monitoring, manual game list. Fixed CACHE_RELATIONSHIP struct padding (18-byte Reserved field).
+- **Phase 2 (COMPLETE):** WPF dashboard with Monitor/Optimize toggle, dark theme, per-core heatmap, process router, activity log, system tray with mode-aware icons.
+- **Phase 2.5 (COMPLETE):** OLED-safe compact overlay, full code audit (2 critical + 3 high + 7 medium issues fixed), GPU heuristic auto-detection with 65-game database and debounce.
+- **Phase 3 (NEXT):** Settings window, start-with-Windows, per-game profiles.
+- **Phase 4:** CI/CD, trimmed single-file build, installer, release.
 
 ## Coding Conventions
 
@@ -94,51 +138,50 @@ x3d-ccd-optimizer/
 - **All P/Invoke calls** must have `SetLastError = true` and proper error checking via `Marshal.GetLastWin32Error()`.
 - **All process operations** must be wrapped in try/catch. Never crash on a single process failure. Access denied is expected for system processes — log and skip.
 - **Events over callbacks.** Modules communicate via C# events (e.g., `GameDetected`, `AffinityChanged`, `SnapshotReady`).
-- **IDisposable** for anything holding unmanaged resources (PDH query handles, timers).
+- **IDisposable** for anything holding unmanaged resources (PDH query handles, timers, icons).
 - **Log every significant action** at INFO level, every failure at WARNING or ERROR.
 - **No unnecessary dependencies.** Prefer built-in .NET APIs and P/Invoke over third-party NuGet packages.
 - **Case-insensitive** process name matching everywhere.
 - **AffinityManager must check `operationMode` before every `SetProcessAffinityMask` call.** In Monitor mode, emit `Would*` events instead of calling Win32 APIs. Never skip this check.
+- **CACHE_RELATIONSHIP struct** must have `[MarshalAs(UnmanagedType.ByValArray, SizeConst = 18)] byte[] Reserved` — not a 2-byte ushort. The 18-byte reserved field places `GroupMask` at the correct offset 32.
+- **Overlay cannot render over exclusive fullscreen.** This is a Windows limitation, not a bug. Document it, don't try to work around it.
+- **Thread safety:** `AffinityManager` uses `lock(_syncLock)` for all state mutations. `PerformanceMonitor` uses `lock(_disposeLock)` to prevent timer/Dispose races. All UI updates from background threads use `Dispatcher.BeginInvoke`.
+- **Config load/save** wrapped in try/catch — corrupted JSON falls back to defaults, write failures are logged but don't crash.
 
 ## Key Technical Details
 
 ### CCD Topology Detection
-Uses `GetLogicalProcessorInformationEx` with `RelationshipCache` to enumerate L3 caches per CCD. V-Cache CCD has 96MB L3 vs 32MB on the standard CCD. Detection is by cache size, NOT by CCD number (in case ordering changes with driver updates). WMI fallback via `Win32_CacheMemory`. Manual override available in config. Outputs `HasVCache` bool used to gate the Optimize mode toggle.
+Uses `GetLogicalProcessorInformationEx` with `RelationshipCache` to enumerate L3 caches per CCD. V-Cache CCD has 96MB L3 vs 32MB on the standard CCD. Detection is by cache size, NOT by CCD number. WMI fallback via `Win32_CacheMemory`. Manual override available in config. Outputs `HasVCache` bool and `TotalPhysicalCores` (from WMI `Win32_Processor.NumberOfCores`).
 
 ### Affinity Management (Mode-Aware)
 
-The AffinityManager is the only mode-aware module. It checks the current `operationMode` before every affinity operation:
+The AffinityManager checks `operationMode` before every affinity operation:
 
-- **Monitor mode:** Runs the same detection and routing logic, but emits `WouldEngage`, `WouldMigrate`, `WouldRestore` events instead of calling `SetProcessAffinityMask`. No Win32 affinity APIs are invoked. No original affinities are stored (nothing to restore).
-- **Optimize mode:** Calls `SetProcessAffinityMask` via P/Invoke. Two bitmasks: `VCacheMask` (V-Cache cores) and `FrequencyMask` (standard cores). On game detect: pin game to VCacheMask, migrate background to FrequencyMask. On game exit: restore all original masks from stored dictionary. Emits `Engaged`, `Migrated`, `Restored` events.
+- **Monitor mode:** Emits `WouldEngage`, `WouldMigrate`, `WouldRestore` events. No Win32 APIs invoked.
+- **Optimize mode:** Calls `SetProcessAffinityMask`. Stores original masks for restoration.
 
-**AffinityAction enum (both real and simulated):**
+**AffinityAction enum (8 values):**
 ```csharp
 public enum AffinityAction
 {
-    Engaged,          // Optimize: game pinned to V-Cache CCD
-    Migrated,         // Optimize: background moved to Frequency CCD
-    Restored,         // Optimize: affinity restored after game exit
-    Skipped,          // Both: process was protected/inaccessible
-    Error,            // Both: operation failed
-
-    WouldEngage,      // Monitor: would have pinned game
-    WouldMigrate,     // Monitor: would have moved process
-    WouldRestore      // Monitor: would have restored affinity
+    Engaged, Migrated, Restored, Skipped, Error,
+    WouldEngage, WouldMigrate, WouldRestore
 }
 ```
 
-Protected processes (system, audio, self) are never touched in either mode.
-
 ### Performance Monitoring
-PDH counters for per-core load (`\Processor Information(0,N)\% Processor Utility`) and frequency (`\Processor Information(0,N)\Processor Frequency`). Timer-driven collection, default 1Hz. Emits `CoreSnapshot[]` arrays via events for dashboard consumption. Mode-independent — runs identically regardless of operating mode.
+PDH counters for per-core load and frequency. Timer-driven at 1Hz. Thread-safe disposal with `lock(_disposeLock)`.
 
 ### Game Detection Priority
 1. Manual list (config) — highest priority, always wins
-2. Known games database (known_games.json) — community-maintained
-3. Auto-detection via GPU usage heuristic (Phase 3) — lowest priority
+2. Known games database (known_games.json, 65 entries) — community-maintained
+3. GPU heuristic (WMI per-process 3D utilization) — debounce: 5s to detect, 10s to exit
 
-Game detection is mode-independent. The AffinityManager decides what to do with the detection based on the current mode.
+### GPU Monitoring
+WMI `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine` queries per-process 3D engine utilization. Falls back gracefully if counters unavailable. Only queries the foreground process to minimize overhead.
+
+### Overlay (OLED-Safe)
+280x160 transparent always-on-top window. Auto-hides after 10s idle (configurable). Pixel shift every 3 minutes. Hotkey: Ctrl+Shift+O. Position persisted in config.
 
 ## Commands
 
@@ -146,22 +189,22 @@ Game detection is mode-independent. The AffinityManager decides what to do with 
 # Build
 dotnet build
 
-# Run (console mode)
+# Run
 dotnet run --project src/X3DCcdOptimizer
 
 # Run tests
 dotnet test
 
 # Publish self-contained single file
-dotnet publish src/X3DCcdOptimizer -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet publish src/X3DCcdOptimizer -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
 ```
 
 ## Important Notes
 
 - **Monitor mode is the default.** It works on any dual-CCD AMD Ryzen processor. Optimize mode requires V-Cache confirmation and explicit user opt-in.
+- **Overlay requires borderless windowed or windowed mode.** Exclusive fullscreen takes over the display adapter — no standard Windows overlay can render on top.
 - This is a **Windows-only** tool. Linux has a proper kernel-level solution (`amd_x3d_vcache` driver).
 - This is **not a kernel driver**. It works at the userspace process affinity level only.
-- It **supplements** AMD's chipset drivers, not replaces them. Users should keep chipset drivers updated.
-- The target audience starts with dual-CCD Ryzen owners who want CCD visibility (Monitor mode), and extends to X3D owners who want active affinity management (Optimize mode).
-- The dashboard is the centrepiece — it's what makes this tool unique. Refer to the blueprint Section 9 for the full dashboard design spec.
+- It **supplements** AMD's chipset drivers, not replaces them.
+- The dashboard is the centrepiece. The overlay is for single-monitor gaming.
 - **License is GPL v2.** All contributions must be compatible.
