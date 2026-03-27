@@ -18,16 +18,23 @@
     <Color x:Key="AccentAmber">#FFB340</Color>
     <Color x:Key="AccentRed">#FF4545</Color>
 
-    <!-- Core tile load colors -->
-    <Color x:Key="CoreIdle">#232328</Color>
-    <Color x:Key="CoreModerate">#3D3520</Color>
-    <Color x:Key="CoreHot">#1E3328</Color>
+    <!-- Core tile load colors — richer tints -->
+    <Color x:Key="CoreIdle">#222226</Color>
+    <Color x:Key="CoreModerate">#3A3318</Color>
+    <Color x:Key="CoreHot">#1A382A</Color>
+
+    <!-- Accent glows (translucent, for effects) -->
+    <Color x:Key="GlowGreen">#4034C759</Color>
+    <Color x:Key="GlowBlue">#404B9EFF</Color>
 
     <!-- Borders -->
     <Color x:Key="BorderDefault">#3A3A42</Color>
     <Color x:Key="BorderSubtle">#2A2A32</Color>
 
-    <!-- Brushes -->
+    <!-- Alternate row -->
+    <Color x:Key="RowAlt">#1C1C20</Color>
+
+    <!-- Solid brushes -->
     <SolidColorBrush x:Key="BgPrimaryBrush" Color="{StaticResource BgPrimary}"/>
     <SolidColorBrush x:Key="BgSecondaryBrush" Color="{StaticResource BgSecondary}"/>
     <SolidColorBrush x:Key="BgTertiaryBrush" Color="{StaticResource BgTertiary}"/>
@@ -48,5 +55,36 @@
 
     <SolidColorBrush x:Key="BorderDefaultBrush" Color="{StaticResource BorderDefault}"/>
     <SolidColorBrush x:Key="BorderSubtleBrush" Color="{StaticResource BorderSubtle}"/>
+
+    <SolidColorBrush x:Key="RowAltBrush" Color="{StaticResource RowAlt}"/>
+
+    <SolidColorBrush x:Key="GlowGreenBrush" Color="{StaticResource GlowGreen}"/>
+    <SolidColorBrush x:Key="GlowBlueBrush" Color="{StaticResource GlowBlue}"/>
+
+    <!-- Status bar gradient (slightly lighter centre) -->
+    <LinearGradientBrush x:Key="StatusBarOverlay" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#00FFFFFF" Offset="0"/>
+        <GradientStop Color="#0AFFFFFF" Offset="0.5"/>
+        <GradientStop Color="#00FFFFFF" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- V-Cache accent edge (left border glow) -->
+    <LinearGradientBrush x:Key="VCacheEdgeBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#6034C759" Offset="0"/>
+        <GradientStop Color="#0034C759" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Frequency accent edge (left border glow) -->
+    <LinearGradientBrush x:Key="FrequencyEdgeBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="#604B9EFF" Offset="0"/>
+        <GradientStop Color="#004B9EFF" Offset="1"/>
+    </LinearGradientBrush>
+
+    <!-- Footer separator -->
+    <LinearGradientBrush x:Key="FooterSeparatorBrush" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Color="#002A2A32" Offset="0"/>
+        <GradientStop Color="#803A3A42" Offset="0.5"/>
+        <GradientStop Color="#002A2A32" Offset="1"/>
+    </LinearGradientBrush>
 
 </ResourceDictionary>

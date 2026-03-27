@@ -17,35 +17,65 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Row 0: Status Bar -->
-        <Border Grid.Row="0" CornerRadius="8" Margin="12,12,12,0" Padding="12,8"
+        <!-- Row 0: Status Bar — gradient overlay + pulsing dot -->
+        <Border Grid.Row="0" CornerRadius="10" Margin="12,12,12,0" Padding="14,10"
                 Background="{Binding StatusColor}">
-            <DockPanel>
-                <!-- Mode toggle (right) -->
-                <ToggleButton DockPanel.Dock="Right" Style="{StaticResource PillToggleStyle}"
-                              IsChecked="{Binding IsOptimizeMode}"
-                              IsEnabled="{Binding IsOptimizeEnabled}"
-                              Margin="12,0,0,0"/>
+            <!-- Gradient overlay for depth -->
+            <Border.OpacityMask>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                    <GradientStop Color="White" Offset="0"/>
+                    <GradientStop Color="White" Offset="1"/>
+                </LinearGradientBrush>
+            </Border.OpacityMask>
+            <Grid>
+                <!-- Subtle light centre overlay -->
+                <Border CornerRadius="10" Background="{StaticResource StatusBarOverlay}"
+                        IsHitTestVisible="False"/>
+                <DockPanel>
+                    <!-- Mode toggle (right) -->
+                    <ToggleButton DockPanel.Dock="Right" Style="{StaticResource PillToggleStyle}"
+                                  IsChecked="{Binding IsOptimizeMode}"
+                                  IsEnabled="{Binding IsOptimizeEnabled}"
+                                  Margin="14,0,0,0"/>
 
-                <!-- Session timer -->
-                <TextBlock DockPanel.Dock="Right" Text="{Binding SessionDurationText}"
-                           Visibility="{Binding SessionVisible}"
-                           Foreground="White" FontSize="13" FontWeight="SemiBold"
-                           VerticalAlignment="Center" Margin="12,0"/>
+                    <!-- Session timer -->
+                    <TextBlock DockPanel.Dock="Right" Text="{Binding SessionDurationText}"
+                               Visibility="{Binding SessionVisible}"
+                               Foreground="White" FontSize="13" FontWeight="SemiBold"
+                               FontFamily="{StaticResource FontMono}"
+                               VerticalAlignment="Center" Margin="14,0" Opacity="0.9"/>
 
-                <!-- Status text -->
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Ellipse Width="8" Height="8" Fill="White" Margin="0,0,8,0"
-                             VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding StatusText}"
-                               Foreground="White" FontSize="14" FontWeight="SemiBold"
-                               VerticalAlignment="Center"/>
-                </StackPanel>
-            </DockPanel>
+                    <!-- Status indicator + text -->
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Pulsing dot -->
+                        <Ellipse Width="8" Height="8" Fill="White" Margin="0,0,10,0"
+                                 VerticalAlignment="Center">
+                            <Ellipse.Triggers>
+                                <EventTrigger RoutedEvent="Loaded">
+                                    <BeginStoryboard>
+                                        <Storyboard RepeatBehavior="Forever">
+                                            <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                             From="1.0" To="0.35" Duration="0:0:1.2"
+                                                             AutoReverse="True">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <SineEase EasingMode="EaseInOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </EventTrigger>
+                            </Ellipse.Triggers>
+                        </Ellipse>
+                        <TextBlock Text="{Binding StatusText}"
+                                   Foreground="White" FontSize="14" FontWeight="SemiBold"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DockPanel>
+            </Grid>
         </Border>
 
         <!-- Row 1: CCD Panels -->
-        <UniformGrid Grid.Row="1" Rows="1" Columns="2" Margin="8,4">
+        <UniformGrid Grid.Row="1" Rows="1" Columns="2" Margin="8,8">
             <views:CcdPanel DataContext="{Binding Ccd0Panel}"/>
             <views:CcdPanel DataContext="{Binding Ccd1Panel}"/>
         </UniformGrid>
@@ -54,30 +84,33 @@
         <Border Grid.Row="2" Style="{StaticResource CardStyle}" Margin="12,4">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="Process Router" Style="{StaticResource EmphasisText}"
-                           Margin="0,0,0,6"/>
+                           Margin="0,0,0,8"/>
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <ItemsControl ItemsSource="{Binding ProcessRouter.Processes}">
+                    <ItemsControl ItemsSource="{Binding ProcessRouter.Processes}"
+                                  AlternationCount="2">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Grid Margin="0,2">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" Text="{Binding ProcessName}"
-                                               FontFamily="{StaticResource FontMono}" FontSize="12"
-                                               Foreground="{StaticResource TextPrimaryBrush}"
-                                               VerticalAlignment="Center"/>
-                                    <Border Grid.Column="1" CornerRadius="4" Padding="6,2"
-                                            Background="{Binding BadgeColor}" Margin="8,0">
-                                        <TextBlock Text="{Binding CcdBadge}" Foreground="White"
-                                                   FontSize="10" FontWeight="SemiBold"/>
-                                    </Border>
-                                    <TextBlock Grid.Column="2" Text="{Binding Detail}"
-                                               Style="{StaticResource SmallText}"
-                                               VerticalAlignment="Center"/>
-                                </Grid>
+                                <Border Padding="4,4" CornerRadius="4" Margin="0,1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="{Binding ProcessName}"
+                                                   FontFamily="{StaticResource FontMono}" FontSize="12"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   VerticalAlignment="Center"/>
+                                        <Border Grid.Column="1" CornerRadius="4" Padding="8,2"
+                                                Background="{Binding BadgeColor}" Margin="10,0">
+                                            <TextBlock Text="{Binding CcdBadge}" Foreground="White"
+                                                       FontSize="10" FontWeight="Bold"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="2" Text="{Binding Detail}"
+                                                   Style="{StaticResource SmallText}"
+                                                   VerticalAlignment="Center" Margin="4,0,0,0"/>
+                                    </Grid>
+                                </Border>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
@@ -89,23 +122,33 @@
         <Border Grid.Row="3" Style="{StaticResource CardStyle}" Margin="12,4">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Text="Activity Log" Style="{StaticResource EmphasisText}"
-                           Margin="0,0,0,6"/>
+                           Margin="0,0,0,8"/>
                 <ListBox x:Name="LogListBox"
                          ItemsSource="{Binding ActivityLog.Entries}"
                          Background="Transparent" BorderThickness="0"
                          ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                         VirtualizingPanel.IsVirtualizing="True">
+                         VirtualizingPanel.IsVirtualizing="True"
+                         AlternationCount="2">
                     <ListBox.ItemContainerStyle>
                         <Style TargetType="ListBoxItem">
                             <Setter Property="Padding" Value="0"/>
-                            <Setter Property="Margin" Value="0,1"/>
+                            <Setter Property="Margin" Value="0"/>
                             <Setter Property="Background" Value="Transparent"/>
                             <Setter Property="BorderThickness" Value="0"/>
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                             <Setter Property="Template">
                                 <Setter.Value>
                                     <ControlTemplate TargetType="ListBoxItem">
-                                        <ContentPresenter/>
+                                        <Border x:Name="Bg" CornerRadius="3" Padding="6,3" Margin="0,1">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <!-- Alternate row shading -->
+                                            <Trigger Property="ItemsControl.AlternationIndex" Value="1">
+                                                <Setter TargetName="Bg" Property="Background"
+                                                        Value="{StaticResource RowAltBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
                                     </ControlTemplate>
                                 </Setter.Value>
                             </Setter>
@@ -113,34 +156,44 @@
                     </ListBox.ItemContainerStyle>
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Opacity="{Binding Opacity}">
-                                <TextBlock Text="{Binding Timestamp}"
+                            <Grid Opacity="{Binding Opacity}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="68"/>
+                                    <ColumnDefinition Width="185"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="{Binding Timestamp}"
                                            FontFamily="{StaticResource FontMono}" FontSize="11"
                                            Foreground="{StaticResource TextTertiaryBrush}"
-                                           Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="{Binding ActionText}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding ActionText}"
                                            Foreground="{Binding ActionColor}"
                                            FontFamily="{StaticResource FontMono}" FontSize="11"
                                            FontWeight="SemiBold" FontStyle="{Binding FontStyle}"
-                                           Margin="0,0,8,0" VerticalAlignment="Center"
-                                           MinWidth="170"/>
-                                <TextBlock Text="{Binding DetailText}"
+                                           VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="{Binding DetailText}"
                                            FontFamily="{StaticResource FontMono}" FontSize="11"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            FontStyle="{Binding FontStyle}"
                                            VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"/>
-                            </StackPanel>
+                                           TextTrimming="CharacterEllipsis"
+                                           Margin="8,0,0,0"/>
+                            </Grid>
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
             </DockPanel>
         </Border>
 
-        <!-- Row 4: Footer -->
-        <Border Grid.Row="4" Padding="16,6" Margin="0">
-            <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
-                       HorizontalAlignment="Center"/>
-        </Border>
+        <!-- Row 4: Footer — separator + info -->
+        <StackPanel Grid.Row="4">
+            <!-- Fading separator line -->
+            <Rectangle Height="1" Margin="24,2,24,0"
+                       Fill="{StaticResource FooterSeparatorBrush}"/>
+            <Border Padding="16,6,16,8">
+                <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
+                           HorizontalAlignment="Center"/>
+            </Border>
+        </StackPanel>
     </Grid>
 </Window>

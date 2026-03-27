@@ -4,6 +4,68 @@ Development session history for X3D Dual CCD Optimizer.
 
 ---
 
+## Session 5 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Dashboard UI visual polish
+
+### What Was Done
+
+1. **Core tiles — visual centrepiece:**
+   - Load percentage now in Cascadia Mono at 26px (tabular-lining monospace)
+   - Core index and frequency labels in mono 10px for consistency
+   - Added thin green load progress bar at bottom of each tile (2px, proportional to load %)
+   - Created `LoadBarWidthConverter` (IMultiValueConverter) for bar width binding
+
+2. **CCD panels — identity:**
+   - Green accent left edge stripe on V-Cache panel, blue on Frequency panel (3px, 50% opacity)
+   - Increased internal padding and spacing between header/role/grid sections
+
+3. **Status bar — depth and life:**
+   - Gradient overlay (`StatusBarOverlay` brush) — slightly lighter at centre for depth
+   - Pulsing status dot animation (opacity 1.0→0.35, 1.2s sine cycle, forever)
+   - Session timer in mono font for tabular alignment
+   - Increased border radius to 10px, padding to 14,10
+
+4. **Pill toggle — tactile feedback:**
+   - Thumb gets `DropShadowEffect` (BlurRadius=6, color matches accent) — physically raised look
+   - Shadow color animates blue↔green alongside the thumb color
+   - Scale bounce on click: press=0.95, release=1.04→1.0 (CubicEase out)
+   - Track background darkened for better thumb contrast
+
+5. **Activity log — readability:**
+   - Alternating row shading via `AlternationCount="2"` + `RowAltBrush` (#1C1C20)
+   - Fixed-width columns (68px timestamp, 185px action, * detail) — perfect alignment
+   - Row items get rounded background + padding for visual grouping
+
+6. **Overall atmosphere:**
+   - Footer gets a fading gradient separator line (transparent→subtle→transparent)
+   - Section spacing increased from 4px to 8px throughout
+   - Card padding increased from 12 to 14px
+   - `SectionHeader` font now uses Segoe UI Variable Display (optical sizing at 18px+)
+   - Core tile load colors slightly adjusted for richer tints
+   - Added gradient brushes: `VCacheEdgeBrush`, `FrequencyEdgeBrush`, `FooterSeparatorBrush`
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| (this commit) | develop | ui: polish dashboard visuals |
+
+### Files Modified (6) + Created (1)
+
+```
+Themes/DarkTheme.xaml — gradient brushes, row alt color, glow colors, footer separator
+Themes/Typography.xaml — BigNumber now Cascadia Mono 26px, SectionHeader uses Variable Display
+Themes/Controls.xaml — toggle shadow + bounce, increased tile/card dimensions
+Views/CoreTile.xaml — mono font labels, load progress bar with MultiBinding
+Views/CcdPanel.xaml — accent left edge stripe, increased spacing
+Views/DashboardWindow.xaml — pulsing dot, gradient overlay, fixed-width log columns, alt rows, footer separator
+Converters/LoadBarWidthConverter.cs — NEW, maps load% + parent width to bar width
+```
+
+---
+
 ## Session 4 — 2026-03-27
 
 **Agent:** Claude Opus 4.6 (1M context)

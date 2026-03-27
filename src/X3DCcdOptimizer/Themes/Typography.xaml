@@ -1,7 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
-    <FontFamily x:Key="FontDefault">Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
+    <FontFamily x:Key="FontDefault">Segoe UI Variable Display, Segoe UI Variable, Segoe UI, sans-serif</FontFamily>
     <FontFamily x:Key="FontMono">Cascadia Mono, Consolas, monospace</FontFamily>
 
     <Style x:Key="HintText" TargetType="TextBlock">
@@ -36,9 +36,10 @@
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
     </Style>
 
+    <!-- Core tile load % — tabular monospace, larger, bold -->
     <Style x:Key="BigNumber" TargetType="TextBlock">
-        <Setter Property="FontFamily" Value="{StaticResource FontDefault}"/>
-        <Setter Property="FontSize" Value="22"/>
+        <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+        <Setter Property="FontSize" Value="26"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
     </Style>
