@@ -68,6 +68,7 @@ public class AffinityManager
 
             if (Mode == OperationMode.Optimize)
             {
+                RecoveryManager.OnEngage(game.Name, game.Pid);
                 EngageGame(game);
                 MigrateBackground(game.Pid);
             }
@@ -91,6 +92,7 @@ public class AffinityManager
             if (Mode == OperationMode.Optimize)
             {
                 RestoreAll();
+                RecoveryManager.OnDisengage();
             }
             else
             {
@@ -115,6 +117,7 @@ public class AffinityManager
             if (_engaged && _currentGame != null)
             {
                 _originalMasks.Clear();
+                RecoveryManager.OnEngage(_currentGame.Name, _currentGame.Pid);
                 EngageGame(_currentGame);
                 MigrateBackground(_currentGame.Pid);
             }
@@ -135,7 +138,7 @@ public class AffinityManager
             if (wasEngaged)
             {
                 RestoreAll();
-                // Still tracking the game, just in Monitor mode now
+                RecoveryManager.OnDisengage();
             }
         }
     }
@@ -168,6 +171,8 @@ public class AffinityManager
 
             if (Kernel32.SetProcessAffinityMask(handle, _topology.VCacheMask))
             {
+                RecoveryManager.AddModifiedProcess(game.Name, game.Pid,
+                    _originalMasks.GetValueOrDefault(game.Pid, new IntPtr(-1)));
                 Emit(AffinityAction.Engaged, game.Name, game.Pid,
                     $"→ CCD0 (V-Cache, mask {_topology.VCacheMaskHex})");
             }
@@ -221,6 +226,7 @@ public class AffinityManager
 
                         if (Kernel32.SetProcessAffinityMask(handle, _topology.FrequencyMask))
                         {
+                            RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, originalMask);
                             Emit(AffinityAction.Migrated, name + ".exe", proc.Id,
                                 $"→ CCD1 (Frequency, mask {_topology.FrequencyMaskHex})");
                         }

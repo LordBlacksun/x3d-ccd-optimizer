@@ -52,6 +52,9 @@ public partial class App : System.Windows.Application
         AppLogger.Initialize(_config.Logging.Level);
         Log.Information("X3D Dual CCD Optimizer v{Version}", Version);
 
+        // Recover from dirty shutdown (before anything else)
+        RecoveryManager.RecoverFromDirtyShutdown();
+
         try
         {
             _topology = CcdMapper.Detect(_config);
@@ -151,7 +154,9 @@ public partial class App : System.Windows.Application
         // Register hotkey (after window is created so we have an HWND)
         _dashboardWindow.SourceInitialized += (_, _) => RegisterOverlayHotkey();
 
-        if (!_config.Ui.StartMinimized)
+        var startMinimized = _config.Ui.StartMinimized ||
+            (e.Args.Length > 0 && e.Args.Contains("--minimized", StringComparer.OrdinalIgnoreCase));
+        if (!startMinimized)
             _dashboardWindow.Show();
 
         if (_config.Overlay.Enabled)
@@ -207,6 +212,9 @@ public partial class App : System.Windows.Application
         _perfMon?.Stop();
         _perfMon?.Dispose();
         _gpuMonitor?.Dispose();
+
+        // Clean shutdown — clear recovery state
+        RecoveryManager.OnDisengage();
 
         _overlayViewModel?.StopTimers();
 

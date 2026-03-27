@@ -102,6 +102,11 @@ public class MainViewModel : ViewModelBase
 
     public RelayCommand ToggleModeCommand { get; }
     public RelayCommand ToggleOverlayCommand { get; }
+    public RelayCommand OpenSettingsCommand { get; }
+
+    // Expose for settings window creation
+    public CpuTopology Topology => _topology;
+    public AppConfig Config => _config;
 
     public MainViewModel(CpuTopology topology, PerformanceMonitor perfMon,
         ProcessWatcher processWatcher, GameDetector gameDetector,
@@ -128,6 +133,16 @@ public class MainViewModel : ViewModelBase
         {
             IsOverlayVisible = !IsOverlayVisible;
             OnPropertyChanged(nameof(OverlayButtonText));
+        });
+
+        OpenSettingsCommand = new RelayCommand(() =>
+        {
+            var settingsVm = new SettingsViewModel(config, topology);
+            var settingsWindow = new Views.SettingsWindow
+            {
+                DataContext = settingsVm
+            };
+            settingsWindow.ShowDialog();
         });
 
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
