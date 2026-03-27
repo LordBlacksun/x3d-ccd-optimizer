@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 15
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 16
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -36,6 +36,52 @@ Development session history for X3D Dual CCD Optimizer.
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
 - SingleCcdX3D sets FrequencyCores=[] and FrequencyMask=IntPtr.Zero — all code referencing these must null/empty guard. CcdMapper, AffinityManager, MainViewModel (Ccd1Panel nullable), OverlayViewModel all audited and guarded.
 - WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
+
+---
+
+## Session 16 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Add app icon, social preview, tray icon compositing with status dots
+
+### What Was Done
+
+1. **App icon integration** — `logos/app.ico` copied to `src/X3DCcdOptimizer/Resources/app.ico`. Added `<ApplicationIcon>` to .csproj (embeds in exe). Set `Icon="Resources/app.ico"` on DashboardWindow.xaml for window titlebar. Icon copied to build output via `CopyToOutputDirectory`.
+
+2. **Tray icon compositing with status dots** — Rewrote `IconGenerator.cs` to composite a colored status dot onto the app icon at runtime. Dot is ~25% of icon size (8px on 32px icon), bottom-right corner, with 1px dark border for taskbar contrast.
+   - Blue dot: Monitor mode, idle
+   - Purple dot: Monitor + game observed, or Optimize idle
+   - Green dot: Optimize + game engaged
+   - Falls back to plain colored circles if app.ico is not found.
+   - `SetBaseIcon(Icon?)` called once at startup from TrayIconManager. Results cached per color.
+
+3. **TrayIconManager rewrite** — Loads app.ico from Resources at startup, passes to IconGenerator. State-to-color mapping: `(Mode, IsGameActive)` tuple switch for dot color selection. Removed old static `AppIcon` field approach.
+
+4. **Logo and social preview** — `logos/logo-512.png` copied to repo root as `logo-512.png` (README header) and `social-preview.png` (GitHub). README header updated with `![X3D CCD Optimizer](logo-512.png)`.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| (pending) | develop | feat: app icon with composited status dot tray indicator |
+
+### Files Created (3 new)
+
+```
+src/X3DCcdOptimizer/Resources/app.ico — app icon for exe, window, tray base
+logo-512.png — logo for README header
+social-preview.png — GitHub social preview image
+```
+
+### Files Modified (5)
+
+```
+X3DCcdOptimizer.csproj — ApplicationIcon + Resources copy to output
+Views/DashboardWindow.xaml — Icon="Resources/app.ico"
+Tray/IconGenerator.cs — rewritten: SetBaseIcon, CompositeIconWithDot, status dot overlay
+Tray/TrayIconManager.cs — rewritten: LoadAndSetBaseIcon, mode-aware dot color mapping
+README.md — logo header image
+```
 
 ---
 
