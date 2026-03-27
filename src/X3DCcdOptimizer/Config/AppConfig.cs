@@ -200,16 +200,17 @@ public class AppConfig
 
     public void Save()
     {
+        var tempPath = ConfigPath + ".tmp";
         try
         {
             Directory.CreateDirectory(ConfigDir);
             var json = JsonSerializer.Serialize(this, JsonOptions);
-            var tempPath = ConfigPath + ".tmp";
             File.WriteAllText(tempPath, json);
             File.Move(tempPath, ConfigPath, overwrite: true);
         }
         catch (Exception ex)
         {
+            try { File.Delete(tempPath); } catch { }
             try { Serilog.Log.Warning(ex, "Failed to save config"); } catch { }
         }
     }

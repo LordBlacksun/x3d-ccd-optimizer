@@ -106,10 +106,13 @@ public class GameDetector
             {
                 foreach (var game in gamesArray.EnumerateArray())
                 {
-                    var exe = game.GetProperty("exe").GetString();
-                    var name = game.GetProperty("name").GetString();
-                    if (exe != null && name != null)
-                        result[exe] = name;
+                    if (game.TryGetProperty("exe", out var exeEl) && game.TryGetProperty("name", out var nameEl))
+                    {
+                        var exe = exeEl.GetString();
+                        var name = nameEl.GetString();
+                        if (exe != null && name != null)
+                            result[exe] = name;
+                    }
                 }
             }
         }

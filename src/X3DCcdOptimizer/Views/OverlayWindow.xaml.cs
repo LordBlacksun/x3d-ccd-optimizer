@@ -84,11 +84,13 @@ public partial class OverlayWindow : Window
         var newLeft = Left + dx;
         var newTop = Top + dy;
 
-        // Clamp to screen
+        // Clamp to virtual screen (supports multi-monitor with negative offsets)
+        var sl = SystemParameters.VirtualScreenLeft;
+        var st = SystemParameters.VirtualScreenTop;
         var sw = SystemParameters.VirtualScreenWidth;
         var sh = SystemParameters.VirtualScreenHeight;
-        newLeft = Math.Clamp(newLeft, 0, sw - Width);
-        newTop = Math.Clamp(newTop, 0, sh - Height);
+        newLeft = Math.Clamp(newLeft, sl, sl + sw - Width);
+        newTop = Math.Clamp(newTop, st, st + sh - Height);
 
         Left = newLeft;
         Top = newTop;

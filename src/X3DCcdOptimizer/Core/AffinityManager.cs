@@ -243,7 +243,11 @@ public class AffinityManager
 
     private void MigrateBackground(int gamePid)
     {
-        foreach (var proc in Process.GetProcesses())
+        Process[] processes;
+        try { processes = Process.GetProcesses(); }
+        catch (Exception ex) { Log.Warning(ex, "Failed to enumerate processes for migration"); return; }
+
+        foreach (var proc in processes)
         {
             try
             {
@@ -344,7 +348,11 @@ public class AffinityManager
     {
         int wouldMigrate = 0;
 
-        foreach (var proc in Process.GetProcesses())
+        Process[] processes;
+        try { processes = Process.GetProcesses(); }
+        catch (Exception ex) { Log.Warning(ex, "Failed to enumerate processes for simulation"); return; }
+
+        foreach (var proc in processes)
         {
             try
             {

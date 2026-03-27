@@ -157,7 +157,7 @@ public static class CcdMapper
 
         // Build masks by dividing cores evenly across detected L3 caches
         var l3Caches = new List<(int SizeMB, ulong Mask)>();
-        int coresPerCcd = topology.TotalLogicalCores / cacheSizes.Count;
+        int coresPerCcd = cacheSizes.Count > 0 ? topology.TotalLogicalCores / cacheSizes.Count : 0;
         int coresSoFar = 0;
 
         foreach (var sizeMB in cacheSizes)
