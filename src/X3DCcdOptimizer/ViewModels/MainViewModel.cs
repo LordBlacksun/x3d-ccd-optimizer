@@ -130,7 +130,7 @@ public class MainViewModel : ViewModelBase
         ProcessRouter = new ProcessRouterViewModel(ccd0Name, ccd1Name);
 
         _statusColor = FindBrush("AccentBlueBrush");
-        FooterText = $"v0.2.0 | {topology.CpuModel} | {topology.TotalPhysicalCores} cores | {topology.TotalLogicalCores} threads | Polling: {config.PollingIntervalMs}ms";
+        FooterText = $"v1.0.0 | {topology.CpuModel} | {topology.TotalPhysicalCores} cores | {topology.TotalLogicalCores} threads | Polling: {config.PollingIntervalMs}ms";
 
         ToggleModeCommand = new RelayCommand(
             () => IsOptimizeMode = !IsOptimizeMode,
@@ -246,7 +246,9 @@ public class MainViewModel : ViewModelBase
         {
             if (_topology.IsSingleCcd)
             {
-                StatusText = $"Monitor — {_currentGameName} on V-Cache CCD";
+                StatusText = _topology.Tier == ProcessorTier.SingleCcdX3D
+                    ? $"Monitor — {_currentGameName} on V-Cache CCD"
+                    : $"Monitor — {_currentGameName} on CCD 0";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
             else if (_currentMode == OperationMode.Optimize)
@@ -268,7 +270,9 @@ public class MainViewModel : ViewModelBase
         {
             if (_topology.IsSingleCcd)
             {
-                StatusText = "Monitor — single V-Cache CCD";
+                StatusText = _topology.Tier == ProcessorTier.SingleCcdX3D
+                    ? "Monitor — single V-Cache CCD"
+                    : "Monitor — single CCD";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
             else if (_currentMode == OperationMode.Optimize)

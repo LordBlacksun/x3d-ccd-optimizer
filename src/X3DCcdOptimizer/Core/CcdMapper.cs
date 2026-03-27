@@ -140,21 +140,28 @@ public static class CcdMapper
     {
         Log.Information("Attempting WMI fallback for CCD detection");
 
-        var l3Caches = new List<(int SizeMB, ulong Mask)>();
-
         using var cacheSearcher = new ManagementObjectSearcher(
             "SELECT * FROM Win32_CacheMemory WHERE Level = 5"); // Level 5 = L3 in WMI
         cacheSearcher.Options.Timeout = TimeSpan.FromSeconds(10);
 
-        int coresSoFar = 0;
+        // First pass: collect L3 cache sizes
+        var cacheSizes = new List<int>();
         foreach (var cache in cacheSearcher.Get())
         {
             int sizeKB = Convert.ToInt32(cache["MaxCacheSize"]);
-            int sizeMB = sizeKB / 1024;
+            cacheSizes.Add(sizeKB / 1024);
+        }
 
-            // Build a mask covering the cores for this cache group
-            // WMI doesn't directly give us masks, so we estimate based on core count
-            int coresPerCcd = topology.TotalLogicalCores / 2;
+        if (cacheSizes.Count == 0)
+            throw new InvalidOperationException("WMI found no L3 caches");
+
+        // Build masks by dividing cores evenly across detected L3 caches
+        var l3Caches = new List<(int SizeMB, ulong Mask)>();
+        int coresPerCcd = topology.TotalLogicalCores / cacheSizes.Count;
+        int coresSoFar = 0;
+
+        foreach (var sizeMB in cacheSizes)
+        {
             ulong mask = 0;
             for (int i = 0; i < coresPerCcd; i++)
             {
@@ -167,9 +174,6 @@ public static class CcdMapper
             Log.Debug("WMI L3: {Size}MB, estimated mask: 0x{Mask:X}", sizeMB, mask);
         }
 
-        if (l3Caches.Count == 0)
-            throw new InvalidOperationException("WMI found no L3 caches");
-
         AssignTopologyFromCaches(topology, l3Caches);
     }
 
@@ -177,9 +181,11 @@ public static class CcdMapper
     {
         if (l3Caches.Count == 1)
         {
-            // Single-CCD processor (e.g., 7800X3D, 9800X3D)
+            // Single-CCD: V-Cache if L3 >= 64MB (7800X3D=96MB), standard if < 64MB (7700X=32MB)
             var entry = l3Caches[0];
-            topology.Tier = ProcessorTier.SingleCcdX3D;
+            topology.Tier = entry.SizeMB >= 64
+                ? ProcessorTier.SingleCcdX3D
+                : ProcessorTier.SingleCcdStandard;
             topology.VCacheL3SizeMB = entry.SizeMB;
             topology.StandardL3SizeMB = 0;
             topology.VCacheMask = new IntPtr((long)entry.Mask);

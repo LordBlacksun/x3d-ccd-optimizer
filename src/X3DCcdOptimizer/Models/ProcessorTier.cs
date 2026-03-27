@@ -4,5 +4,6 @@ public enum ProcessorTier
 {
     DualCcdX3D,
     SingleCcdX3D,
+    SingleCcdStandard,
     DualCcdStandard
 }

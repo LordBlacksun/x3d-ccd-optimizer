@@ -61,9 +61,9 @@ No V-Cache distinction, but you can still pin games to a specific CCD.
 
 ## Status
 
-**Pre-1.0** — Three-tier processor support, settings window, dirty shutdown recovery, security audit, AMD V-Cache driver preference strategy.
+**v1.0.0** — Four-tier processor support, settings window, dirty shutdown recovery, two security audits (all findings fixed), AMD V-Cache driver preference strategy, grouped process router.
 
-Phase 4 (CI/CD, trimmed build, installer) is next.
+See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## Getting Started
 

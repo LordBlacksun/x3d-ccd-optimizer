@@ -10,7 +10,7 @@ assignees: ''
 
 - **OS:** (e.g., Windows 11 23H2)
 - **CPU:** (e.g., AMD Ryzen 9 7950X3D)
-- **App version:** (e.g., v0.2.0)
+- **App version:** (e.g., v1.0.0)
 - **Mode:** (Monitor / Optimize)
 
 ## What happened

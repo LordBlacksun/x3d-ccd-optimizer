@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 0.5.0 | **Status:** Pre-1.0, Phase 4 next | **Branch:** develop | **Last session:** 12
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 12
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -36,6 +36,58 @@ Development session history for X3D Dual CCD Optimizer.
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
 - SingleCcdX3D sets FrequencyCores=[] and FrequencyMask=IntPtr.Zero — all code referencing these must null/empty guard. CcdMapper, AffinityManager, MainViewModel (Ccd1Panel nullable), OverlayViewModel all audited and guarded.
 - WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
+
+---
+
+## Session 13 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Pre-release audit + fix 5 must-fix items for 1.0
+
+### What Was Done
+
+1. **Comprehensive pre-release audit** — read every file in the codebase across 6 categories (security delta, usability, performance, edge cases, accessibility, release readiness). 30 findings: 0 critical, 3 high, 4 medium, 9 low, 13 info. Report saved as `PRE_RELEASE_AUDIT.md`.
+
+2. **PRE-002 (High) — IsSingleCcd guard on SwitchToOptimize/SwitchToMonitor** — Added early return when `_topology.IsSingleCcd` is true. Prevents `MigrateBackground()` from calling `SetProcessAffinityMask(handle, IntPtr.Zero)` on single-CCD systems, which would starve all background processes of CPU time.
+
+3. **PRE-006 (High) — Version unified to 1.0.0** — Updated 7 files: App.xaml.cs, .csproj, MainViewModel footer, TrayIconManager About dialog, Blueprint header, SESSION_LOG current state, bug report template.
+
+4. **PRE-001 (High) — WMI fallback core mask for single-CCD** — Restructured `DetectViaWmi()` to a two-pass approach: first count L3 caches, then divide cores by actual count (was hardcoded `/2`). Single-CCD processors now get all cores in one mask.
+
+5. **PRE-003 (Medium) — SingleCcdStandard tier** — Added `ProcessorTier.SingleCcdStandard` for non-X3D single-CCD processors (7700X, 5800X). Tier determined by 64MB L3 threshold (V-Cache >= 64MB, standard < 64MB). Updated `IsSingleCcd` to include both single-CCD tiers. Updated all 4 switch expressions (CcdPanelViewModel badge, SettingsViewModel tier description, MainViewModel status text x2).
+
+6. **PRE-008 (Medium) — User-friendly error message** — Replaced raw exception + "dual-CCD" text with clear message: "requires AMD Ryzen processor with identifiable L3 cache topology". Directs users to log file for details.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| (pending) | develop | audit: comprehensive pre-release audit |
+| (pending) | develop | fix: 5 must-fix items from pre-release audit (v1.0.0) |
+
+### Files Created (1 new)
+
+```
+PRE_RELEASE_AUDIT.md — full audit report (internal, not in shipping build)
+```
+
+### Files Modified (13)
+
+```
+Core/AffinityManager.cs — IsSingleCcd guard on SwitchToOptimize/SwitchToMonitor
+Core/CcdMapper.cs — two-pass WMI fallback, 64MB V-Cache threshold for tier
+Models/ProcessorTier.cs — added SingleCcdStandard
+Models/CpuTopology.cs — IsSingleCcd covers both single-CCD tiers
+App.xaml.cs — version 1.0.0, user-friendly error message
+X3DCcdOptimizer.csproj — version 1.0.0
+ViewModels/MainViewModel.cs — version 1.0.0, tier-aware status for SingleCcdStandard
+ViewModels/CcdPanelViewModel.cs — badge for SingleCcdStandard
+ViewModels/SettingsViewModel.cs — tier description for SingleCcdStandard
+Tray/TrayIconManager.cs — version 1.0.0 in About dialog
+X3D_CCD_OPTIMIZER_BLUEPRINT.md — version 1.0.0
+SESSION_LOG.md — version 1.0.0
+.github/ISSUE_TEMPLATE/bug_report.md — version 1.0.0
+```
 
 ---
 

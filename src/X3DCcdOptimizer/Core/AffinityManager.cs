@@ -152,7 +152,7 @@ public class AffinityManager
     {
         lock (_syncLock)
         {
-            if (Mode == OperationMode.Optimize)
+            if (Mode == OperationMode.Optimize || _topology.IsSingleCcd)
                 return;
 
             Mode = OperationMode.Optimize;
@@ -180,7 +180,7 @@ public class AffinityManager
     {
         lock (_syncLock)
         {
-            if (Mode == OperationMode.Monitor)
+            if (Mode == OperationMode.Monitor || _topology.IsSingleCcd)
                 return;
 
             var wasEngagedAffinity = _engaged && _originalMasks.Count > 0;
