@@ -9,6 +9,7 @@ public class CpuTopology
     public int[] FrequencyCores { get; set; } = [];
     public int VCacheL3SizeMB { get; set; }
     public int StandardL3SizeMB { get; set; }
+    public int TotalPhysicalCores { get; set; }
     public int TotalLogicalCores { get; set; }
 
     public bool HasVCache => VCacheL3SizeMB > StandardL3SizeMB * 2;
