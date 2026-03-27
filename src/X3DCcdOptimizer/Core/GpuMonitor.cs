@@ -11,6 +11,13 @@ public class GpuMonitor : IDisposable
 {
     private bool _available;
     private bool _disposed;
+    private int _idleSkipCounter;
+
+    /// <summary>
+    /// Set to true when a game is actively detected. When false, GPU queries
+    /// run at half frequency to reduce WMI overhead while idle.
+    /// </summary>
+    public bool IsGameActive { get; set; }
 
     public GpuMonitor()
     {
@@ -28,6 +35,14 @@ public class GpuMonitor : IDisposable
     public float GetGpuUsage(int pid)
     {
         if (!_available || _disposed) return 0;
+
+        // When idle (no game detected), skip every other query to reduce WMI overhead
+        if (!IsGameActive)
+        {
+            _idleSkipCounter++;
+            if (_idleSkipCounter % 2 != 0)
+                return 0;
+        }
 
         try
         {

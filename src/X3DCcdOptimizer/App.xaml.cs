@@ -170,9 +170,11 @@ public partial class App : System.Windows.Application
         _processWatcher.GameDetected += _affinityManager.OnGameDetected;
         _processWatcher.GameDetected += _mainViewModel.OnGameDetected;
         _processWatcher.GameDetected += _overlayViewModel.OnGameDetected;
+        _processWatcher.GameDetected += game => { if (_gpuMonitor != null) _gpuMonitor.IsGameActive = true; };
         _processWatcher.GameExited += _affinityManager.OnGameExited;
         _processWatcher.GameExited += _mainViewModel.OnGameExited;
         _processWatcher.GameExited += _overlayViewModel.OnGameExited;
+        _processWatcher.GameExited += game => { if (_gpuMonitor != null) _gpuMonitor.IsGameActive = false; };
 
         // Start engines
         _perfMon.Start();
@@ -237,6 +239,27 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        // Unwire events before disposing to prevent callbacks into disposed objects
+        if (_perfMon != null && _mainViewModel != null && _overlayViewModel != null)
+        {
+            _perfMon.SnapshotReady -= _mainViewModel.OnSnapshotReady;
+            _perfMon.SnapshotReady -= _overlayViewModel.OnSnapshotReady;
+        }
+        if (_affinityManager != null && _mainViewModel != null && _overlayViewModel != null)
+        {
+            _affinityManager.AffinityChanged -= _mainViewModel.OnAffinityChanged;
+            _affinityManager.AffinityChanged -= _overlayViewModel.OnAffinityChanged;
+        }
+        if (_processWatcher != null && _affinityManager != null && _mainViewModel != null && _overlayViewModel != null)
+        {
+            _processWatcher.GameDetected -= _affinityManager.OnGameDetected;
+            _processWatcher.GameDetected -= _mainViewModel.OnGameDetected;
+            _processWatcher.GameDetected -= _overlayViewModel.OnGameDetected;
+            _processWatcher.GameExited -= _affinityManager.OnGameExited;
+            _processWatcher.GameExited -= _mainViewModel.OnGameExited;
+            _processWatcher.GameExited -= _overlayViewModel.OnGameExited;
+        }
+
         _processWatcher?.Stop();
         _processWatcher?.Dispose();
         _perfMon?.Stop();

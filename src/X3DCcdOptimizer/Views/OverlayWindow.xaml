@@ -8,7 +8,8 @@
         Topmost="True"
         ShowInTaskbar="False"
         ResizeMode="NoResize"
-        Background="Transparent">
+        Background="Transparent"
+        AutomationProperties.Name="CCD optimizer overlay">
 
     <Border CornerRadius="12" Padding="14,10"
             Background="#CC1A1A1E"

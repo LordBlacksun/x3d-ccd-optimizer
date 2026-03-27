@@ -161,7 +161,10 @@ public class MainViewModel : ViewModelBase
                 : $"{elapsed.Minutes}m {elapsed.Seconds:D2}s";
         };
 
-        UpdateStatus();
+        if (config.IsFirstRun && topology.IsDualCcd)
+            StatusText = "Monitor mode \u2014 observing your CPU without making changes. Switch to Optimize to pin games to V-Cache.";
+        else
+            UpdateStatus();
     }
 
     public void OnSnapshotReady(CoreSnapshot[] snapshots)

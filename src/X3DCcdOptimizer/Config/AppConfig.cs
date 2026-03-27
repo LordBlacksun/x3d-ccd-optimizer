@@ -168,6 +168,10 @@ public class AppConfig
     [JsonPropertyName("overlay")]
     public OverlayConfig Overlay { get; set; } = new();
 
+    /// <summary>True if no config.json existed at load time (first launch).</summary>
+    [JsonIgnore]
+    public bool IsFirstRun { get; private set; }
+
     public static AppConfig Load()
     {
         try
@@ -189,6 +193,7 @@ public class AppConfig
         }
 
         var defaultConfig = CreateDefault();
+        defaultConfig.IsFirstRun = true;
         defaultConfig.Save();
         return defaultConfig;
     }

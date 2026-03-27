@@ -88,12 +88,7 @@ public static class RecoveryManager
             Log.Warning("Recovery: failed to restore amd3dvcache DefaultType — driver may not be installed");
     }
 
-    private static readonly HashSet<string> ProtectedProcesses = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "System", "Idle", "csrss", "smss", "services", "wininit",
-        "lsass", "winlogon", "dwm", "audiodg", "fontdrvhost",
-        "Registry", "Memory Compression", "svchost", "X3DCcdOptimizer"
-    };
+    private static readonly IReadOnlySet<string> ProtectedProcessNames = Models.ProtectedProcesses.Names;
 
     private static void RecoverAffinityPinning(RecoveryState state)
     {
@@ -134,7 +129,7 @@ public static class RecoveryManager
                 var nameWithoutExe = entry.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
                     ? entry.Name[..^4] : entry.Name;
 
-                if (ProtectedProcesses.Contains(nameWithoutExe))
+                if (ProtectedProcessNames.Contains(nameWithoutExe))
                 {
                     Log.Warning("Recovery: skipping protected process {Name}", entry.Name);
                     skipped++;

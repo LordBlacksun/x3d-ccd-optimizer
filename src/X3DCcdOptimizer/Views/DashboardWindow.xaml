@@ -6,7 +6,8 @@
         Width="860" Height="740"
         MinWidth="680" MinHeight="540"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BgPrimaryBrush}">
+        Background="{StaticResource BgPrimaryBrush}"
+        AutomationProperties.Name="X3D CCD Optimizer dashboard">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
@@ -40,7 +41,9 @@
                     <ToggleButton DockPanel.Dock="Right" Style="{StaticResource PillToggleStyle}"
                                   IsChecked="{Binding IsOptimizeMode}"
                                   IsEnabled="{Binding IsOptimizeEnabled}"
-                                  Margin="14,0,0,0"/>
+                                  Margin="14,0,0,0"
+                                  AutomationProperties.Name="Operation mode toggle"
+                                  ToolTip="Toggle between Monitor (observe only) and Optimize (actively pin games to V-Cache CCD)."/>
 
                     <!-- Session timer -->
                     <TextBlock DockPanel.Dock="Right" Text="{Binding SessionDurationText}"
@@ -80,8 +83,8 @@
 
         <!-- Row 1: CCD Panels -->
         <UniformGrid Grid.Row="1" Rows="1" Columns="2" Margin="8,8">
-            <views:CcdPanel DataContext="{Binding Ccd0Panel}"/>
-            <views:CcdPanel DataContext="{Binding Ccd1Panel}"
+            <views:CcdPanel DataContext="{Binding Ccd0Panel}" AutomationProperties.Name="Primary CCD panel"/>
+            <views:CcdPanel DataContext="{Binding Ccd1Panel}" AutomationProperties.Name="Secondary CCD panel"
                             Visibility="{Binding ShowSecondPanel, Converter={StaticResource BoolToVis}}"/>
         </UniformGrid>
 
@@ -220,11 +223,13 @@
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <Button Style="{StaticResource SubtleButtonStyle}"
                             Command="{Binding OpenSettingsCommand}"
-                            Content="Settings" FontSize="11" Padding="10,4"/>
+                            Content="Settings" FontSize="11" Padding="10,4"
+                            AutomationProperties.Name="Open settings window"/>
                     <Button Style="{StaticResource SubtleButtonStyle}"
                             Command="{Binding ToggleOverlayCommand}"
                             Content="{Binding OverlayButtonText}"
-                            FontSize="11" Padding="10,4" Margin="6,0,0,0"/>
+                            FontSize="11" Padding="10,4" Margin="6,0,0,0"
+                            AutomationProperties.Name="Toggle overlay visibility"/>
                 </StackPanel>
                 <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
                            VerticalAlignment="Center"/>

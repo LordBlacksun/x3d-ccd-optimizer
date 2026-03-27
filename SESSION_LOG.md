@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 12
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 14
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -36,6 +36,57 @@ Development session history for X3D Dual CCD Optimizer.
 - amd3dvcache driver registry changes may take minutes without service restart — document as known tradeoff for Driver Preference strategy
 - SingleCcdX3D sets FrequencyCores=[] and FrequencyMask=IntPtr.Zero — all code referencing these must null/empty guard. CcdMapper, AffinityManager, MainViewModel (Ccd1Panel nullable), OverlayViewModel all audited and guarded.
 - WPF CollectionViewSource grouping requires SortDescriptions added before data arrives — set up in constructor
+
+---
+
+## Session 14 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix remaining 8 pre-release audit items (PRE-004/007/009/010/013/021/023/025)
+
+### What Was Done
+
+1. **PRE-004 — Deduplicate protected process lists** — New `Models/ProtectedProcesses.cs` with shared `IReadOnlySet<string>`. Both `AffinityManager` and `RecoveryManager` now reference the single source.
+
+2. **PRE-010 — Reduce GPU query frequency when idle** — `GpuMonitor` gains `IsGameActive` flag and `_idleSkipCounter`. When no game is detected, GPU queries skip every other poll cycle (4s effective vs 2s). Wired via game detect/exit events in `App.xaml.cs`.
+
+3. **PRE-013 — Unwire event subscriptions on shutdown** — All engine event subscriptions (`SnapshotReady`, `AffinityChanged`, `GameDetected`, `GameExited`) unwired in `App.OnExit` before Stop/Dispose calls.
+
+4. **PRE-009 — First-run mode explanation** — `AppConfig.IsFirstRun` (`[JsonIgnore]`) set when no config.json exists. MainViewModel shows onboarding status text on first launch: "Monitor mode — observing your CPU without making changes. Switch to Optimize to pin games to V-Cache." Overwritten on first mode toggle or game detection.
+
+5. **PRE-007 — Tooltips on all settings controls** — 26 tooltips added to every interactive control in SettingsWindow.xaml. Plain English, no jargon.
+
+6. **PRE-023 — AutomationProperties on interactive UI elements** — `AutomationProperties.Name` added to all interactive elements across DashboardWindow, SettingsWindow, and OverlayWindow XAML.
+
+7. **PRE-025 — AccessKeys for keyboard shortcuts** — Added to Settings tabs (`_General`, `G_ames`, `_Detection`, `_Overlay`, `Ad_vanced`) and buttons (`_Apply`, `_Reset All to Defaults`).
+
+8. **PRE-021 — Strategy requires restart note** — "Strategy changes take effect on next launch." shown below strategy dropdown, visible only when strategy selection is available.
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| (pending) | develop | fix: remaining 8 pre-release audit items |
+
+### Files Created (1 new)
+
+```
+src/X3DCcdOptimizer/Models/ProtectedProcesses.cs
+```
+
+### Files Modified (9)
+
+```
+Core/AffinityManager.cs — reference shared ProtectedProcesses
+Core/RecoveryManager.cs — reference shared ProtectedProcesses
+Core/GpuMonitor.cs — idle skip counter, IsGameActive flag
+App.xaml.cs — wire GpuMonitor.IsGameActive, unwire events on shutdown
+Config/AppConfig.cs — IsFirstRun property
+ViewModels/MainViewModel.cs — first-run onboarding status text
+Views/SettingsWindow.xaml — tooltips, AutomationProperties, AccessKeys, strategy restart note, BoolToVis converter
+Views/DashboardWindow.xaml — AutomationProperties on toggle, panels, buttons
+Views/OverlayWindow.xaml — AutomationProperties on window
+```
 
 ---
 
