@@ -35,6 +35,18 @@ public partial class App : System.Windows.Application
     {
         base.OnStartup(e);
 
+        // Global exception handlers
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Log.Error(args.Exception, "Unhandled UI exception");
+            args.Handled = true;
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+        {
+            if (args.ExceptionObject is Exception ex)
+                Log.Fatal(ex, "Unhandled domain exception");
+        };
+
         _config = AppConfig.Load();
         AppLogger.Initialize(_config.Logging.Level);
         Log.Information("X3D Dual CCD Optimizer v{Version}", Version);
@@ -208,7 +220,7 @@ public partial class App : System.Windows.Application
         if (_mainViewModel != null)
             _config.OperationMode = _mainViewModel.CurrentMode.ToString().ToLowerInvariant();
 
-        if (_dashboardWindow != null)
+        if (_dashboardWindow != null && _dashboardWindow.WindowState == WindowState.Normal)
         {
             _config.Ui.WindowPosition = [(int)_dashboardWindow.Left, (int)_dashboardWindow.Top];
             _config.Ui.WindowSize = [(int)_dashboardWindow.Width, (int)_dashboardWindow.Height];

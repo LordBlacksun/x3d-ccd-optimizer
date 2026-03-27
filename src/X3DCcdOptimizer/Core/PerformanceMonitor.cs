@@ -13,8 +13,9 @@ public class PerformanceMonitor : IDisposable
     private readonly IntPtr[] _loadCounters;
     private readonly IntPtr[] _freqCounters;
     private readonly bool[] _freqAvailable;
-    private bool _disposed;
-    private bool _firstCollectionDone;
+    private readonly object _disposeLock = new();
+    private volatile bool _disposed;
+    private volatile bool _firstCollectionDone;
 
     public event Action<CoreSnapshot[]>? SnapshotReady;
 
@@ -98,23 +99,29 @@ public class PerformanceMonitor : IDisposable
 
     private void CollectAndPublish()
     {
-        try
-        {
-            var snapshots = CollectSnapshot();
+        if (_disposed) return;
 
-            // PDH needs two collections for delta counters — skip the first real one
-            if (!_firstCollectionDone)
+        lock (_disposeLock)
+        {
+            if (_disposed) return;
+
+            try
             {
-                _firstCollectionDone = true;
-                return;
-            }
+                var snapshots = CollectSnapshot();
 
-            if (snapshots.Length > 0)
-                SnapshotReady?.Invoke(snapshots);
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Error collecting performance snapshot");
+                if (!_firstCollectionDone)
+                {
+                    _firstCollectionDone = true;
+                    return;
+                }
+
+                if (snapshots.Length > 0)
+                    SnapshotReady?.Invoke(snapshots);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Error collecting performance snapshot");
+            }
         }
     }
 
@@ -149,16 +156,19 @@ public class PerformanceMonitor : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-
-        _timer.Stop();
-        _timer.Dispose();
-
-        if (_queryHandle != IntPtr.Zero)
+        lock (_disposeLock)
         {
-            Pdh.PdhCloseQuery(_queryHandle);
-            _queryHandle = IntPtr.Zero;
+            if (_disposed) return;
+            _disposed = true;
+
+            _timer.Stop();
+            _timer.Dispose();
+
+            if (_queryHandle != IntPtr.Zero)
+            {
+                Pdh.PdhCloseQuery(_queryHandle);
+                _queryHandle = IntPtr.Zero;
+            }
         }
 
         GC.SuppressFinalize(this);

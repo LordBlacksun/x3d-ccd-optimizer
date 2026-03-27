@@ -148,24 +148,41 @@ public class AppConfig
 
     public static AppConfig Load()
     {
-        Directory.CreateDirectory(ConfigDir);
-
-        if (File.Exists(ConfigPath))
+        try
         {
-            var json = File.ReadAllText(ConfigPath);
-            return JsonSerializer.Deserialize<AppConfig>(json, JsonOptions) ?? CreateDefault();
+            Directory.CreateDirectory(ConfigDir);
+
+            if (File.Exists(ConfigPath))
+            {
+                var json = File.ReadAllText(ConfigPath);
+                var config = JsonSerializer.Deserialize<AppConfig>(json, JsonOptions);
+                if (config != null)
+                    return config;
+            }
+        }
+        catch (Exception ex)
+        {
+            // Corrupted config, permission error, etc. — fall back to defaults
+            try { Serilog.Log.Warning(ex, "Failed to load config, using defaults"); } catch { }
         }
 
-        var config = CreateDefault();
-        config.Save();
-        return config;
+        var defaultConfig = CreateDefault();
+        defaultConfig.Save();
+        return defaultConfig;
     }
 
     public void Save()
     {
-        Directory.CreateDirectory(ConfigDir);
-        var json = JsonSerializer.Serialize(this, JsonOptions);
-        File.WriteAllText(ConfigPath, json);
+        try
+        {
+            Directory.CreateDirectory(ConfigDir);
+            var json = JsonSerializer.Serialize(this, JsonOptions);
+            File.WriteAllText(ConfigPath, json);
+        }
+        catch (Exception ex)
+        {
+            try { Serilog.Log.Warning(ex, "Failed to save config"); } catch { }
+        }
     }
 
     public Models.OperationMode GetOperationMode()

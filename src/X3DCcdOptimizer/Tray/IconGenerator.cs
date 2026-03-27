@@ -1,11 +1,15 @@
 using System.Drawing;
 using System.Drawing.Drawing2D;
+using System.Runtime.InteropServices;
 
 namespace X3DCcdOptimizer.Tray;
 
 public static class IconGenerator
 {
     private static readonly Dictionary<string, Icon> Cache = new();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool DestroyIcon(IntPtr hIcon);
 
     public static Icon GetIcon(string colorName)
     {
@@ -38,10 +42,12 @@ public static class IconGenerator
         using var brush = new SolidBrush(color);
         g.FillEllipse(brush, 2, 2, size - 4, size - 4);
 
-        // Add subtle highlight
         using var highlight = new SolidBrush(Color.FromArgb(60, 255, 255, 255));
         g.FillEllipse(highlight, 6, 4, size / 2, size / 3);
 
-        return Icon.FromHandle(bitmap.GetHicon());
+        var hIcon = bitmap.GetHicon();
+        var icon = (Icon)Icon.FromHandle(hIcon).Clone(); // Clone takes ownership
+        DestroyIcon(hIcon); // Free the original HICON
+        return icon;
     }
 }

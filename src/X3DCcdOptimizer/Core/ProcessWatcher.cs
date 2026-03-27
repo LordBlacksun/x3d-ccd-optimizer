@@ -44,7 +44,7 @@ public class ProcessWatcher : IDisposable
             {
                 try
                 {
-                    var proc = Process.GetProcessById(current.Pid);
+                    using var proc = Process.GetProcessById(current.Pid);
                     if (proc.HasExited)
                     {
                         HandleGameExit(current);
@@ -53,11 +53,15 @@ public class ProcessWatcher : IDisposable
                 }
                 catch (ArgumentException)
                 {
-                    // Process no longer exists
                     HandleGameExit(current);
                     return;
                 }
                 catch (InvalidOperationException)
+                {
+                    HandleGameExit(current);
+                    return;
+                }
+                catch (System.ComponentModel.Win32Exception)
                 {
                     HandleGameExit(current);
                     return;

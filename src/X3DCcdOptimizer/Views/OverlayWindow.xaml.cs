@@ -13,6 +13,7 @@ public partial class OverlayWindow : Window
 {
     private readonly OverlayConfig _overlayConfig;
     private OverlayViewModel? _viewModel;
+    private bool _eventsSubscribed;
 
     public OverlayWindow(OverlayConfig overlayConfig)
     {
@@ -22,9 +23,11 @@ public partial class OverlayWindow : Window
         // Restore position
         if (overlayConfig.Position is [var x, var y])
         {
-            var sw = SystemParameters.VirtualScreenWidth;
-            var sh = SystemParameters.VirtualScreenHeight;
-            if (x >= 0 && x < sw - 50 && y >= 0 && y < sh - 50)
+            var left = SystemParameters.VirtualScreenLeft;
+            var top = SystemParameters.VirtualScreenTop;
+            var right = left + SystemParameters.VirtualScreenWidth;
+            var bottom = top + SystemParameters.VirtualScreenHeight;
+            if (x >= left && x < right - 50 && y >= top && y < bottom - 50)
             {
                 Left = x;
                 Top = y;
@@ -47,11 +50,13 @@ public partial class OverlayWindow : Window
         _viewModel = DataContext as OverlayViewModel;
         if (_viewModel == null) return;
 
-        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
-        _viewModel.PixelShiftRequested += OnPixelShift;
-
-        // Build right-click context menu
-        ContextMenu = BuildContextMenu();
+        if (!_eventsSubscribed)
+        {
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            _viewModel.PixelShiftRequested += OnPixelShift;
+            ContextMenu = BuildContextMenu();
+            _eventsSubscribed = true;
+        }
     }
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
