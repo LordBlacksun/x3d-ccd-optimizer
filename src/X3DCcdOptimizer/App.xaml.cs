@@ -24,6 +24,7 @@ public partial class App : System.Windows.Application
     private ProcessWatcher? _processWatcher;
     private AffinityManager? _affinityManager;
     private GameDetector? _gameDetector;
+    private GpuMonitor? _gpuMonitor;
     private MainViewModel? _mainViewModel;
     private OverlayViewModel? _overlayViewModel;
     private DashboardWindow? _dashboardWindow;
@@ -81,10 +82,14 @@ public partial class App : System.Windows.Application
 
         // Engine
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
-        _gameDetector = new GameDetector(_config.ManualGames);
+        _gpuMonitor = new GpuMonitor();
+        _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses);
         _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode);
         _processWatcher = new ProcessWatcher(
-            _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground);
+            _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground,
+            _config.AutoDetection.Enabled, _config.AutoDetection.GpuThresholdPercent,
+            _config.AutoDetection.DetectionDelaySeconds, _config.AutoDetection.ExitDelaySeconds,
+            _gpuMonitor);
 
         // ViewModels
         _mainViewModel = new MainViewModel(
@@ -201,6 +206,7 @@ public partial class App : System.Windows.Application
         _processWatcher?.Dispose();
         _perfMon?.Stop();
         _perfMon?.Dispose();
+        _gpuMonitor?.Dispose();
 
         _overlayViewModel?.StopTimers();
 

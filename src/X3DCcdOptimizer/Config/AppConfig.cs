@@ -15,6 +15,12 @@ public class AutoDetectionConfig
 
     [JsonPropertyName("requireForeground")]
     public bool RequireForeground { get; set; } = true;
+
+    [JsonPropertyName("detectionDelaySeconds")]
+    public int DetectionDelaySeconds { get; set; } = 5;
+
+    [JsonPropertyName("exitDelaySeconds")]
+    public int ExitDelaySeconds { get; set; } = 10;
 }
 
 public class LoggingConfig
@@ -122,9 +128,22 @@ public class AppConfig
     [
         "chrome.exe",
         "firefox.exe",
+        "msedge.exe",
         "obs64.exe",
+        "obs.exe",
         "discord.exe",
-        "spotify.exe"
+        "spotify.exe",
+        "devenv.exe",
+        "explorer.exe",
+        "dwm.exe",
+        "vlc.exe",
+        "mpc-hc64.exe",
+        "photoshop.exe",
+        "premiere pro.exe",
+        "aftereffects.exe",
+        "davinci resolve.exe",
+        "blender.exe",
+        "code.exe"
     ];
 
     [JsonPropertyName("protectedProcesses")]
