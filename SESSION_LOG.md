@@ -4,6 +4,72 @@ Development session history for X3D Dual CCD Optimizer.
 
 ---
 
+## Session 6 — 2026-03-27
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Phase 2.5 — Overlay, code audit, GPU auto-detection
+
+### What Was Done
+
+1. **Compact always-on-top overlay with OLED protection** (`53292d0`)
+   - 280×160 transparent overlay: mode indicator, game name, CCD0/CCD1 load bars, last action
+   - Auto-hide: fades to 0% opacity after 10s idle, fades back on event/mouse-enter
+   - Pixel shift: random 1-5px nudge every 3 minutes, clamped to screen bounds
+   - Hotkey: Ctrl+Shift+O via RegisterHotKey P/Invoke (fails gracefully)
+   - Toggle from dashboard footer, tray menu, overlay right-click context menu
+   - Position saved to config across restarts
+   - Removed temporary Validate button from dashboard
+   - Config: `overlay.enabled`, `autoHideSeconds`, `pixelShiftMinutes`, `opacity`, `position`
+
+2. **Full codebase security and safety audit** (`e49c341`)
+   - **Critical fixes:** Config Load handles corrupted JSON (fallback to defaults), Config Save wrapped in try/catch, global DispatcherUnhandledException + AppDomain.UnhandledException handlers
+   - **High fixes:** PerformanceMonitor lock(_disposeLock) prevents timer/Dispose race, OverlayWindow guards against duplicate event subscriptions on re-show
+   - **Medium fixes:** Multi-monitor position restore uses VirtualScreenLeft/Top, Process handle leak fixed with `using`, Win32Exception caught in game exit check, GetProcessAffinityMask failure logged, Icon HICON handle freed with DestroyIcon after Clone, App.OnExit only saves position when Normal state
+   - **Low fixes:** volatile on _disposed/_firstCollectionDone
+
+3. **GPU heuristic auto-detection** (`bbbcad6`)
+   - Three-tier detection: manual list → known games DB (65 entries) → GPU heuristic
+   - GpuMonitor.cs: WMI Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine queries per-process 3D utilization
+   - Debounce: 5s foreground+GPU above threshold to detect, 10s below threshold to exit
+   - Falls back gracefully if GPU counters unavailable
+   - known_games.json: 65 game executables (AAA, indie, competitive, sim)
+   - Exclusion list expanded to 18 entries (browsers, creative apps, editors)
+   - Detection source in log: `[manual]`, `[database]`, `[auto-detected, GPU: XX%]`
+   - Config: `detectionDelaySeconds`, `exitDelaySeconds` in autoDetection
+
+4. **Housekeeping** (`44d2834`)
+   - Removed build prompt files from repo, added `*_PROMPT.md` and `publish/` to .gitignore
+
+### Commits
+
+| Hash | Branch | Message |
+|------|--------|---------|
+| `44d2834` | develop | chore: remove build prompts from repo, add to gitignore |
+| `53292d0` | develop | feat: add compact always-on-top mini overlay with OLED burn-in protection |
+| `e49c341` | develop | audit: fix all issues found in full codebase security and safety audit |
+| `bbbcad6` | develop | feat: add GPU heuristic auto-detection with debounce and expanded game database |
+| `cfd9814` | master | Phase 2.5: Overlay, audit fixes, GPU auto-detection (merge) |
+
+### Files Created (5 new)
+
+```
+src/X3DCcdOptimizer/Core/GpuMonitor.cs
+src/X3DCcdOptimizer/Data/known_games.json
+src/X3DCcdOptimizer/ViewModels/OverlayViewModel.cs
+src/X3DCcdOptimizer/Views/OverlayWindow.xaml + .cs
+```
+
+### Files Modified (14)
+
+```
+.gitignore, App.xaml.cs, AppConfig.cs, AffinityManager.cs, GameDetector.cs,
+ProcessWatcher.cs, PerformanceMonitor.cs, User32.cs, IconGenerator.cs,
+TrayIconManager.cs, MainViewModel.cs, ViewModelBase.cs, DashboardWindow.xaml,
+DashboardWindow.xaml.cs, X3DCcdOptimizer.csproj
+```
+
+---
+
 ## Session 5 — 2026-03-27
 
 **Agent:** Claude Opus 4.6 (1M context)
