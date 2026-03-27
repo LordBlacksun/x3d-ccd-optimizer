@@ -14,21 +14,25 @@ public class TrayIconManager : IDisposable
     private readonly WinForms.NotifyIcon _trayIcon;
     private readonly MainViewModel _viewModel;
     private readonly Window _dashboardWindow;
+    private readonly Window? _overlayWindow;
     private readonly AppConfig _config;
 
     private readonly WinForms.ToolStripMenuItem _statusItem;
     private readonly WinForms.ToolStripMenuItem _monitorItem;
     private readonly WinForms.ToolStripMenuItem _optimizeItem;
+    private readonly WinForms.ToolStripMenuItem _overlayItem;
 
-    public TrayIconManager(MainViewModel viewModel, Window dashboardWindow, AppConfig config)
+    public TrayIconManager(MainViewModel viewModel, Window dashboardWindow, AppConfig config, Window? overlayWindow = null)
     {
         _viewModel = viewModel;
         _dashboardWindow = dashboardWindow;
+        _overlayWindow = overlayWindow;
         _config = config;
 
         _statusItem = new WinForms.ToolStripMenuItem(viewModel.StatusText) { Enabled = false };
         _monitorItem = new WinForms.ToolStripMenuItem("Mode: Monitor");
         _optimizeItem = new WinForms.ToolStripMenuItem("Mode: Optimize") { Enabled = viewModel.IsOptimizeEnabled };
+        _overlayItem = new WinForms.ToolStripMenuItem(viewModel.IsOverlayVisible ? "Hide Overlay" : "Show Overlay");
 
         _trayIcon = new WinForms.NotifyIcon
         {
@@ -52,6 +56,10 @@ public class TrayIconManager : IDisposable
             _monitorItem.Checked = _viewModel.CurrentMode == OperationMode.Monitor;
             _optimizeItem.Checked = _viewModel.CurrentMode == OperationMode.Optimize;
         }
+        else if (e.PropertyName == nameof(MainViewModel.IsOverlayVisible))
+        {
+            _overlayItem.Text = _viewModel.IsOverlayVisible ? "Hide Overlay" : "Show Overlay";
+        }
     }
 
     private System.Drawing.Icon GetCurrentIcon()
@@ -70,11 +78,9 @@ public class TrayIconManager : IDisposable
     {
         var menu = new WinForms.ContextMenuStrip();
 
-        // Status
         menu.Items.Add(_statusItem);
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
-        // Mode toggle
         _monitorItem.Checked = _viewModel.CurrentMode == OperationMode.Monitor;
         _monitorItem.Click += (_, _) =>
             System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
@@ -89,14 +95,21 @@ public class TrayIconManager : IDisposable
         menu.Items.Add(_optimizeItem);
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
-        // Open Dashboard
         var dashboardItem = new WinForms.ToolStripMenuItem("Open Dashboard");
         dashboardItem.Click += (_, _) =>
             System.Windows.Application.Current.Dispatcher.BeginInvoke(ShowDashboard);
         menu.Items.Add(dashboardItem);
+
+        _overlayItem.Click += (_, _) =>
+            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            {
+                _viewModel.IsOverlayVisible = !_viewModel.IsOverlayVisible;
+                _viewModel.OnPropertyChanged(nameof(MainViewModel.OverlayButtonText));
+            });
+        menu.Items.Add(_overlayItem);
+
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
-        // View Log
         var logItem = new WinForms.ToolStripMenuItem("View Log File...");
         logItem.Click += (_, _) =>
         {
@@ -108,7 +121,6 @@ public class TrayIconManager : IDisposable
         };
         menu.Items.Add(logItem);
 
-        // About
         var aboutItem = new WinForms.ToolStripMenuItem("About");
         aboutItem.Click += (_, _) =>
             System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
@@ -118,7 +130,6 @@ public class TrayIconManager : IDisposable
         menu.Items.Add(aboutItem);
         menu.Items.Add(new WinForms.ToolStripSeparator());
 
-        // Exit
         var exitItem = new WinForms.ToolStripMenuItem("Exit");
         exitItem.Click += (_, _) =>
             System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
@@ -137,7 +148,6 @@ public class TrayIconManager : IDisposable
 
     private static string TruncateTooltip(string text)
     {
-        // NotifyIcon.Text has a 128 char limit
         return text.Length > 127 ? text[..127] : text;
     }
 

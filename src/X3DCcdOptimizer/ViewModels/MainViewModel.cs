@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -24,9 +22,7 @@ public class MainViewModel : ViewModelBase
     private string _sessionDurationText = "";
     private string _currentGameName = "";
     private DateTime _sessionStart;
-    private bool _isValidating;
-    private string _validateButtonText = "Validate";
-    private CancellationTokenSource? _validateCts;
+    private bool _isOverlayVisible;
 
     public CcdPanelViewModel Ccd0Panel { get; }
     public CcdPanelViewModel Ccd1Panel { get; }
@@ -94,22 +90,18 @@ public class MainViewModel : ViewModelBase
         private set => SetProperty(ref _sessionDurationText, value);
     }
 
+    public bool IsOverlayVisible
+    {
+        get => _isOverlayVisible;
+        set => SetProperty(ref _isOverlayVisible, value);
+    }
+
+    public string OverlayButtonText => _isOverlayVisible ? "Hide Overlay" : "Show Overlay";
+
     public string FooterText { get; }
 
     public RelayCommand ToggleModeCommand { get; }
-    public RelayCommand ValidateCommand { get; }
-
-    public bool IsValidating
-    {
-        get => _isValidating;
-        private set => SetProperty(ref _isValidating, value);
-    }
-
-    public string ValidateButtonText
-    {
-        get => _validateButtonText;
-        private set => SetProperty(ref _validateButtonText, value);
-    }
+    public RelayCommand ToggleOverlayCommand { get; }
 
     public MainViewModel(CpuTopology topology, PerformanceMonitor perfMon,
         ProcessWatcher processWatcher, GameDetector gameDetector,
@@ -132,7 +124,11 @@ public class MainViewModel : ViewModelBase
             () => IsOptimizeMode = !IsOptimizeMode,
             () => IsOptimizeEnabled);
 
-        ValidateCommand = new RelayCommand(RunValidation, () => !_isValidating);
+        ToggleOverlayCommand = new RelayCommand(() =>
+        {
+            IsOverlayVisible = !IsOverlayVisible;
+            OnPropertyChanged(nameof(OverlayButtonText));
+        });
 
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _sessionTimer.Tick += (_, _) =>
@@ -203,85 +199,6 @@ public class MainViewModel : ViewModelBase
         });
     }
 
-    private void RunValidation()
-    {
-        if (_isValidating) return;
-        IsValidating = true;
-        _validateCts = new CancellationTokenSource();
-        var ct = _validateCts.Token;
-
-        var cores = new[] { 0, 8 };
-        var coreNames = new[] { "Core 0 (CCD0, V-Cache)", "Core 8 (CCD0, V-Cache)" };
-
-        // Adjust if topology has different core indices
-        if (_topology.VCacheCores.Length > 0)
-            cores[0] = _topology.VCacheCores[0];
-        if (_topology.VCacheCores.Length > 8)
-            cores[1] = _topology.VCacheCores[8];
-        else if (_topology.FrequencyCores.Length > 0)
-            cores[1] = _topology.FrequencyCores[0];
-
-        coreNames[0] = $"Core {cores[0]} (CCD{_topology.GetCcdIndex(cores[0])})";
-        coreNames[1] = $"Core {cores[1]} (CCD{_topology.GetCcdIndex(cores[1])})";
-
-        Log.Information("VALIDATE: Starting core mapping validation");
-
-        Task.Run(() =>
-        {
-            try
-            {
-                for (int phase = 0; phase < cores.Length; phase++)
-                {
-                    if (ct.IsCancellationRequested) break;
-
-                    int coreIndex = cores[phase];
-                    string label = coreNames[phase];
-
-                    Application.Current?.Dispatcher.BeginInvoke(() =>
-                        ValidateButtonText = $"Burning {label}...");
-
-                    Log.Information("VALIDATE: Burning {Core} for 5 seconds", label);
-
-                    // Pin this thread to the target core
-                    var handle = Process.GetCurrentProcess().Handle;
-                    ulong mask = 1UL << coreIndex;
-                    SetThreadAffinityMask(GetCurrentThread(), new IntPtr((long)mask));
-
-                    // Burn for 5 seconds
-                    var deadline = DateTime.UtcNow.AddSeconds(5);
-                    while (DateTime.UtcNow < deadline)
-                    {
-                        if (ct.IsCancellationRequested) break;
-                        // Spin — this burns 100% of the pinned core
-                    }
-
-                    // Reset thread affinity to all cores
-                    SetThreadAffinityMask(GetCurrentThread(), new IntPtr(-1));
-
-                    Log.Information("VALIDATE: Done burning {Core}", label);
-                }
-            }
-            finally
-            {
-                // Reset affinity in case of exception
-                SetThreadAffinityMask(GetCurrentThread(), new IntPtr(-1));
-
-                Application.Current?.Dispatcher.BeginInvoke(() =>
-                {
-                    ValidateButtonText = "Validate";
-                    IsValidating = false;
-                    Log.Information("VALIDATE: Validation complete — check dashboard for which cores lit up");
-                });
-            }
-        }, ct);
-    }
-
-    [DllImport("kernel32.dll")]
-    private static extern IntPtr GetCurrentThread();
-
-    [DllImport("kernel32.dll")]
-    private static extern IntPtr SetThreadAffinityMask(IntPtr hThread, IntPtr dwThreadAffinityMask);
-
     private void UpdateStatus()
     {
         if (_isGameActive)
@@ -314,7 +231,7 @@ public class MainViewModel : ViewModelBase
 
     private void UpdateBorders()
     {
-        int? gameCcd = _isGameActive ? 0 : null; // Game always targets CCD0 (V-Cache)
+        int? gameCcd = _isGameActive ? 0 : null;
         Ccd0Panel.UpdateBorderState(_currentMode, _isGameActive, gameCcd);
         Ccd1Panel.UpdateBorderState(_currentMode, _isGameActive, _isGameActive ? 1 : null);
     }

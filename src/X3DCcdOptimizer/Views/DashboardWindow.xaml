@@ -185,16 +185,14 @@
             </DockPanel>
         </Border>
 
-        <!-- Row 4: Footer — separator + info + validate button -->
+        <!-- Row 4: Footer — separator + info + overlay toggle -->
         <StackPanel Grid.Row="4">
-            <!-- Fading separator line -->
             <Rectangle Height="1" Margin="24,2,24,0"
                        Fill="{StaticResource FooterSeparatorBrush}"/>
             <DockPanel Margin="16,6,16,8">
-                <!-- Validate button (temporary, for testing) -->
                 <Button DockPanel.Dock="Right" Style="{StaticResource SubtleButtonStyle}"
-                        Command="{Binding ValidateCommand}"
-                        Content="{Binding ValidateButtonText}"
+                        Command="{Binding ToggleOverlayCommand}"
+                        Content="{Binding OverlayButtonText}"
                         FontSize="11" Padding="10,4" Margin="8,0,0,0"/>
                 <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
                            VerticalAlignment="Center"/>

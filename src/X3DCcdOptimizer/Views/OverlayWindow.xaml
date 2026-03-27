@@ -1,0 +1,114 @@
+<Window x:Class="X3DCcdOptimizer.Views.OverlayWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="X3D Overlay"
+        Width="280" Height="160"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        Background="Transparent">
+
+    <Border CornerRadius="12" Padding="14,10"
+            Background="#CC1A1A1E"
+            BorderBrush="#40FFFFFF" BorderThickness="1">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- Row 0: Mode indicator -->
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                <Ellipse Width="8" Height="8" Fill="{Binding ModeDotColor}"
+                         VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <TextBlock Text="{Binding ModeText}"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           FontSize="13" FontWeight="SemiBold"
+                           FontFamily="{StaticResource FontDefault}"/>
+            </StackPanel>
+
+            <!-- Row 1: Game name -->
+            <TextBlock Grid.Row="1" Text="{Binding GameName}"
+                       Foreground="{Binding GameNameColor}"
+                       FontSize="11" FontFamily="{StaticResource FontDefault}"
+                       TextTrimming="CharacterEllipsis"
+                       Margin="0,0,0,6"/>
+
+            <!-- Row 2: CCD0 load bar -->
+            <Grid Grid.Row="2" Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="42"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="38"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="CCD0"
+                           FontFamily="{StaticResource FontMono}" FontSize="10"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           VerticalAlignment="Center"/>
+                <Border Grid.Column="1" Height="8" CornerRadius="4"
+                        Background="#30FFFFFF">
+                    <Border CornerRadius="4" HorizontalAlignment="Left"
+                            Background="{StaticResource AccentGreenBrush}">
+                        <Border.Width>
+                            <MultiBinding>
+                                <MultiBinding.Converter>
+                                    <local:LoadBarWidthConverter xmlns:local="clr-namespace:X3DCcdOptimizer.Converters"/>
+                                </MultiBinding.Converter>
+                                <Binding Path="Ccd0Load"/>
+                                <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Border}"/>
+                            </MultiBinding>
+                        </Border.Width>
+                    </Border>
+                </Border>
+                <TextBlock Grid.Column="2" Text="{Binding Ccd0LoadText}"
+                           FontFamily="{StaticResource FontMono}" FontSize="10"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Row 3: CCD1 load bar -->
+            <Grid Grid.Row="3" Margin="0,2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="42"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="38"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" Text="CCD1"
+                           FontFamily="{StaticResource FontMono}" FontSize="10"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           VerticalAlignment="Center"/>
+                <Border Grid.Column="1" Height="8" CornerRadius="4"
+                        Background="#30FFFFFF">
+                    <Border CornerRadius="4" HorizontalAlignment="Left"
+                            Background="{StaticResource AccentBlueBrush}">
+                        <Border.Width>
+                            <MultiBinding>
+                                <MultiBinding.Converter>
+                                    <local:LoadBarWidthConverter xmlns:local="clr-namespace:X3DCcdOptimizer.Converters"/>
+                                </MultiBinding.Converter>
+                                <Binding Path="Ccd1Load"/>
+                                <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Border}"/>
+                            </MultiBinding>
+                        </Border.Width>
+                    </Border>
+                </Border>
+                <TextBlock Grid.Column="2" Text="{Binding Ccd1LoadText}"
+                           FontFamily="{StaticResource FontMono}" FontSize="10"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           HorizontalAlignment="Right" VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Row 4: Last action -->
+            <TextBlock Grid.Row="4" Text="{Binding LastActionText}"
+                       FontFamily="{StaticResource FontMono}" FontSize="10"
+                       Foreground="{StaticResource TextTertiaryBrush}"
+                       TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Bottom" Margin="0,4,0,0"/>
+        </Grid>
+    </Border>
+</Window>

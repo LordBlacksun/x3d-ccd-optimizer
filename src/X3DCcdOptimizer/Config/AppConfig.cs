@@ -47,6 +47,27 @@ public class UiConfig
     public int[]? WindowSize { get; set; }
 }
 
+public class OverlayConfig
+{
+    [JsonPropertyName("enabled")]
+    public bool Enabled { get; set; }
+
+    [JsonPropertyName("autoHideSeconds")]
+    public int AutoHideSeconds { get; set; } = 10;
+
+    [JsonPropertyName("pixelShiftMinutes")]
+    public int PixelShiftMinutes { get; set; } = 3;
+
+    [JsonPropertyName("hotkey")]
+    public string Hotkey { get; set; } = "Ctrl+Shift+O";
+
+    [JsonPropertyName("opacity")]
+    public double Opacity { get; set; } = 0.8;
+
+    [JsonPropertyName("position")]
+    public int[]? Position { get; set; }
+}
+
 public class CcdOverrideConfig
 {
     [JsonPropertyName("vcacheCores")]
@@ -121,6 +142,9 @@ public class AppConfig
 
     [JsonPropertyName("ui")]
     public UiConfig Ui { get; set; } = new();
+
+    [JsonPropertyName("overlay")]
+    public OverlayConfig Overlay { get; set; } = new();
 
     public static AppConfig Load()
     {
