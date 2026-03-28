@@ -24,7 +24,7 @@
                     AutomationProperties.Name="Settings tabs">
 
             <!-- Tab 1: General -->
-            <TabItem Header="_General" AutomationProperties.Name="General settings tab">
+            <TabItem Header="General" AutomationProperties.Name="General settings tab">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
                     <StackPanel Margin="4">
                         <CheckBox Content="Start with Windows" IsChecked="{Binding StartWithWindows}"
@@ -94,7 +94,7 @@
             </TabItem>
 
             <!-- Tab 2: Process Rules (tier-aware) -->
-            <TabItem Header="_Process Rules" AutomationProperties.Name="Process rules settings tab">
+            <TabItem Header="Process Rules" AutomationProperties.Name="Process rules settings tab">
                 <Grid Margin="8">
 
                     <!-- SingleCcdStandard: no process rules available -->
@@ -226,7 +226,7 @@
             </TabItem>
 
             <!-- Tab 3: Detection -->
-            <TabItem Header="_Detection" AutomationProperties.Name="Detection settings tab">
+            <TabItem Header="Detection" AutomationProperties.Name="Detection settings tab">
                 <Grid Margin="8,4">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
@@ -294,7 +294,7 @@
             </TabItem>
 
             <!-- Tab 4: Overlay -->
-            <TabItem Header="_Overlay" AutomationProperties.Name="Overlay settings tab">
+            <TabItem Header="Overlay" AutomationProperties.Name="Overlay settings tab">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
                     <StackPanel Margin="8,4">
                         <CheckBox Content="Enable overlay" IsChecked="{Binding OverlayEnabled}"
@@ -331,7 +331,7 @@
             </TabItem>
 
             <!-- Tab 5: Advanced -->
-            <TabItem Header="Ad_vanced" AutomationProperties.Name="Advanced settings tab">
+            <TabItem Header="Advanced" AutomationProperties.Name="Advanced settings tab">
                 <StackPanel Margin="8,4">
                     <TextBlock Text="Log level:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,4"/>
                     <ComboBox SelectedValue="{Binding LogLevel}" Width="160" HorizontalAlignment="Left"
@@ -352,7 +352,7 @@
                                 AutomationProperties.Name="Open config folder button"/>
                     </StackPanel>
 
-                    <Button Content="_Reset All to Defaults" Command="{Binding ResetDefaultsCommand}"
+                    <Button Content="Reset All to Defaults" Command="{Binding ResetDefaultsCommand}"
                             Style="{StaticResource SubtleButtonStyle}" Padding="10,4"
                             HorizontalAlignment="Left" Margin="0,16,0,0"
                             AutomationProperties.Name="Reset all settings to defaults button"/>
@@ -366,7 +366,7 @@
                     Width="80" Margin="0,0,8,0" AutomationProperties.Name="OK button"/>
             <Button Content="Cancel" Click="OnCancel" Style="{StaticResource SubtleButtonStyle}"
                     Width="80" Margin="0,0,8,0" AutomationProperties.Name="Cancel button"/>
-            <Button Content="_Apply" Click="OnApply" Style="{StaticResource SubtleButtonStyle}"
+            <Button Content="Apply" Click="OnApply" Style="{StaticResource SubtleButtonStyle}"
                     Width="80" AutomationProperties.Name="Apply settings button"/>
         </StackPanel>
     </Grid>

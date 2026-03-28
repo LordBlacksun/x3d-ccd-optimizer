@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 28
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 29
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -54,6 +54,24 @@ Development session history for X3D Dual CCD Optimizer.
 - CcdMapper should fall back to SingleCcdStandard instead of throwing when both P/Invoke and WMI detection fail
 - GitHub Actions `dotnet publish` for framework-dependent single-file needs `-r win-x64 --self-contained false -p:PublishSingleFile=true`
 - ProcessRouter must deduplicate by exe name, not by PID — Chrome spawns 30+ PIDs but should show as one entry with count
+
+---
+
+## Session 29 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix visible access key underscores in Settings window
+
+### What Was Done
+
+1. **Remove access key underscores** — Removed `_` access key markers from all tab headers (General, Process Rules, Detection, Overlay, Advanced) and button labels (Apply, Reset All to Defaults) in SettingsWindow.xaml. Access keys via Alt are not important for this app — the underscores were rendering visibly in the custom TabItem ControlTemplate.
+
+### Files Modified (2)
+
+```
+Views/SettingsWindow.xaml — removed _ access key prefixes from 7 labels
+SESSION_LOG.md — session 29 changelog
+```
 
 ---
 
