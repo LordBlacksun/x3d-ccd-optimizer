@@ -56,8 +56,11 @@ public class ProcessRouterViewModel : ViewModelBase
             case AffinityAction.Migrated:
             case AffinityAction.WouldMigrate:
                 if (evt.Pid != 0)
+                {
                     AddOrUpdate(displayName, evt.ProcessName, evt.Pid, "Frequency", false, evt.Detail,
                         evt.Action == AffinityAction.WouldMigrate, _ccd1Name, isGame: false);
+                    StartPruneTimer();
+                }
                 break;
 
             case AffinityAction.DriverSet:

@@ -47,8 +47,8 @@
                         <TextBlock Text="{Binding TierDescription}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="11" Margin="0,8,0,8"/>
 
                         <TextBlock Text="Default mode on launch:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,4"/>
-                        <ComboBox SelectedValue="{Binding DefaultMode}" Width="140" HorizontalAlignment="Left"
-                                  Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                        <ComboBox SelectedValue="{Binding DefaultMode}" SelectedValuePath="Content"
+                                  Width="140" HorizontalAlignment="Left"
                                   ToolTip="Monitor watches your CPU without making changes. Optimize actively pins games to the best CCD."
                                   AutomationProperties.Name="Default operation mode">
                             <ComboBoxItem Content="monitor"/>

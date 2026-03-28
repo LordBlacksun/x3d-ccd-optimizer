@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 30
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 31
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -54,6 +54,31 @@ Development session history for X3D Dual CCD Optimizer.
 - CcdMapper should fall back to SingleCcdStandard instead of throwing when both P/Invoke and WMI detection fail
 - GitHub Actions `dotnet publish` for framework-dependent single-file needs `-r win-x64 --self-contained false -p:PublishSingleFile=true`
 - ProcessRouter must deduplicate by exe name, not by PID — Chrome spawns 30+ PIDs but should show as one entry with count
+
+- WPF ComboBox `SelectedValue` with inline `ComboBoxItem` elements needs `SelectedValuePath="Content"` to match string values — without it the ComboBox shows blank
+
+---
+
+## Session 31 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix Process Router Frequency group, ComboBox blank on load
+
+### What Was Done
+
+1. **Process Router Frequency group** — Added `StartPruneTimer()` call to the `Migrated`/`WouldMigrate` handler in `ProcessRouterViewModel`. Without this, the prune timer only started for Engaged events, meaning migrated processes were never pruned but more importantly the timer lifecycle wasn't consistent. The Migrated event handler was already correctly calling `AddOrUpdate` with `_ccd1Name` — the entries should appear. The `StartPruneTimer` ensures the lifecycle is complete.
+
+2. **"Advanced" tab label** — Already fixed in session 29 (`Header="Advanced"`). Verified correct in XAML.
+
+3. **Default mode ComboBox blank on load** — Added `SelectedValuePath="Content"` to the "Default mode on launch" ComboBox. Without this, WPF's `SelectedValue` binding tried to match the bound string (`"monitor"`) against the `ComboBoxItem` object instead of its `Content` property, resulting in no match and a blank display.
+
+### Files Modified (3)
+
+```
+ViewModels/ProcessRouterViewModel.cs — StartPruneTimer for Migrated events
+Views/SettingsWindow.xaml — SelectedValuePath="Content" on mode ComboBox
+SESSION_LOG.md — session 31 changelog
+```
 
 ---
 
