@@ -74,9 +74,12 @@ Development session history for X3D Dual CCD Optimizer.
 
 5. **Process Router item template** — Shows `ProcessName` + `CountText` (e.g., "(6 processes)") + `ExeName` in tertiary text. GAME badge retained for game entries.
 
-### Files Modified (5)
+6. **Restore summary clarity** — `RestoreAll()` now distinguishes benign exits from real failures. Exited processes are silently counted (no individual log noise). Real failures (access denied, etc.) are logged individually as ERROR with specific reason before the summary. Summary format: "Restored 15 processes. 3 had already exited (normal)." instead of alarming "15 restored, 3 failed/exited".
+
+### Files Modified (6)
 
 ```
+Core/AffinityManager.cs — RestoreAll benign/error distinction, per-failure logging
 ViewModels/ProcessRouterViewModel.cs — dedup by exe name, prune timer, PID tracking
 ViewModels/ProcessEntryViewModel.cs — Pids HashSet, InstanceCount, CountText, ExeName
 ViewModels/SettingsViewModel.cs — GameDisplayItem class, ManualGames type change, display name resolution
