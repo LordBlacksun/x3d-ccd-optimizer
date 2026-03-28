@@ -445,10 +445,29 @@ public class AffinityManager : IDisposable
     private void RestoreAll()
     {
         int restored = 0;
-        int failed = 0;
+        int exited = 0;
+        int errors = 0;
 
         foreach (var (pid, originalMask) in _originalMasks)
         {
+            string processName = "unknown";
+            try
+            {
+                using var proc = Process.GetProcessById(pid);
+                processName = proc.ProcessName + ".exe";
+            }
+            catch (ArgumentException)
+            {
+                // Process already exited — benign
+                exited++;
+                continue;
+            }
+            catch
+            {
+                exited++;
+                continue;
+            }
+
             try
             {
                 var handle = Kernel32.OpenProcess(
@@ -456,16 +475,26 @@ public class AffinityManager : IDisposable
 
                 if (handle == IntPtr.Zero)
                 {
-                    failed++;
+                    var err = Marshal.GetLastWin32Error();
+                    Emit(AffinityAction.Error, processName, pid,
+                        err == 5 ? "restore failed — access denied" : $"restore failed — error {err}");
+                    errors++;
                     continue;
                 }
 
                 try
                 {
                     if (Kernel32.SetProcessAffinityMask(handle, originalMask))
+                    {
                         restored++;
+                    }
                     else
-                        failed++;
+                    {
+                        var err = Marshal.GetLastWin32Error();
+                        Emit(AffinityAction.Error, processName, pid,
+                            $"restore failed — SetProcessAffinityMask error {err}");
+                        errors++;
+                    }
                 }
                 finally
                 {
@@ -474,15 +503,18 @@ public class AffinityManager : IDisposable
             }
             catch
             {
-                failed++;
+                errors++;
             }
         }
 
-        Log.Information("RESTORE: {Restored} processes restored, {Failed} failed/exited",
-            restored, failed);
+        var summary = $"Restored {restored} processes.";
+        if (exited > 0)
+            summary += $" {exited} had already exited (normal).";
+        if (errors > 0)
+            summary += $" {errors} failed (see errors above).";
 
-        Emit(AffinityAction.Restored, "all", 0,
-            $"{restored} restored, {failed} failed/exited");
+        Log.Information("RESTORE: {Summary}", summary);
+        Emit(AffinityAction.Restored, "all", 0, summary);
 
         _originalMasks.Clear();
     }
