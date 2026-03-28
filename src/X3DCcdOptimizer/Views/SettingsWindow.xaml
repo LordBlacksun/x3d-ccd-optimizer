@@ -4,7 +4,7 @@
         Title="Settings — X3D CCD Optimizer"
         Width="580" Height="640"
         ResizeMode="NoResize"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="CenterScreen"
         Background="{StaticResource BgPrimaryBrush}"
         AutomationProperties.Name="Settings window">
 

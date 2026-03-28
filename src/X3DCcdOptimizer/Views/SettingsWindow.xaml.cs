@@ -15,13 +15,11 @@ public partial class SettingsWindow : Window
     {
         if (DataContext is SettingsViewModel vm)
             vm.Apply();
-        DialogResult = true;
         Close();
     }
 
     private void OnCancel(object sender, RoutedEventArgs e)
     {
-        DialogResult = false;
         Close();
     }
 

@@ -149,12 +149,22 @@ public class MainViewModel : ViewModelBase
 
         OpenSettingsCommand = new RelayCommand(() =>
         {
+            // Check if a Settings window is already open
+            foreach (System.Windows.Window win in System.Windows.Application.Current.Windows)
+            {
+                if (win is Views.SettingsWindow existing)
+                {
+                    existing.Activate();
+                    return;
+                }
+            }
+
             var settingsVm = new SettingsViewModel(config, topology);
             var settingsWindow = new Views.SettingsWindow
             {
                 DataContext = settingsVm
             };
-            settingsWindow.ShowDialog();
+            settingsWindow.Show();
         });
 
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };

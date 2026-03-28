@@ -138,16 +138,7 @@ public class ProcessWatcher : IDisposable
             if (_detector.CurrentGame != null)
                 return;
 
-            // Get foreground window PID
-            uint foregroundPid = 0;
-            if (_requireForeground)
-            {
-                var hwnd = User32.GetForegroundWindow();
-                if (hwnd != IntPtr.Zero)
-                    User32.GetWindowThreadProcessId(hwnd, out foregroundPid);
-            }
-
-            // Scan running processes — check manual list and known DB first
+            // Known game detection — immediate, no GPU/foreground/delay checks
             foreach (var proc in Process.GetProcesses())
             {
                 try
@@ -157,9 +148,6 @@ public class ProcessWatcher : IDisposable
 
                     if (method != null)
                     {
-                        if (_requireForeground && foregroundPid != 0 && proc.Id != (int)foregroundPid)
-                            continue;
-
                         var source = method switch
                         {
                             DetectionMethod.Manual => "manual",
@@ -193,10 +181,16 @@ public class ProcessWatcher : IDisposable
                 }
             }
 
-            // GPU heuristic auto-detection (lowest priority)
-            if (_autoDetectEnabled && _gpuMonitor != null && foregroundPid > 0)
+            // GPU heuristic auto-detection — foreground + threshold + delay for unknown games
+            if (_autoDetectEnabled && _gpuMonitor != null)
             {
-                TryAutoDetect((int)foregroundPid);
+                uint foregroundPid = 0;
+                var hwnd = User32.GetForegroundWindow();
+                if (hwnd != IntPtr.Zero)
+                    User32.GetWindowThreadProcessId(hwnd, out foregroundPid);
+
+                if (foregroundPid > 0)
+                    TryAutoDetect((int)foregroundPid);
             }
         }
         catch (Exception ex)

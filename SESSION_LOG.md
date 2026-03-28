@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 33
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 34
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -57,6 +57,32 @@ Development session history for X3D Dual CCD Optimizer.
 
 - WPF ComboBox `SelectedValue` with inline `ComboBoxItem` elements needs `SelectedValuePath="Content"` to match string values — without it the ComboBox shows blank
 - Background process migration must run for both optimization strategies — only game handling differs between Driver Preference and Affinity Pinning
+
+- Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
+- WPF non-modal windows can't set DialogResult — use Close() directly
+
+---
+
+## Session 34 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Known game detection by name + non-modal Settings window
+
+### What Was Done
+
+1. **Known game detection by process name** — Separated detection into two paths in `ProcessWatcher.Poll()`. Known games (manual list, database, launcher scan) are detected immediately by process name matching — no GPU threshold, no foreground check, no detection delay. GPU heuristic (threshold + foreground + debounce) only applies to unknown games as a fallback. Foreground PID lookup moved inside the GPU heuristic block since known games don't need it.
+
+2. **Non-modal Settings window** — Changed `ShowDialog()` to `Show()` in `MainViewModel.OpenSettingsCommand`. Users can now interact with the dashboard while settings are open. Single-instance enforcement: if Settings is already open, `Activate()` brings it to focus instead of opening a second window. Removed `DialogResult` assignments (invalid for non-modal windows). Changed `WindowStartupLocation` from `CenterOwner` to `CenterScreen`.
+
+### Files Modified (5)
+
+```
+Core/ProcessWatcher.cs — separate known-game (immediate) and GPU-heuristic (delayed) detection paths
+ViewModels/MainViewModel.cs — non-modal Settings with single-instance check
+Views/SettingsWindow.xaml — CenterScreen instead of CenterOwner
+Views/SettingsWindow.xaml.cs — removed DialogResult assignments
+SESSION_LOG.md — session 34 changelog
+```
 
 ---
 
