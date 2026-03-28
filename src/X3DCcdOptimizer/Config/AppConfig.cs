@@ -258,16 +258,20 @@ public class AppConfig
 
     public Models.OperationMode GetOperationMode()
     {
-        return string.Equals(OperationMode, "optimize", StringComparison.OrdinalIgnoreCase)
-            ? Models.OperationMode.Optimize
-            : Models.OperationMode.Monitor;
+        if (string.Equals(OperationMode, "optimize", StringComparison.OrdinalIgnoreCase))
+            return Models.OperationMode.Optimize;
+        if (!string.Equals(OperationMode, "monitor", StringComparison.OrdinalIgnoreCase))
+            try { Serilog.Log.Warning("Unrecognized operationMode '{Value}', defaulting to Monitor", OperationMode); } catch { }
+        return Models.OperationMode.Monitor;
     }
 
     public Models.OptimizeStrategy GetOptimizeStrategy()
     {
-        return string.Equals(OptimizeStrategy, "driverPreference", StringComparison.OrdinalIgnoreCase)
-            ? Models.OptimizeStrategy.DriverPreference
-            : Models.OptimizeStrategy.AffinityPinning;
+        if (string.Equals(OptimizeStrategy, "driverPreference", StringComparison.OrdinalIgnoreCase))
+            return Models.OptimizeStrategy.DriverPreference;
+        if (!string.Equals(OptimizeStrategy, "affinityPinning", StringComparison.OrdinalIgnoreCase))
+            try { Serilog.Log.Warning("Unrecognized optimizeStrategy '{Value}', defaulting to AffinityPinning", OptimizeStrategy); } catch { }
+        return Models.OptimizeStrategy.AffinityPinning;
     }
 
     private static AppConfig CreateDefault() => new();

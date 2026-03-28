@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 45
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 46
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,43 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 46 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix all findings from SECURITY_AUDIT_V2.md
+
+### What Was Done
+
+Fixed all 8 remaining security audit findings:
+
+**HIGH (3):**
+1. AffinityManager — callbacks now fired outside `_syncLock` via event queue pattern (`_pendingEvents` list + `FlushEvents()` called after each lock block). Prevents potential deadlock if subscribers re-enter.
+2. VCacheDriverManager — registry write verified with read-back. Logs warning if written value doesn't match.
+3. SettingsViewModel — input length validation (260 char max) and invalid filename character rejection for user-entered game names.
+
+**MEDIUM (5):**
+4. Kernel32.CloseHandle — removed `SetLastError=true` to prevent error code clobbering.
+5. GpuMonitor — cached `ManagementObjectSearcher` instance reused across calls instead of creating new one every 2 seconds. Disposed on cleanup.
+6. Singleton mutex — changed from predictable `X3DCcdOptimizer_SingleInstance` to installer GUID `{B7F3A2E1-...}`.
+7. AffinityManager + ProcessWatcher — overly broad catches now re-throw `OutOfMemoryException`.
+8. AppConfig.GetOperationMode/GetOptimizeStrategy — log warnings when unrecognized enum values encountered instead of silent fallback.
+
+### Files Modified (8)
+
+```
+src/X3DCcdOptimizer/Core/AffinityManager.cs — event queue pattern (FlushEvents), OOM re-throw
+src/X3DCcdOptimizer/Core/VCacheDriverManager.cs — registry write read-back verification
+src/X3DCcdOptimizer/ViewModels/SettingsViewModel.cs — input length + char validation for game names
+src/X3DCcdOptimizer/Native/Kernel32.cs — removed SetLastError from CloseHandle
+src/X3DCcdOptimizer/Core/GpuMonitor.cs — cached WMI searcher
+src/X3DCcdOptimizer/App.xaml.cs — GUID-based singleton mutex
+src/X3DCcdOptimizer/Core/ProcessWatcher.cs — OOM re-throw in scan loop
+src/X3DCcdOptimizer/Config/AppConfig.cs — log warnings for unknown enum values
+SESSION_LOG.md — session 46 changelog
+```
 
 ---
 

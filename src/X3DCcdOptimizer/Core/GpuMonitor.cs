@@ -12,6 +12,7 @@ public class GpuMonitor : IDisposable
     private bool _available;
     private bool _disposed;
     private int _idleSkipCounter;
+    private ManagementObjectSearcher? _cachedSearcher;
 
     /// <summary>
     /// Set to true when a game is actively detected. When false, GPU queries
@@ -45,12 +46,12 @@ public class GpuMonitor : IDisposable
 
         try
         {
-            // Query GPU engine utilization for the specific process
-            // The instance name format is: pid_PID_luid_0xHHHH_0xLLLL_phys_N_eng_N_engtype_3D
-            using var searcher = new ManagementObjectSearcher(
+            // Reuse cached WMI searcher to avoid per-call connection overhead
+            _cachedSearcher ??= new ManagementObjectSearcher(
                 "root\\CIMV2",
-                $"SELECT UtilizationPercentage, Name FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine");
-            searcher.Options.Timeout = TimeSpan.FromSeconds(2);
+                "SELECT UtilizationPercentage, Name FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine")
+            { Options = { Timeout = TimeSpan.FromSeconds(2) } };
+            var searcher = _cachedSearcher;
 
             float totalUsage = 0;
 
@@ -112,6 +113,8 @@ public class GpuMonitor : IDisposable
     public void Dispose()
     {
         _disposed = true;
+        _cachedSearcher?.Dispose();
+        _cachedSearcher = null;
         GC.SuppressFinalize(this);
     }
 }

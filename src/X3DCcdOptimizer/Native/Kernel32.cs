@@ -26,6 +26,6 @@ internal static class Kernel32
     [DllImport("kernel32.dll", SetLastError = true)]
     internal static extern IntPtr OpenProcess(uint dwDesiredAccess, bool bInheritHandle, int dwProcessId);
 
-    [DllImport("kernel32.dll", SetLastError = true)]
+    [DllImport("kernel32.dll")]
     internal static extern bool CloseHandle(IntPtr hObject);
 }

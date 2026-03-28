@@ -241,6 +241,7 @@ public class ProcessWatcher : IDisposable
                     TryAutoDetect((int)foregroundPid);
             }
         }
+        catch (OutOfMemoryException) { throw; }
         catch (Exception ex)
         {
             if (!_disposed)

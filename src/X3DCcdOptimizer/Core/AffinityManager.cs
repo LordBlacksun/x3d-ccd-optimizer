@@ -14,6 +14,7 @@ public class AffinityManager : IDisposable
     private readonly Dictionary<int, IntPtr> _originalMasks = new();
     private readonly HashSet<string> _loggedMigrateExes = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _syncLock = new();
+    private readonly List<AffinityEvent> _pendingEvents = [];
     private readonly OptimizeStrategy _strategy;
     private readonly System.Timers.Timer? _reMigrationTimer;
     private bool _engaged;
@@ -132,6 +133,7 @@ public class AffinityManager : IDisposable
                 SimulateMigrateBackground(game.Pid);
             }
         }
+        FlushEvents();
     }
 
     public void OnGameExited(ProcessInfo game)
@@ -173,6 +175,7 @@ public class AffinityManager : IDisposable
 
             _currentGame = null;
         }
+        FlushEvents();
     }
 
     public void SwitchToOptimize()
@@ -202,6 +205,7 @@ public class AffinityManager : IDisposable
                 _reMigrationTimer?.Start();
             }
         }
+        FlushEvents();
     }
 
     public void SwitchToMonitor()
@@ -228,6 +232,7 @@ public class AffinityManager : IDisposable
                 RecoveryManager.OnDisengage();
             }
         }
+        FlushEvents();
     }
 
     private void EngageGame(ProcessInfo game)
@@ -647,6 +652,7 @@ public class AffinityManager : IDisposable
                         Kernel32.CloseHandle(handle);
                     }
                 }
+                catch (OutOfMemoryException) { throw; }
                 catch
                 {
                     // Skip processes we can't access
@@ -657,6 +663,7 @@ public class AffinityManager : IDisposable
                 }
             }
         }
+        FlushEvents();
     }
 
     public void Dispose()
@@ -721,6 +728,23 @@ public class AffinityManager : IDisposable
                 break;
         }
 
-        AffinityChanged?.Invoke(evt);
+        _pendingEvents.Add(evt);
+    }
+
+    /// <summary>
+    /// Fires all queued AffinityChanged events. Call OUTSIDE _syncLock to prevent deadlocks.
+    /// </summary>
+    private void FlushEvents()
+    {
+        List<AffinityEvent> events;
+        lock (_syncLock)
+        {
+            if (_pendingEvents.Count == 0) return;
+            events = [.. _pendingEvents];
+            _pendingEvents.Clear();
+        }
+
+        foreach (var evt in events)
+            AffinityChanged?.Invoke(evt);
     }
 }

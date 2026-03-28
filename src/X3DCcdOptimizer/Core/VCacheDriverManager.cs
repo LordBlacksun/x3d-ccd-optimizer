@@ -110,6 +110,12 @@ public static class VCacheDriverManager
             }
 
             key.SetValue(RegValueName, value, RegistryValueKind.DWord);
+
+            // Verify write
+            var readBack = key.GetValue(RegValueName);
+            if (readBack is int written && written != value)
+                Log.Warning("Registry write verification failed: wrote {Expected}, read {Actual}", value, written);
+
             Log.Information("Set amd3dvcache DefaultType={Value} ({Desc})",
                 value, value == PREFER_CACHE ? "PREFER_CACHE" : "PREFER_FREQ");
             return true;

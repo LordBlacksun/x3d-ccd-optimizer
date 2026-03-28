@@ -279,6 +279,10 @@ public class SettingsViewModel : ViewModelBase
             if (!string.IsNullOrWhiteSpace(NewGameText))
             {
                 var game = NewGameText.Trim();
+                if (game.Length > 260)
+                    game = game[..260];
+                if (game.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    return;
                 if (!game.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     game += ".exe";
                 if (!ManualGames.Any(g => string.Equals(g.Exe, game, StringComparison.OrdinalIgnoreCase)))

@@ -43,7 +43,7 @@ public partial class App : System.Windows.Application
         base.OnStartup(e);
 
         // Single-instance enforcement (SEC-002)
-        _singleInstanceMutex = new Mutex(true, @"Global\X3DCcdOptimizer_SingleInstance", out var createdNew);
+        _singleInstanceMutex = new Mutex(true, @"Global\{B7F3A2E1-5D4C-4E8B-9F1A-3C6D8E2B7A50}", out var createdNew);
         if (!createdNew)
         {
             MessageBox.Show("X3D CCD Optimizer is already running.",
