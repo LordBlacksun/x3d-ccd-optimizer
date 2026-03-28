@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 32
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 33
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -57,6 +57,25 @@ Development session history for X3D Dual CCD Optimizer.
 
 - WPF ComboBox `SelectedValue` with inline `ComboBoxItem` elements needs `SelectedValuePath="Content"` to match string values — without it the ComboBox shows blank
 - Background process migration must run for both optimization strategies — only game handling differs between Driver Preference and Affinity Pinning
+
+---
+
+## Session 33 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Empty state hint for Frequency CCD column
+
+### What Was Done
+
+1. **Empty state placeholder** — When the Frequency CCD (Background) list in Process Rules is empty, shows tertiary-styled hint text explaining auto-migration and the benefit of explicit rules. Hides automatically when the list has entries via `BgEmptyHintVisibility` bound to `BackgroundApps.Count`, updated via `CollectionChanged`.
+
+### Files Modified (3)
+
+```
+Views/SettingsWindow.xaml — placeholder TextBlock overlaid on background apps ListBox
+ViewModels/SettingsViewModel.cs — BgEmptyHintVisibility property + CollectionChanged wiring
+SESSION_LOG.md — session 33 changelog
+```
 
 ---
 

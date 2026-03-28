@@ -161,6 +161,7 @@ public class SettingsViewModel : ViewModelBase
     // Process Rules
     public ObservableCollection<GameDisplayItem> ManualGames { get; } = [];
     public ObservableCollection<string> BackgroundApps { get; } = [];
+    public Visibility BgEmptyHintVisibility => BackgroundApps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public ObservableCollection<string> ExcludedProcesses { get; } = [];
     public ObservableCollection<string> KnownGames { get; } = [];
 
@@ -245,6 +246,8 @@ public class SettingsViewModel : ViewModelBase
 
         foreach (var b in config.BackgroundApps) BackgroundApps.Add(b);
         foreach (var e in config.ExcludedProcesses) ExcludedProcesses.Add(e);
+
+        BackgroundApps.CollectionChanged += (_, _) => OnPropertyChanged(nameof(BgEmptyHintVisibility));
 
         // Load known games DB for autocomplete + display name resolution
         try

@@ -185,11 +185,18 @@
                                 <Run Text="{Binding BgColumnHeader, Mode=OneWay}"/>
                             </TextBlock>
 
-                            <ListBox Grid.Row="1" ItemsSource="{Binding BackgroundApps}" SelectedItem="{Binding SelectedBg}"
-                                     FontFamily="{StaticResource FontMono}" FontSize="11"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                     ToolTip="{Binding BgColumnTooltip}"
-                                     AutomationProperties.Name="Background apps list"/>
+                            <Grid Grid.Row="1">
+                                <ListBox ItemsSource="{Binding BackgroundApps}" SelectedItem="{Binding SelectedBg}"
+                                         FontFamily="{StaticResource FontMono}" FontSize="11"
+                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                         ToolTip="{Binding BgColumnTooltip}"
+                                         AutomationProperties.Name="Background apps list"/>
+                                <TextBlock Text="No background rules configured. In Optimize mode, unmatched processes are still auto-migrated to the Frequency CCD. Add explicit rules here for guaranteed pinning and clearer activity log tracking."
+                                           Foreground="{StaticResource TextTertiaryBrush}" FontSize="11"
+                                           TextWrapping="Wrap" Margin="8,8"
+                                           VerticalAlignment="Top" IsHitTestVisible="False"
+                                           Visibility="{Binding BgEmptyHintVisibility}"/>
+                            </Grid>
 
                             <StackPanel Grid.Row="2" Margin="0,6,0,0">
                                 <Button Content="Pick Running Processes..." Command="{Binding AddBgFromPickerCommand}"
