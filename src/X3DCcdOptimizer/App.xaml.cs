@@ -1,7 +1,10 @@
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Management;
+using System.Security.Principal;
 using System.Threading;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using Serilog;
 using X3DCcdOptimizer.Config;
@@ -49,6 +52,40 @@ public partial class App : System.Windows.Application
             return;
         }
 
+        // Admin elevation check — must run elevated for affinity management
+        if (!IsRunningAsAdministrator())
+        {
+            var result = MessageBox.Show(
+                "X3D CCD Optimizer requires administrator privileges to manage CPU affinity on running processes.\n\n" +
+                "Would you like to restart with elevated permissions?",
+                "Administrator Required",
+                MessageBoxButton.YesNo, MessageBoxImage.Warning);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                try
+                {
+                    var exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
+                    if (exePath != null)
+                    {
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = exePath,
+                            Verb = "runas",
+                            UseShellExecute = true
+                        });
+                    }
+                }
+                catch (Win32Exception)
+                {
+                    // User cancelled UAC prompt
+                }
+            }
+
+            Shutdown();
+            return;
+        }
+
         // Global exception handlers
         DispatcherUnhandledException += (_, args) =>
         {
@@ -65,6 +102,14 @@ public partial class App : System.Windows.Application
         _config.Validate();
         AppLogger.Initialize(_config.Logging.Level);
         Log.Information("X3D Dual CCD Optimizer v{Version}", Version);
+
+        // First-launch admin trust dialog
+        if (!_config.HasDismissedAdminDialog)
+        {
+            ShowAdminTrustDialog();
+            _config.HasDismissedAdminDialog = true;
+            _config.Save();
+        }
 
         // Recover from dirty shutdown (before anything else)
         RecoveryManager.RecoverFromDirtyShutdown();
@@ -335,6 +380,7 @@ public partial class App : System.Windows.Application
         _perfMon?.Stop();
         _perfMon?.Dispose();
         _gpuMonitor?.Dispose();
+        _affinityManager?.Dispose();
 
         // Clean shutdown — clear recovery state
         RecoveryManager.OnDisengage();
@@ -374,5 +420,114 @@ public partial class App : System.Windows.Application
         AppLogger.Shutdown();
 
         base.OnExit(e);
+    }
+
+    private static bool IsRunningAsAdministrator()
+    {
+        using var identity = WindowsIdentity.GetCurrent();
+        var principal = new WindowsPrincipal(identity);
+        return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    private void ShowAdminTrustDialog()
+    {
+        var dialog = new Window
+        {
+            Title = "Why does this app need Admin rights?",
+            Width = 520,
+            Height = 380,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Background = TryFindResource("BgPrimaryBrush") as System.Windows.Media.Brush
+                ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1A, 0x1A, 0x1E))
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(24) };
+
+        var primaryBrush = TryFindResource("TextPrimaryBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.White;
+        var secondaryBrush = TryFindResource("TextSecondaryBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.LightGray;
+        var tertiaryBrush = TryFindResource("TextTertiaryBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.Gray;
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "X3D CCD Optimizer requires administrator privileges to set CPU affinity on running processes. Without elevation, Windows blocks affinity changes on most applications.",
+            FontSize = 13,
+            Foreground = primaryBrush,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 16)
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "This app is:",
+            FontSize = 13,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = primaryBrush,
+            Margin = new Thickness(0, 0, 0, 8)
+        });
+
+        var points = new[]
+        {
+            "\u2022  Fully open source \u2014 audit every line at github.com/LordBlacksun/x3d-ccd-optimizer",
+            "\u2022  Private by default \u2014 no telemetry, no tracking, no network connections",
+            "\u2022  Minimal \u2014 only reads process lists and sets CPU affinity, nothing else"
+        };
+
+        foreach (var point in points)
+        {
+            panel.Children.Add(new TextBlock
+            {
+                Text = point,
+                FontSize = 12,
+                Foreground = secondaryBrush,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 2, 0, 2)
+            });
+        }
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Admin rights are used exclusively in AffinityManager.cs and CcdMapper.cs.",
+            FontSize = 11,
+            Foreground = tertiaryBrush,
+            Margin = new Thickness(0, 16, 0, 20),
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+
+        var viewSourceButton = new Button
+        {
+            Content = "View Source on GitHub",
+            Padding = new Thickness(12, 6, 12, 6),
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        viewSourceButton.Click += (_, _) =>
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "https://github.com/LordBlacksun/x3d-ccd-optimizer",
+                UseShellExecute = true
+            });
+        };
+
+        var continueButton = new Button
+        {
+            Content = "I Understand, Continue",
+            Padding = new Thickness(12, 6, 12, 6),
+            IsDefault = true
+        };
+        continueButton.Click += (_, _) => dialog.Close();
+
+        buttonPanel.Children.Add(viewSourceButton);
+        buttonPanel.Children.Add(continueButton);
+        panel.Children.Add(buttonPanel);
+
+        dialog.Content = panel;
+        dialog.ShowDialog();
     }
 }

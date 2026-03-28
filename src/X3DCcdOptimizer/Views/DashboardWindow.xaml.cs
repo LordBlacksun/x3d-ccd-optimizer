@@ -10,6 +10,10 @@ namespace X3DCcdOptimizer.Views;
 public partial class DashboardWindow : Window
 {
     private readonly AppConfig _config;
+    private bool _trayBalloonShown;
+
+    /// <summary>Raised once when the window first minimizes to tray, to trigger a balloon tip.</summary>
+    public event Action? TrayBalloonRequested;
 
     public DashboardWindow(AppConfig config)
     {
@@ -20,10 +24,25 @@ public partial class DashboardWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        // Minimize to tray instead of closing
-        e.Cancel = true;
-        SaveWindowState();
-        Hide();
+        if (_config.Ui.MinimizeToTray)
+        {
+            // Minimize to tray instead of closing
+            e.Cancel = true;
+            SaveWindowState();
+            Hide();
+
+            if (!_trayBalloonShown)
+            {
+                _trayBalloonShown = true;
+                TrayBalloonRequested?.Invoke();
+            }
+        }
+        else
+        {
+            // Close the app
+            SaveWindowState();
+            Application.Current.Shutdown();
+        }
     }
 
     protected override void OnContentRendered(EventArgs e)

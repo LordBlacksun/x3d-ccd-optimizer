@@ -6,28 +6,30 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 20
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 21
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
 - **Three-tier processor support:** DualCcdX3D (full: affinity pinning + driver preference), SingleCcdX3D (monitoring + dashboard, no CCD steering), DualCcdStandard (affinity pinning, no driver preference). ProcessorTier enum, tier auto-detected from L3 cache topology.
-- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (4-tier: manual → 65-game DB → launcher scan → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy+tier-aware, lock-based), VCacheDriverManager (amd3dvcache registry), GameLibraryScanner (Steam + Epic)
+- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (4-tier: manual → 65-game DB → launcher scan → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy+tier-aware, lock-based, IDisposable, continuous re-migration timer), VCacheDriverManager (amd3dvcache registry), GameLibraryScanner (Steam + Epic)
 - **Game launcher scanning:** GameLibraryScanner scans Steam (registry → VDF/ACF parsing → exe directory scan) and Epic (JSON manifests in ProgramData). Results cached to `installed_games.json` in %APPDATA%, background rescan if >7 days stale. VDF parser handles Valve KeyValues format. Filters non-game exes (UnityCrashHandler, redist, setup, etc.). GOG skipped (requires SQLite dependency). Found 532 games on dev machine.
 - **Display name resolution:** ProcessInfo.DisplayName populated at detection time from known_games.json or launcher scan. Propagated through AffinityEvent.DisplayName. All UI surfaces (status bar, CCD role labels, activity log, process router, overlay) show resolved game names. Fallback: strip .exe extension.
 - **Optimization strategies:** AffinityPinning (default, SetProcessAffinityMask) or DriverPreference (AMD amd3dvcache registry interface, discovered by cocafe/vcache-tray). Strategy stored in config, selectable in Settings, gated by driver availability and tier.
 - **WPF dashboard:** MVVM, dark theme, CCD panels (1 or 2 based on tier) with 4x2 core tile heatmaps, grouped process router (by CCD with game badges), activity log, animated pill toggle (Monitor/Optimize), polished UI
 - **Compact overlay:** Discord-style toast/pill (auto-width 200-400px), slide-in/out animation (300ms cubic ease), semi-transparent dark (#1A1A1A at 85%), single/two-line contextual messages, opt-in CCD load bars (8px, green V-Cache + blue Freq, toggle in Settings > Overlay), OLED-safe (auto-hide, pixel shift), Ctrl+Shift+O hotkey, draggable, position persisted
 - **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
-- **Monitor/Optimize dual-mode:** Monitor (default, observe-only, all tiers), Optimize (active affinity or driver preference, dual-CCD only, tier-gated)
+- **Monitor/Optimize dual-mode:** Monitor (default, observe-only, all tiers), Optimize (active affinity or driver preference, dual-CCD only, tier-gated, continuous re-migration every 3s for new processes)
 - **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
 - **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
+- **Admin elevation:** app.manifest requires administrator. Startup check with relaunch dialog if not elevated. First-launch trust dialog explaining admin usage (persisted via `hasDismissedAdminDialog` config flag). UAC shield indicator in dashboard footer.
+- **X button behavior:** Configurable via `minimizeToTray` (default: false = close app). When true: minimizes to tray with one-time balloon notification. Setting exposed in Settings > General.
 - **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Session 17 defensive coding audit (0 critical, 0 high, 2 medium, 6 low, 22 info — all 8 actionable findings fixed in session 18). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
 
 **Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (4-tier), `Core/GameLibraryScanner.cs` (Steam+Epic scanner), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
 
-**What's next:** Phase 4 (CI/CD, trimmed build, installer, release)
+**What's next:** Phase 3 remaining (settings window enhancements, per-game profiles), Phase 4 (CI/CD, trimmed build, installer, release)
 
 **Known gotchas:**
 - CACHE_RELATIONSHIP struct needs 18-byte `Reserved` field (not 2-byte) — was a real bug
@@ -42,6 +44,40 @@ Development session history for X3D Dual CCD Optimizer.
 - Steam VDF files use Valve KeyValues format (not JSON) — need custom parser; escaped backslashes in paths
 - WPF ComboBox dropdown popup uses SystemColors for background/text — override WindowBrushKey, HighlightBrushKey, ControlTextBrushKey in style for dark theme
 - WPF grid rows with star sizing compete for space — use Auto for fixed-content rows (CCD panels), star for scrollable areas (process router, activity log)
+
+---
+
+## Session 21 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Four critical fixes + admin trust transparency
+
+### What Was Done
+
+1. **Admin elevation fallback** — Added startup admin check in `App.OnStartup` using `WindowsPrincipal.IsInRole(Administrator)`. If not elevated (manifest override, compatibility mode, etc.), shows dialog offering to relaunch with `Verb = "runas"` or exit. `app.manifest` already had `requireAdministrator` from prior sessions.
+
+2. **First-launch trust dialog** — Custom WPF dialog shown once after successful elevation when `HasDismissedAdminDialog` is false. Explains open source, no telemetry, minimal permissions. Two buttons: "I Understand, Continue" and "View Source on GitHub" (opens repo URL). Config flag persisted to `hasDismissedAdminDialog` in config.json.
+
+3. **Continuous optimization** — AffinityManager now implements `IDisposable` with a 3-second `System.Timers.Timer` (`_reMigrationTimer`) that runs while engaged in Optimize + AffinityPinning mode. `MigrateNewProcesses()` scans all processes each tick, skips those already in `_originalMasks` (already handled), migrates new unhandled processes to Frequency CCD, prunes dead PIDs. Timer starts on game engagement, stops on game exit / mode switch / dispose. Only accesses `Process.Id` and `Process.ProcessName` — no expensive properties.
+
+4. **Activity log continuous updates** — Already implemented from prior sessions (timestamps in `HH:mm:ss`, auto-scroll via `CollectionChanged`). The continuous re-migration timer from fix #3 emits new `Migrated` events that flow through the existing `AffinityChanged` → `MainViewModel.OnAffinityChanged` → `ActivityLog.AddEntry` → auto-scroll pipeline. No additional code needed.
+
+5. **X button closes app by default** — `UiConfig.MinimizeToTray` default changed from `true` to `false`. `DashboardWindow.OnClosing` now checks config: when false, calls `Application.Current.Shutdown()`; when true, cancels close, hides window, fires one-time `TrayBalloonRequested` event. `TrayIconManager` wires balloon: "The app is still running in the system tray." New "Minimize to tray on close" checkbox in Settings > General tab.
+
+6. **UAC shield indicator** — Subtle "ADMIN" label with Segoe MDL2 Assets shield glyph (`\uE83D`) in dashboard footer bar, green accent, 70% opacity. Tooltip: "Running with administrator privileges".
+
+### Files Modified (8)
+
+```
+Config/AppConfig.cs — HasDismissedAdminDialog flag, MinimizeToTray default false
+App.xaml.cs — admin check, trust dialog, AffinityManager dispose wiring
+Core/AffinityManager.cs — IDisposable, 3s re-migration timer, MigrateNewProcesses(), dead PID pruning
+Views/DashboardWindow.xaml.cs — configurable OnClosing (close vs tray), TrayBalloonRequested event
+Views/DashboardWindow.xaml — UAC shield indicator in footer
+Tray/TrayIconManager.cs — balloon notification wiring for minimize-to-tray
+ViewModels/SettingsViewModel.cs — MinimizeToTray property + init/apply/reset
+Views/SettingsWindow.xaml — "Minimize to tray on close" checkbox in General tab
+```
 
 ---
 

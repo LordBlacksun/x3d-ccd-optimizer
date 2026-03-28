@@ -41,7 +41,7 @@ public class UiConfig
     public bool StartMinimized { get; set; }
 
     [JsonPropertyName("minimizeToTray")]
-    public bool MinimizeToTray { get; set; } = true;
+    public bool MinimizeToTray { get; set; }
 
     [JsonPropertyName("notifications")]
     public bool Notifications { get; set; } = true;
@@ -170,6 +170,9 @@ public class AppConfig
 
     [JsonPropertyName("overlay")]
     public OverlayConfig Overlay { get; set; } = new();
+
+    [JsonPropertyName("hasDismissedAdminDialog")]
+    public bool HasDismissedAdminDialog { get; set; }
 
     /// <summary>True if no config.json existed at load time (first launch).</summary>
     [JsonIgnore]

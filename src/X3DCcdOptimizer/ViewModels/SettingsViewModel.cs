@@ -19,6 +19,7 @@ public class SettingsViewModel : ViewModelBase
     private string _defaultMode;
     private string _optimizeStrategy;
     private bool _startMinimized;
+    private bool _minimizeToTray;
     private bool _notifications;
     private int _pollingIntervalMs;
     private int _dashboardRefreshMs;
@@ -58,6 +59,7 @@ public class SettingsViewModel : ViewModelBase
         _ => ""
     };
     public bool StartMinimized { get => _startMinimized; set => SetProperty(ref _startMinimized, value); }
+    public bool MinimizeToTray { get => _minimizeToTray; set => SetProperty(ref _minimizeToTray, value); }
     public bool Notifications { get => _notifications; set => SetProperty(ref _notifications, value); }
     public int PollingIntervalMs { get => _pollingIntervalMs; set => SetProperty(ref _pollingIntervalMs, value); }
     public int DashboardRefreshMs { get => _dashboardRefreshMs; set => SetProperty(ref _dashboardRefreshMs, value); }
@@ -108,6 +110,7 @@ public class SettingsViewModel : ViewModelBase
         // Load current values
         _startWithWindows = StartupManager.IsEnabled();
         _startMinimized = config.Ui.StartMinimized;
+        _minimizeToTray = config.Ui.MinimizeToTray;
         _notifications = config.Ui.Notifications;
         _pollingIntervalMs = config.PollingIntervalMs;
         _dashboardRefreshMs = config.DashboardRefreshMs;
@@ -227,6 +230,7 @@ public class SettingsViewModel : ViewModelBase
                 AutoHideSeconds = defaults.Overlay.AutoHideSeconds;
                 PixelShiftMinutes = defaults.Overlay.PixelShiftMinutes;
                 LogLevel = defaults.Logging.Level;
+                MinimizeToTray = defaults.Ui.MinimizeToTray;
                 Notifications = defaults.Ui.Notifications;
                 OptimizeStrategy = defaults.OptimizeStrategy;
             }
@@ -245,6 +249,7 @@ public class SettingsViewModel : ViewModelBase
         _config.OperationMode = _defaultMode;
         _config.OptimizeStrategy = _optimizeStrategy;
         _config.Ui.StartMinimized = _startMinimized;
+        _config.Ui.MinimizeToTray = _minimizeToTray;
         _config.Ui.Notifications = _notifications;
         _config.PollingIntervalMs = _pollingIntervalMs;
         _config.DashboardRefreshMs = _dashboardRefreshMs;

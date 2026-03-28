@@ -6,15 +6,17 @@ using X3DCcdOptimizer.Native;
 
 namespace X3DCcdOptimizer.Core;
 
-public class AffinityManager
+public class AffinityManager : IDisposable
 {
     private readonly CpuTopology _topology;
     private readonly HashSet<string> _protectedProcesses;
     private readonly Dictionary<int, IntPtr> _originalMasks = new();
     private readonly object _syncLock = new();
     private readonly OptimizeStrategy _strategy;
+    private readonly System.Timers.Timer? _reMigrationTimer;
     private bool _engaged;
     private ProcessInfo? _currentGame;
+    private volatile bool _disposed;
 
     private static readonly IReadOnlySet<string> HardcodedProtected = ProtectedProcesses.Names;
 
@@ -46,6 +48,13 @@ public class AffinityManager
                 ? name[..^4]
                 : name;
             _protectedProcesses.Add(clean);
+        }
+
+        if (strategy == OptimizeStrategy.AffinityPinning)
+        {
+            _reMigrationTimer = new System.Timers.Timer(3000);
+            _reMigrationTimer.AutoReset = true;
+            _reMigrationTimer.Elapsed += (_, _) => MigrateNewProcesses();
         }
     }
 
@@ -83,6 +92,7 @@ public class AffinityManager
                 {
                     EngageGame(game);
                     MigrateBackground(game.Pid);
+                    _reMigrationTimer?.Start();
                 }
             }
             else
@@ -108,6 +118,7 @@ public class AffinityManager
                 return;
 
             _engaged = false;
+            _reMigrationTimer?.Stop();
 
             if (_topology.IsSingleCcd)
             {
@@ -165,6 +176,7 @@ public class AffinityManager
                 {
                     EngageGame(_currentGame);
                     MigrateBackground(_currentGame.Pid);
+                    _reMigrationTimer?.Start();
                 }
             }
         }
@@ -177,6 +189,7 @@ public class AffinityManager
             if (Mode == OperationMode.Monitor || _topology.IsSingleCcd)
                 return;
 
+            _reMigrationTimer?.Stop();
             var wasEngagedAffinity = _engaged && _originalMasks.Count > 0;
             var wasEngagedDriver = _engaged && _strategy == OptimizeStrategy.DriverPreference;
             Mode = OperationMode.Monitor;
@@ -447,6 +460,109 @@ public class AffinityManager
     private bool IsProtected(string processName)
     {
         return _protectedProcesses.Contains(processName);
+    }
+
+    private void MigrateNewProcesses()
+    {
+        if (_disposed) return;
+
+        lock (_syncLock)
+        {
+            if (!_engaged || Mode != OperationMode.Optimize ||
+                _strategy != OptimizeStrategy.AffinityPinning || _currentGame == null)
+                return;
+
+            var gamePid = _currentGame.Pid;
+
+            // Prune dead PIDs to prevent unbounded dictionary growth
+            var deadPids = new List<int>();
+            foreach (var pid in _originalMasks.Keys)
+            {
+                try
+                {
+                    using var p = Process.GetProcessById(pid);
+                    if (p.HasExited)
+                        deadPids.Add(pid);
+                }
+                catch (ArgumentException)
+                {
+                    deadPids.Add(pid);
+                }
+                catch
+                {
+                    // Keep entry if status unknown
+                }
+            }
+            foreach (var pid in deadPids)
+                _originalMasks.Remove(pid);
+
+            // Scan for new processes to migrate
+            Process[] processes;
+            try { processes = Process.GetProcesses(); }
+            catch { return; }
+
+            foreach (var proc in processes)
+            {
+                try
+                {
+                    if (proc.Id == gamePid || proc.Id <= 4)
+                        continue;
+
+                    // Already handled
+                    if (_originalMasks.ContainsKey(proc.Id))
+                        continue;
+
+                    string name = proc.ProcessName;
+
+                    if (IsProtected(name))
+                        continue;
+
+                    var handle = Kernel32.OpenProcess(
+                        Kernel32.PROCESS_SET_INFORMATION | Kernel32.PROCESS_QUERY_INFORMATION,
+                        false, proc.Id);
+
+                    if (handle == IntPtr.Zero)
+                        continue;
+
+                    try
+                    {
+                        if (Kernel32.GetProcessAffinityMask(handle, out var originalMask, out _))
+                        {
+                            _originalMasks[proc.Id] = originalMask;
+
+                            if (Kernel32.SetProcessAffinityMask(handle, _topology.FrequencyMask))
+                            {
+                                RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, originalMask);
+                                Emit(AffinityAction.Migrated, name + ".exe", proc.Id,
+                                    $"\u2192 CCD1 (Frequency, mask {_topology.FrequencyMaskHex})");
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        Kernel32.CloseHandle(handle);
+                    }
+                }
+                catch
+                {
+                    // Skip processes we can't access
+                }
+                finally
+                {
+                    proc.Dispose();
+                }
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _reMigrationTimer?.Stop();
+        _reMigrationTimer?.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     private void Emit(AffinityAction action, string processName, int pid, string detail,

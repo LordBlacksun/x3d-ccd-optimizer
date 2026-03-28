@@ -5,6 +5,7 @@ using System.Windows;
 using X3DCcdOptimizer.Config;
 using X3DCcdOptimizer.Models;
 using X3DCcdOptimizer.ViewModels;
+using X3DCcdOptimizer.Views;
 using WinForms = System.Windows.Forms;
 
 namespace X3DCcdOptimizer.Tray;
@@ -46,6 +47,18 @@ public class TrayIconManager : IDisposable
         };
 
         _trayIcon.DoubleClick += (_, _) => ShowDashboard();
+
+        if (dashboardWindow is DashboardWindow dw)
+        {
+            dw.TrayBalloonRequested += () =>
+            {
+                _trayIcon.BalloonTipTitle = "X3D CCD Optimizer";
+                _trayIcon.BalloonTipText = "The app is still running in the system tray. Right-click the tray icon to exit.";
+                _trayIcon.BalloonTipIcon = WinForms.ToolTipIcon.Info;
+                _trayIcon.ShowBalloonTip(3000);
+            };
+        }
+
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 

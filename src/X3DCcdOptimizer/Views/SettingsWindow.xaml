@@ -35,6 +35,10 @@
                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
                                   ToolTip="Start hidden in the system tray instead of showing the dashboard."
                                   AutomationProperties.Name="Start minimized checkbox"/>
+                        <CheckBox Content="Minimize to tray on close" IsChecked="{Binding MinimizeToTray}"
+                                  Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
+                                  ToolTip="When enabled, closing the window minimizes to the system tray instead of exiting. Use the tray icon to fully exit."
+                                  AutomationProperties.Name="Minimize to tray on close checkbox"/>
                         <CheckBox Content="Show notifications" IsChecked="{Binding Notifications}"
                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
                                   ToolTip="Show system notifications when games are detected or affinities change."

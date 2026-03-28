@@ -232,6 +232,15 @@
                             FontSize="11" Padding="10,4" Margin="6,0,0,0"
                             AutomationProperties.Name="Toggle overlay visibility"/>
                 </StackPanel>
+                <StackPanel DockPanel.Dock="Left" Orientation="Horizontal" Margin="0,0,8,0" Opacity="0.7"
+                            ToolTip="Running with administrator privileges"
+                            AutomationProperties.Name="Administrator status indicator">
+                    <TextBlock Text="&#xE83D;" FontFamily="Segoe MDL2 Assets" FontSize="12"
+                               Foreground="{StaticResource AccentGreenBrush}" VerticalAlignment="Center"
+                               Margin="0,0,3,0"/>
+                    <TextBlock Text="ADMIN" Foreground="{StaticResource AccentGreenBrush}"
+                               FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                </StackPanel>
                 <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
                            VerticalAlignment="Center"/>
             </DockPanel>
