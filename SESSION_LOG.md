@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 25
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 26
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -52,6 +52,34 @@ Development session history for X3D Dual CCD Optimizer.
 - `<ApplicationManifest>` must be in the main .csproj PropertyGroup for single-file publish to embed the manifest
 - WPF ComboBox default template ignores Style.Resources SystemColors overrides for the toggle button and content area — need full ControlTemplate
 - CcdMapper should fall back to SingleCcdStandard instead of throwing when both P/Invoke and WMI detection fail
+- GitHub Actions `dotnet publish` for framework-dependent single-file needs `-r win-x64 --self-contained false -p:PublishSingleFile=true`
+
+---
+
+## Session 26 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** CI/CD pipeline + test stub + CI badge
+
+### What Was Done
+
+1. **Build workflow** (`.github/workflows/build.yml`) — Triggers on push to master/develop and PRs to master. Steps: checkout, setup .NET 8, restore, build Release, run tests, publish framework-dependent single-file, upload artifact.
+
+2. **Release workflow** (`.github/workflows/release.yml`) — Triggers on `v*.*.*` tags. Same build steps + creates zip with exe, known_games.json, app.ico, LICENSE, README.md. Creates GitHub Release with auto-generated notes and uploads zip as asset. Uses `softprops/action-gh-release@v2`.
+
+3. **Test stub** — `ProcessorTierTests.cs` with 5 xUnit tests: verifies `ProcessorTier` enum has exactly 4 values and contains all expected members. All passing.
+
+4. **CI badge** — Added build status badge to README.md after existing badges.
+
+### Files Created (3) + Modified (2)
+
+```
+NEW: .github/workflows/build.yml — CI build + test + publish + artifact
+NEW: .github/workflows/release.yml — tagged release with zip + GitHub Release
+NEW: tests/X3DCcdOptimizer.Tests/ProcessorTierTests.cs — 5 xUnit tests
+README.md — CI badge
+SESSION_LOG.md — session 26 changelog
+```
 
 ---
 
