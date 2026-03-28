@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 47
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 48
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,44 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 48 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Redesign dashboard layout + simplify messaging
+
+### What Was Done
+
+1. **Core grid: 4x2 layout** — Changed from 8x1 single-row to 4-column multi-row (UniformGrid Columns="4"). Each cell: core # (9px, top-left), load % (16px bold, center), frequency in GHz (9px dimmed, below), load bar (3px, bottom). Cell MinWidth 80px, MinHeight 52px. Cells stretch proportionally with window width.
+
+2. **Compact single-line CCD headers** — Already inline from session 47. Added "·" separator between L3 size and core range for cleaner readability. Role label right-aligned.
+
+3. **Tabbed lower section** — Already implemented in session 47. Added MinHeight="150" on the tab row to prevent collapse.
+
+4. **Responsive window sizing** — Already 1100x750 default, 900x600 min from session 47. All `*` row sizing. Window position/size persistence already existed via AppConfig.
+
+5. **Simplified status messages:**
+   - "Optimize — RE2 V-Cache preferred (driver)" → "Optimize — Resident Evil 2 → V-Cache CCD"
+   - "Optimize — RE2 pinned to V-Cache CCD" → "Optimize — Resident Evil 2 → V-Cache CCD (pinned)"
+   - "Monitor — observing RE2 on CCD 0" → "Monitor — Resident Evil 2 detected on V-Cache CCD"
+   - "Monitor — observing CCD activity" → "Monitor — watching for games"
+   - DualCcdStandard uses "CCD0" instead of "V-Cache CCD"
+   - Strategy (driver vs pinning) removed from status bar — only "(pinned)" suffix for affinity pinning
+   - CCD role labels simplified: "Gaming — [name]" for active, "Detected — [name]" for monitor, "Background" for CCD1
+
+### Files Modified (7)
+
+```
+src/X3DCcdOptimizer/Views/CoreTile.xaml — 4x2 compact layout with MinWidth 80, stacked center content
+src/X3DCcdOptimizer/Views/CcdPanel.xaml — UniformGrid Columns="4", "·" separator in header
+src/X3DCcdOptimizer/Views/DashboardWindow.xaml — MinHeight="150" on tab row
+src/X3DCcdOptimizer/Themes/Controls.xaml — CoreTileStyle MinHeight 52
+src/X3DCcdOptimizer/Themes/Typography.xaml — BigNumber 16px (down from 20px)
+src/X3DCcdOptimizer/ViewModels/MainViewModel.cs — simplified all status messages and role labels
+SESSION_LOG.md — session 48 changelog
+```
 
 ---
 

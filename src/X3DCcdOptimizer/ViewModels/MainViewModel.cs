@@ -211,26 +211,19 @@ public class MainViewModel : ViewModelBase
             _sessionTimer.Start();
 
             var display = _currentGameDisplayName;
-            var strat = _config.GetOptimizeStrategy();
             if (_topology.IsSingleCcd)
             {
-                Ccd0Panel.RoleLabel = $"Active \u2014 {display}";
+                Ccd0Panel.RoleLabel = $"Gaming \u2014 {display}";
             }
             else if (_currentMode == OperationMode.Optimize)
             {
-                Ccd0Panel.RoleLabel = _topology.Tier == ProcessorTier.DualCcdStandard
-                    ? $"Pinned \u2014 {display}"
-                    : strat == OptimizeStrategy.DriverPreference
-                        ? $"V-Cache Preferred \u2014 {display}"
-                        : $"Gaming \u2014 {display}";
+                Ccd0Panel.RoleLabel = $"Gaming \u2014 {display}";
                 if (Ccd1Panel != null)
-                    Ccd1Panel.RoleLabel = strat == OptimizeStrategy.DriverPreference
-                        ? "Standard"
-                        : "Background";
+                    Ccd1Panel.RoleLabel = "Background";
             }
             else
             {
-                Ccd0Panel.RoleLabel = $"Observed \u2014 {display}";
+                Ccd0Panel.RoleLabel = $"Detected \u2014 {display}";
                 if (Ccd1Panel != null)
                     Ccd1Panel.RoleLabel = "Idle";
             }
@@ -263,28 +256,24 @@ public class MainViewModel : ViewModelBase
     {
         var strategy = _config.GetOptimizeStrategy();
         var display = _currentGameDisplayName;
+        var ccdLabel = _topology.Tier == ProcessorTier.DualCcdStandard ? "CCD0" : "V-Cache CCD";
 
         if (_isGameActive)
         {
             if (_topology.IsSingleCcd)
             {
-                StatusText = _topology.Tier == ProcessorTier.SingleCcdX3D
-                    ? $"Monitor \u2014 {display} on V-Cache CCD"
-                    : $"Monitor \u2014 {display} on CCD 0";
+                StatusText = $"Monitor \u2014 {display} detected on {ccdLabel}";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
             else if (_currentMode == OperationMode.Optimize)
             {
-                StatusText = _topology.Tier == ProcessorTier.DualCcdStandard
-                    ? $"Optimize \u2014 {display} pinned to CCD 0"
-                    : strategy == OptimizeStrategy.DriverPreference
-                        ? $"Optimize \u2014 {display} V-Cache preferred (driver)"
-                        : $"Optimize \u2014 {display} pinned to V-Cache CCD";
+                var suffix = strategy == OptimizeStrategy.AffinityPinning ? " (pinned)" : "";
+                StatusText = $"Optimize \u2014 {display} \u2192 {ccdLabel}{suffix}";
                 StatusColor = FindBrush("AccentGreenBrush");
             }
             else
             {
-                StatusText = $"Monitor \u2014 observing {display} on CCD 0";
+                StatusText = $"Monitor \u2014 {display} detected on {ccdLabel}";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
         }
@@ -292,21 +281,19 @@ public class MainViewModel : ViewModelBase
         {
             if (_topology.IsSingleCcd)
             {
-                StatusText = _topology.Tier == ProcessorTier.SingleCcdX3D
-                    ? "Monitor — single V-Cache CCD"
-                    : "Monitor — single CCD";
+                StatusText = "Monitor \u2014 watching for games";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
             else if (_currentMode == OperationMode.Optimize)
             {
                 StatusText = PowerPlanWarning != null
-                    ? $"Optimize — waiting for game | \u26A0 {PowerPlanWarning}"
-                    : "Optimize — waiting for game";
+                    ? $"Optimize \u2014 waiting for game | \u26A0 {PowerPlanWarning}"
+                    : "Optimize \u2014 waiting for game";
                 StatusColor = FindBrush("AccentPurpleBrush");
             }
             else
             {
-                StatusText = "Monitor — observing CCD activity";
+                StatusText = "Monitor \u2014 watching for games";
                 StatusColor = FindBrush("AccentBlueBrush");
             }
         }

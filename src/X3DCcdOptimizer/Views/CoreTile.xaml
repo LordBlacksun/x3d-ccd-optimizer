@@ -4,42 +4,39 @@
     <Border Style="{StaticResource CoreTileStyle}"
             Background="{Binding LoadColor}"
             Opacity="{Binding TileOpacity}">
-        <Grid>
+        <Grid MinWidth="80">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- Core index (small, top) -->
+            <!-- Core index (small, top-left) -->
             <TextBlock Grid.Row="0"
                        Text="{Binding CoreLabel}"
                        FontFamily="{StaticResource FontMono}"
                        FontSize="9" FontWeight="SemiBold"
                        Foreground="{StaticResource TextTertiaryBrush}"
-                       HorizontalAlignment="Center"/>
+                       HorizontalAlignment="Left"/>
 
-            <!-- Load percentage (large, center) -->
-            <TextBlock Grid.Row="1"
-                       Text="{Binding LoadText}"
-                       Style="{StaticResource BigNumber}"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"/>
-
-            <!-- Frequency (small, below percentage) -->
-            <TextBlock Grid.Row="2"
-                       Text="{Binding FrequencyText}"
-                       FontFamily="{StaticResource FontMono}"
-                       FontSize="9"
-                       Foreground="{StaticResource TextTertiaryBrush}"
-                       HorizontalAlignment="Center"
-                       Margin="0,0,0,2"/>
+            <!-- Load percentage (center, bold) + frequency below -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="{Binding LoadText}"
+                           Style="{StaticResource BigNumber}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding FrequencyText}"
+                           FontFamily="{StaticResource FontMono}"
+                           FontSize="9"
+                           Foreground="{StaticResource TextTertiaryBrush}"
+                           HorizontalAlignment="Center"
+                           Margin="0,-1,0,0"/>
+            </StackPanel>
 
             <!-- Load bar (thin, bottom) -->
-            <Border Grid.Row="3"
+            <Border Grid.Row="2"
                     Height="3" CornerRadius="1.5"
-                    Background="{StaticResource BorderSubtleBrush}">
+                    Background="{StaticResource BorderSubtleBrush}"
+                    Margin="0,3,0,0">
                 <Border CornerRadius="1.5" HorizontalAlignment="Left"
                         Background="{StaticResource AccentGreenBrush}"
                         Opacity="0.7">

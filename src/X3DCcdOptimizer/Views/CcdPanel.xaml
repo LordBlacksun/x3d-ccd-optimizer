@@ -14,7 +14,7 @@
                 BorderThickness="{Binding BorderThickness}"
                 Padding="12,8" Margin="2,0,0,0">
             <DockPanel>
-                <!-- Header row: CCD name, badge, L3 size, core range, role label — all in one line -->
+                <!-- Single-line header: CCD0 [V-Cache] 96 MB L3 · Cores 0-15 · role -->
                 <DockPanel DockPanel.Dock="Top" Margin="0,0,0,6">
                     <TextBlock Text="{Binding CcdName}" FontSize="14" FontWeight="SemiBold"
                                Foreground="{StaticResource TextPrimaryBrush}"
@@ -25,20 +25,22 @@
                                    Foreground="{Binding BadgeForeground}"
                                    FontSize="10" FontWeight="SemiBold"/>
                     </Border>
-                    <TextBlock Text="{Binding L3SizeText}" Style="{StaticResource HintText}"
-                               VerticalAlignment="Center" Margin="8,0,0,0"/>
-                    <TextBlock Text="{Binding CoreRangeText}" Style="{StaticResource HintText}"
-                               VerticalAlignment="Center" Margin="8,0,0,0"/>
+                    <TextBlock VerticalAlignment="Center" Margin="8,0,0,0"
+                               FontSize="11" Foreground="{StaticResource TextTertiaryBrush}">
+                        <Run Text="{Binding L3SizeText, Mode=OneWay}"/>
+                        <Run Text=" · "/>
+                        <Run Text="{Binding CoreRangeText, Mode=OneWay}"/>
+                    </TextBlock>
                     <TextBlock Text="{Binding RoleLabel}" Style="{StaticResource SmallText}"
                                DockPanel.Dock="Right" HorizontalAlignment="Right"
                                VerticalAlignment="Center"/>
                 </DockPanel>
 
-                <!-- Core grid — single row, all cores side by side -->
+                <!-- Core grid — 4 columns, rows auto-determined -->
                 <ItemsControl ItemsSource="{Binding Cores}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <UniformGrid Rows="1"/>
+                            <UniformGrid Columns="4"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
