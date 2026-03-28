@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 23
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 24
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -50,6 +50,35 @@ Development session history for X3D Dual CCD Optimizer.
 - Process.MainModule.FileName and FileVersionInfo.GetVersionInfo() throw on protected processes — always try/catch, skip silently
 - Singleton mutex must be released before relaunching elevated — otherwise new instance sees "already running"
 - `<ApplicationManifest>` must be in the main .csproj PropertyGroup for single-file publish to embed the manifest
+- WPF ComboBox default template ignores Style.Resources SystemColors overrides for the toggle button and content area — need full ControlTemplate
+
+---
+
+## Session 24 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix dark theme styling for all controls
+
+### What Was Done
+
+1. **ComboBox full dark theme** — Replaced SystemColors override approach with complete ControlTemplate. Custom `DarkComboBoxToggle` style for the toggle button (dark background, subtle border, arrow glyph, blue hover). ComboBox template with dark popup (`#2A2A2E`), dark content area, light text (`#E0E0E0`). ComboBoxItem template with hover highlight (`#404048`), selected state (`#383840`), disabled state dimming.
+
+2. **TextBox dark theme** — Implicit style: dark background, light text, light caret, blue selection brush, blue border on hover/focus.
+
+3. **CheckBox dark theme** — Full ControlTemplate: custom 16x16 check box with dark fill, subtle border, blue checkmark path, blue border on hover/checked.
+
+4. **Slider dark theme** — SystemColors overrides for track colors (blue highlight, dark track).
+
+5. **TabItem dark theme** — Full ControlTemplate: transparent default, secondary background when selected, tertiary on hover, with proper text color transitions.
+
+6. **ListBox dark theme** — Implicit style with SystemColors overrides for selection highlight colors matching the dark palette.
+
+### Files Modified (2)
+
+```
+Themes/Controls.xaml — complete dark theme styles for ComboBox, TextBox, CheckBox, Slider, TabItem, ListBox
+SESSION_LOG.md — session 24 changelog
+```
 
 ---
 
