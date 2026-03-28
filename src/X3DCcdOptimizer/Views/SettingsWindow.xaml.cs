@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Navigation;
 using X3DCcdOptimizer.ViewModels;
 
 namespace X3DCcdOptimizer.Views;
@@ -9,6 +11,12 @@ public partial class SettingsWindow : Window
     public SettingsWindow()
     {
         InitializeComponent();
+    }
+
+    private void OnHyperlinkNavigate(object sender, RequestNavigateEventArgs e)
+    {
+        Process.Start(new ProcessStartInfo { FileName = e.Uri.AbsoluteUri, UseShellExecute = true });
+        e.Handled = true;
     }
 
     private void OnOk(object sender, RoutedEventArgs e)

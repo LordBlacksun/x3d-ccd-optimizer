@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 41
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 42
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,29 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 42 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** CPPC guidance in Settings and first-launch dialog
+
+### What Was Done
+
+1. **CPPC guidance in Settings > General** — When Driver Preference strategy is selected, shows info text explaining CPPC Dynamic Preferred Cores should be set to 'Driver' in BIOS (AMD CBS > SMU Common Options). Includes clickable "See the Wiki" hyperlink opening the scheduling wiki page. Hidden when Affinity Pinning is selected. New `DriverPreferenceCppcVisibility` property toggled by strategy change.
+
+2. **CPPC note in first-launch trust dialog** — Added brief recommendation after the admin rights explanation: "For best results with Driver Preference mode, set CPPC Dynamic Preferred Cores to 'Driver' in your BIOS." Only shows on first launch.
+
+### Files Modified (5)
+
+```
+src/X3DCcdOptimizer/ViewModels/SettingsViewModel.cs — DriverPreferenceCppcVisibility property, strategy change notification
+src/X3DCcdOptimizer/Views/SettingsWindow.xaml — CPPC guidance TextBlock with Hyperlink, conditional on Driver Preference
+src/X3DCcdOptimizer/Views/SettingsWindow.xaml.cs — OnHyperlinkNavigate handler
+src/X3DCcdOptimizer/App.xaml.cs — CPPC note in first-launch trust dialog
+SESSION_LOG.md — session 42 changelog
+```
 
 ---
 

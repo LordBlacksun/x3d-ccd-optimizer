@@ -81,6 +81,15 @@
                                    Margin="0,6,0,0"
                                    Visibility="{Binding AffinityPinningWarningVisibility}"
                                    Text="&#x26A0; Affinity Pinning directly modifies process CPU affinity. Some anti-cheat systems may behave unexpectedly with modified affinity masks. Use at your own risk in competitive online games. The developer assumes no liability for any consequences of using this software."/>
+                        <!-- Driver Preference CPPC guidance -->
+                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="10" TextWrapping="Wrap"
+                                   Margin="0,6,0,0"
+                                   Visibility="{Binding DriverPreferenceCppcVisibility}">
+                            <Run Text="Driver Preference works best with CPPC Dynamic Preferred Cores set to 'Driver' in your BIOS (AMD CBS &#x2192; SMU Common Options). This allows the AMD 3D V-Cache driver to manage CCD preference. The 'Auto' BIOS setting may not reliably activate core parking."/>
+                            <Run Text=" "/>
+                            <Hyperlink NavigateUri="https://github.com/LordBlacksun/x3d-ccd-optimizer/wiki/AMD-X3D-Scheduling-Explained"
+                                       RequestNavigate="OnHyperlinkNavigate">See the Wiki for a full explanation.</Hyperlink>
+                        </TextBlock>
 
                         <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,16,0,4">
                             <Run Text="Polling interval:"/> <Run Text="{Binding PollingIntervalMs, StringFormat={}{0}ms}" FontWeight="SemiBold"/>

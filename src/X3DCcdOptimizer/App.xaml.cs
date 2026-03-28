@@ -512,7 +512,16 @@ public partial class App : System.Windows.Application
             Text = "Admin rights are used exclusively in AffinityManager.cs and CcdMapper.cs.",
             FontSize = 11,
             Foreground = tertiaryBrush,
-            Margin = new Thickness(0, 16, 0, 20),
+            Margin = new Thickness(0, 16, 0, 8),
+            TextWrapping = TextWrapping.Wrap
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "For best results with Driver Preference mode, set CPPC Dynamic Preferred Cores to \u2018Driver\u2019 in your BIOS. See our Wiki for setup details.",
+            FontSize = 11,
+            Foreground = secondaryBrush,
+            Margin = new Thickness(0, 0, 0, 20),
             TextWrapping = TextWrapping.Wrap
         });
 

@@ -74,6 +74,7 @@ public class SettingsViewModel : ViewModelBase
             if (SetProperty(ref _optimizeStrategy, value))
             {
                 OnPropertyChanged(nameof(AffinityPinningWarningVisibility));
+                OnPropertyChanged(nameof(DriverPreferenceCppcVisibility));
             }
         }
     }
@@ -89,6 +90,9 @@ public class SettingsViewModel : ViewModelBase
     public Visibility StrategyVisibility => IsStrategyAvailable ? Visibility.Visible : Visibility.Collapsed;
     public Visibility AffinityPinningWarningVisibility =>
         string.Equals(_optimizeStrategy, "affinityPinning", StringComparison.OrdinalIgnoreCase) && IsStrategyAvailable
+            ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility DriverPreferenceCppcVisibility =>
+        string.Equals(_optimizeStrategy, "driverPreference", StringComparison.OrdinalIgnoreCase) && IsStrategyAvailable
             ? Visibility.Visible : Visibility.Collapsed;
     public string TierDescription => _topology.Tier switch
     {
