@@ -48,11 +48,18 @@ public static class CcdMapper
                 }
                 else
                 {
-                    throw new InvalidOperationException(
-                        $"Failed to detect CCD topology for {topology.CpuModel}. " +
-                        "This may not be an AMD Ryzen processor with identifiable L3 cache topology. " +
-                        "You can set ccdOverride in config.json to manually specify core assignments.",
-                        wmiEx);
+                    Log.Warning("Could not fully determine processor topology — defaulting to monitoring only");
+                    topology.Tier = ProcessorTier.SingleCcdStandard;
+                    topology.VCacheL3SizeMB = 0;
+                    topology.StandardL3SizeMB = 0;
+                    // Use all cores as the primary CCD
+                    ulong allMask = Environment.ProcessorCount >= 64
+                        ? ulong.MaxValue
+                        : (1UL << Environment.ProcessorCount) - 1;
+                    topology.VCacheMask = new IntPtr((long)allMask);
+                    topology.FrequencyMask = IntPtr.Zero;
+                    topology.VCacheCores = MaskToCores(allMask);
+                    topology.FrequencyCores = [];
                 }
             }
         }

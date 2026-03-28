@@ -89,6 +89,42 @@ public class SettingsViewModel : ViewModelBase
     // Advanced
     public string LogLevel { get => _logLevel; set => SetProperty(ref _logLevel, value); }
 
+    // Process Rules — tier awareness
+    public ProcessorTier Tier => _topology.Tier;
+    public bool IsDualCcd => _topology.IsDualCcd;
+    public bool IsSingleCcd => _topology.IsSingleCcd;
+    public Visibility DualCcdVisibility => IsDualCcd ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SingleCcdStandardVisibility =>
+        Tier == ProcessorTier.SingleCcdStandard ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SingleCcdX3DVisibility =>
+        Tier == ProcessorTier.SingleCcdX3D ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility GameColumnVisibility =>
+        Tier != ProcessorTier.SingleCcdStandard ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility BgColumnVisibility => DualCcdVisibility;
+
+    public string GameColumnHeader => Tier switch
+    {
+        ProcessorTier.DualCcdX3D => "V-Cache CCD (Games)",
+        ProcessorTier.DualCcdStandard => "CCD0 \u2014 Primary (Games)",
+        _ => "Games (Detection)"
+    };
+    public string BgColumnHeader => Tier switch
+    {
+        ProcessorTier.DualCcdX3D => "Frequency CCD (Background)",
+        _ => "CCD1 \u2014 Background"
+    };
+    public string GameColumnTooltip => Tier switch
+    {
+        ProcessorTier.DualCcdX3D => "Games pinned to V-Cache CCD in Optimize mode.",
+        ProcessorTier.DualCcdStandard => "Games pinned to CCD0 in Optimize mode. Your processor has two symmetric CCDs — pinning games to one CCD improves cache isolation.",
+        _ => "Games detected for monitoring."
+    };
+    public string BgColumnTooltip => Tier switch
+    {
+        ProcessorTier.DualCcdX3D => "Apps explicitly pinned to Frequency CCD in Optimize mode.",
+        _ => "Apps pinned to CCD1 in Optimize mode. Your processor has two symmetric CCDs — pinning background apps to the other CCD improves cache isolation."
+    };
+
     // Process Rules
     public ObservableCollection<string> ManualGames { get; } = [];
     public ObservableCollection<string> BackgroundApps { get; } = [];

@@ -93,113 +93,133 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- Tab 2: Process Rules -->
+            <!-- Tab 2: Process Rules (tier-aware) -->
             <TabItem Header="_Process Rules" AutomationProperties.Name="Process rules settings tab">
                 <Grid Margin="8">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="12"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
 
-                    <!-- Left: V-Cache CCD (Games) -->
-                    <Grid Grid.Column="0">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                    <!-- SingleCcdStandard: no process rules available -->
+                    <StackPanel Visibility="{Binding SingleCcdStandardVisibility}"
+                                VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24">
+                        <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="28"
+                                   Foreground="{StaticResource TextTertiaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                        <TextBlock Text="Single-CCD processor detected"
+                                   Foreground="{StaticResource TextPrimaryBrush}" FontSize="14" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                        <TextBlock Text="Process rules require a dual-CCD processor to manage affinity between CCDs. Game detection is still active for monitoring."
+                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"
+                                   TextWrapping="Wrap" TextAlignment="Center" MaxWidth="360"/>
+                    </StackPanel>
 
-                        <TextBlock Grid.Row="0" Foreground="{StaticResource AccentGreenBrush}"
-                                   FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6">
-                            <Run Text="&#xE83D;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
-                            <Run Text="V-Cache CCD (Games)"/>
-                        </TextBlock>
+                    <!-- Dual-CCD and SingleCcdX3D: show game column + conditional bg column -->
+                    <Grid Visibility="{Binding GameColumnVisibility}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                        <ListBox Grid.Row="1" ItemsSource="{Binding ManualGames}" SelectedItem="{Binding SelectedGame}"
-                                 Background="{StaticResource BgSecondaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                 BorderBrush="{StaticResource BorderDefaultBrush}" FontFamily="{StaticResource FontMono}" FontSize="11"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ToolTip="Games pinned to V-Cache CCD in Optimize mode."
-                                 AutomationProperties.Name="V-Cache games list"/>
+                        <!-- Left: Game column (all tiers except SingleCcdStandard) -->
+                        <Grid Grid.Column="0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="2" Margin="0,6,0,0">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" Text="{Binding NewGameText, UpdateSourceTrigger=PropertyChanged}"
-                                         Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                         BorderThickness="1" BorderBrush="{StaticResource BorderDefaultBrush}" Padding="4,2"
-                                         ToolTip="Type a game exe or search the known database."
-                                         AutomationProperties.Name="New game executable name"/>
-                                <Button Grid.Column="1" Content="Add" Command="{Binding AddGameCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                        Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add game"/>
-                            </Grid>
-                            <ListBox ItemsSource="{Binding GameSuggestions}" MaxHeight="80" FontSize="10"
-                                     Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextSecondaryBrush}"
-                                     BorderBrush="{StaticResource BorderDefaultBrush}" FontFamily="{StaticResource FontMono}"
-                                     Margin="0,2,0,0"
-                                     Visibility="{Binding GameSuggestions.Count, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
-                                     SelectionChanged="OnGameSuggestionSelected"
-                                     AutomationProperties.Name="Game autocomplete suggestions"/>
-                            <Button Content="Remove" Command="{Binding RemoveGameCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                    Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
-                                    AutomationProperties.Name="Remove selected game"/>
-                        </StackPanel>
-                    </Grid>
+                            <TextBlock Grid.Row="0" Foreground="{StaticResource AccentGreenBrush}"
+                                       FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6">
+                                <Run Text="&#xE83D;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
+                                <Run Text="{Binding GameColumnHeader, Mode=OneWay}"/>
+                            </TextBlock>
 
-                    <!-- Right: Frequency CCD (Background) -->
-                    <Grid Grid.Column="2">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
+                            <ListBox Grid.Row="1" ItemsSource="{Binding ManualGames}" SelectedItem="{Binding SelectedGame}"
+                                     FontFamily="{StaticResource FontMono}" FontSize="11"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ToolTip="{Binding GameColumnTooltip}"
+                                     AutomationProperties.Name="Games list"/>
 
-                        <TextBlock Grid.Row="0" Foreground="{StaticResource AccentBlueBrush}"
-                                   FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6">
-                            <Run Text="&#xE7EE;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
-                            <Run Text="Frequency CCD (Background)"/>
-                        </TextBlock>
+                            <StackPanel Grid.Row="2" Margin="0,6,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding NewGameText, UpdateSourceTrigger=PropertyChanged}"
+                                             Padding="4,2"
+                                             ToolTip="Type a game exe or search the known database."
+                                             AutomationProperties.Name="New game executable name"/>
+                                    <Button Grid.Column="1" Content="Add" Command="{Binding AddGameCommand}" Style="{StaticResource SubtleButtonStyle}"
+                                            Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add game"/>
+                                </Grid>
+                                <ListBox ItemsSource="{Binding GameSuggestions}" MaxHeight="80" FontSize="10"
+                                         FontFamily="{StaticResource FontMono}"
+                                         Margin="0,2,0,0"
+                                         Visibility="{Binding GameSuggestions.Count, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
+                                         SelectionChanged="OnGameSuggestionSelected"
+                                         AutomationProperties.Name="Game autocomplete suggestions"/>
+                                <Button Content="Remove" Command="{Binding RemoveGameCommand}" Style="{StaticResource SubtleButtonStyle}"
+                                        Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                        AutomationProperties.Name="Remove selected game"/>
+                            </StackPanel>
+                        </Grid>
 
-                        <ListBox Grid.Row="1" ItemsSource="{Binding BackgroundApps}" SelectedItem="{Binding SelectedBg}"
-                                 Background="{StaticResource BgSecondaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                 BorderBrush="{StaticResource BorderDefaultBrush}" FontFamily="{StaticResource FontMono}" FontSize="11"
-                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                 ToolTip="Apps explicitly pinned to Frequency CCD in Optimize mode."
-                                 AutomationProperties.Name="Background apps list"/>
+                        <!-- Right: Background column (dual-CCD only) -->
+                        <Grid Grid.Column="2" Visibility="{Binding BgColumnVisibility}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="2" Margin="0,6,0,0">
-                            <Button Content="Pick Running Processes..." Command="{Binding AddBgFromPickerCommand}"
-                                    Style="{StaticResource SubtleButtonStyle}" Padding="8,3"
-                                    HorizontalAlignment="Stretch"
-                                    ToolTip="Select from currently running processes."
-                                    AutomationProperties.Name="Open process picker"/>
-                            <Grid Margin="0,4,0,0">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBox Grid.Column="0" Text="{Binding NewBgText, UpdateSourceTrigger=PropertyChanged}"
-                                         Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                         BorderThickness="1" BorderBrush="{StaticResource BorderDefaultBrush}" Padding="4,2"
-                                         ToolTip="Type an exe name to add manually."
-                                         AutomationProperties.Name="New background app executable name"/>
-                                <Button Grid.Column="1" Content="Add" Command="{Binding AddBgCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                        Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add background app"/>
-                            </Grid>
-                            <ListBox ItemsSource="{Binding BgSuggestions}" MaxHeight="80" FontSize="10"
-                                     Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextSecondaryBrush}"
-                                     BorderBrush="{StaticResource BorderDefaultBrush}" FontFamily="{StaticResource FontMono}"
-                                     Margin="0,2,0,0"
-                                     Visibility="{Binding BgSuggestions.Count, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
-                                     SelectionChanged="OnBgSuggestionSelected"
-                                     AutomationProperties.Name="Background app autocomplete suggestions"/>
-                            <Button Content="Remove" Command="{Binding RemoveBgCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                    Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
-                                    AutomationProperties.Name="Remove selected background app"/>
+                            <TextBlock Grid.Row="0" Foreground="{StaticResource AccentBlueBrush}"
+                                       FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6">
+                                <Run Text="&#xE7EE;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
+                                <Run Text="{Binding BgColumnHeader, Mode=OneWay}"/>
+                            </TextBlock>
+
+                            <ListBox Grid.Row="1" ItemsSource="{Binding BackgroundApps}" SelectedItem="{Binding SelectedBg}"
+                                     FontFamily="{StaticResource FontMono}" FontSize="11"
+                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                     ToolTip="{Binding BgColumnTooltip}"
+                                     AutomationProperties.Name="Background apps list"/>
+
+                            <StackPanel Grid.Row="2" Margin="0,6,0,0">
+                                <Button Content="Pick Running Processes..." Command="{Binding AddBgFromPickerCommand}"
+                                        Style="{StaticResource SubtleButtonStyle}" Padding="8,3"
+                                        HorizontalAlignment="Stretch"
+                                        AutomationProperties.Name="Open process picker"/>
+                                <Grid Margin="0,4,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Grid.Column="0" Text="{Binding NewBgText, UpdateSourceTrigger=PropertyChanged}"
+                                             Padding="4,2"
+                                             ToolTip="Type an exe name to add manually."
+                                             AutomationProperties.Name="New background app executable name"/>
+                                    <Button Grid.Column="1" Content="Add" Command="{Binding AddBgCommand}" Style="{StaticResource SubtleButtonStyle}"
+                                            Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add background app"/>
+                                </Grid>
+                                <ListBox ItemsSource="{Binding BgSuggestions}" MaxHeight="80" FontSize="10"
+                                         FontFamily="{StaticResource FontMono}"
+                                         Margin="0,2,0,0"
+                                         Visibility="{Binding BgSuggestions.Count, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
+                                         SelectionChanged="OnBgSuggestionSelected"
+                                         AutomationProperties.Name="Background app autocomplete suggestions"/>
+                                <Button Content="Remove" Command="{Binding RemoveBgCommand}" Style="{StaticResource SubtleButtonStyle}"
+                                        Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                        AutomationProperties.Name="Remove selected background app"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- SingleCcdX3D: info message in place of right column -->
+                        <StackPanel Grid.Column="2" Visibility="{Binding SingleCcdX3DVisibility}"
+                                    VerticalAlignment="Center" Margin="8">
+                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="22"
+                                       Foreground="{StaticResource TextTertiaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                            <TextBlock Text="Single-CCD X3D processor detected. All cores share the V-Cache — no background migration needed. Game detection is active for monitoring."
+                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
+                                       TextWrapping="Wrap" TextAlignment="Center"/>
                         </StackPanel>
                     </Grid>
                 </Grid>

@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 24
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 25
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -51,6 +51,35 @@ Development session history for X3D Dual CCD Optimizer.
 - Singleton mutex must be released before relaunching elevated — otherwise new instance sees "already running"
 - `<ApplicationManifest>` must be in the main .csproj PropertyGroup for single-file publish to embed the manifest
 - WPF ComboBox default template ignores Style.Resources SystemColors overrides for the toggle button and content area — need full ControlTemplate
+- CcdMapper should fall back to SingleCcdStandard instead of throwing when both P/Invoke and WMI detection fail
+
+---
+
+## Session 25 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Make Process Rules tab tier-aware + defensive topology fallback
+
+### What Was Done
+
+1. **Tier-aware Process Rules tab** — Tab layout adapts based on `ProcessorTier`:
+   - **DualCcdX3D**: Full two-column layout: "V-Cache CCD (Games)" + "Frequency CCD (Background)" with all controls
+   - **DualCcdStandard**: Two-column layout relabeled: "CCD0 — Primary (Games)" + "CCD1 — Background" with tooltip explaining symmetric CCD cache isolation
+   - **SingleCcdX3D**: Left column only (game list for detection/monitoring), right column replaced with info message: "All cores share the V-Cache — no background migration needed"
+   - **SingleCcdStandard**: Entire tab replaced with centered info message: "Process rules require a dual-CCD processor"
+
+2. **SettingsViewModel tier properties** — Added: `Tier`, `IsDualCcd`, `IsSingleCcd`, `DualCcdVisibility`, `SingleCcdStandardVisibility`, `SingleCcdX3DVisibility`, `GameColumnVisibility`, `BgColumnVisibility`, `GameColumnHeader`, `BgColumnHeader`, `GameColumnTooltip`, `BgColumnTooltip`. All driven by `_topology.Tier`.
+
+3. **Defensive topology fallback** — CcdMapper now falls back to `SingleCcdStandard` with all cores on CCD0 when both P/Invoke and WMI detection fail (instead of throwing). Logs warning: "Could not fully determine processor topology — defaulting to monitoring only." Non-AMD CPUs that pass the "Continue Anyway" dialog are forced to `SingleCcdStandard`.
+
+### Files Modified (4)
+
+```
+Core/CcdMapper.cs — graceful fallback to SingleCcdStandard instead of throwing
+App.xaml.cs — non-AMD CPUs forced to SingleCcdStandard tier
+ViewModels/SettingsViewModel.cs — tier-awareness properties for Process Rules tab
+Views/SettingsWindow.xaml — tier-aware Process Rules layout with 4 visual states
+```
 
 ---
 

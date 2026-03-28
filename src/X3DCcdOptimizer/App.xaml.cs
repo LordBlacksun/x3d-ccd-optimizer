@@ -154,6 +154,9 @@ public partial class App : System.Windows.Application
                 Shutdown();
                 return;
             }
+
+            // Non-AMD: force SingleCcdStandard with Optimize disabled
+            _topology.Tier = ProcessorTier.SingleCcdStandard;
         }
 
         var mode = _config.GetOperationMode();
