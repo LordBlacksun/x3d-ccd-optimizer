@@ -20,6 +20,15 @@ public class AffinityManager : IDisposable
 
     private static readonly IReadOnlySet<string> HardcodedProtected = ProtectedProcesses.Names;
 
+    // Critical system processes — never modify affinity even with admin rights.
+    // Belt-and-suspenders safety alongside AccessDeniedException handling.
+    private static readonly HashSet<string> CriticalSystemProcesses = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "System", "Idle", "csrss", "smss", "wininit", "winlogon", "services",
+        "lsass", "dwm", "svchost", "fontdrvhost", "Memory Compression",
+        "Registry", "dllhost", "conhost", "dasHost", "sihost", "taskhostw"
+    };
+
     public event Action<AffinityEvent>? AffinityChanged;
 
     public OperationMode Mode { get; private set; }
@@ -269,6 +278,9 @@ public class AffinityManager : IDisposable
 
                 string name = proc.ProcessName;
 
+                if (CriticalSystemProcesses.Contains(name))
+                    continue;
+
                 if (IsProtected(name))
                 {
                     Emit(AffinityAction.Skipped, name + ".exe", proc.Id, "protected process");
@@ -513,6 +525,9 @@ public class AffinityManager : IDisposable
                         continue;
 
                     string name = proc.ProcessName;
+
+                    if (CriticalSystemProcesses.Contains(name))
+                        continue;
 
                     if (IsProtected(name))
                         continue;
