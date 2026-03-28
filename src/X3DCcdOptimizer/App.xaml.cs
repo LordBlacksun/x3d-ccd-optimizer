@@ -63,6 +63,11 @@ public partial class App : System.Windows.Application
 
             if (result == MessageBoxResult.Yes)
             {
+                // Release singleton mutex BEFORE launching elevated instance
+                _singleInstanceMutex?.ReleaseMutex();
+                _singleInstanceMutex?.Dispose();
+                _singleInstanceMutex = null;
+
                 try
                 {
                     var exePath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
@@ -82,7 +87,7 @@ public partial class App : System.Windows.Application
                 }
             }
 
-            Shutdown();
+            Environment.Exit(0);
             return;
         }
 

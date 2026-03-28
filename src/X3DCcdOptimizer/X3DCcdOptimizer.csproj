@@ -11,6 +11,8 @@
     <AssemblyName>X3DCcdOptimizer</AssemblyName>
     <RootNamespace>X3DCcdOptimizer</RootNamespace>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
 
   <ItemGroup>

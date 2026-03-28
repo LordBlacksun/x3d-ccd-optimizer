@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 22
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 23
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -23,7 +23,7 @@ Development session history for X3D Dual CCD Optimizer.
 - **Background app pinning:** `backgroundApps` config list. AffinityManager distinguishes rule-based vs auto migration in log entries ("rule" vs "auto"). Live process picker filters out C:\Windows\, CriticalSystemProcesses, already-assigned; shows FileDescription from FileVersionInfo; deduplicates by process name.
 - **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
-- **Admin elevation:** app.manifest requires administrator. Startup check with relaunch dialog if not elevated. First-launch trust dialog explaining admin usage (persisted via `hasDismissedAdminDialog` config flag). UAC shield indicator in dashboard footer.
+- **Admin elevation:** app.manifest requires administrator (explicitly referenced via `<ApplicationManifest>` in .csproj for single-file publish). Startup check with relaunch dialog if not elevated (releases singleton mutex before relaunch, hard-exits via `Environment.Exit(0)`). First-launch trust dialog explaining admin usage (persisted via `hasDismissedAdminDialog` config flag). UAC shield indicator in dashboard footer. DPI settings moved from manifest to `<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>` in .csproj.
 - **X button behavior:** Configurable via `minimizeToTray` (default: false = close app). When true: minimizes to tray with one-time balloon notification. Setting exposed in Settings > General.
 - **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Session 17 defensive coding audit (0 critical, 0 high, 2 medium, 6 low, 22 info — all 8 actionable findings fixed in session 18). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
@@ -48,6 +48,32 @@ Development session history for X3D Dual CCD Optimizer.
 
 - WPF ListBox inside StackPanel grows unbounded (no scrollbar) — use Grid with `*` row sizing to constrain height
 - Process.MainModule.FileName and FileVersionInfo.GetVersionInfo() throw on protected processes — always try/catch, skip silently
+- Singleton mutex must be released before relaunching elevated — otherwise new instance sees "already running"
+- `<ApplicationManifest>` must be in the main .csproj PropertyGroup for single-file publish to embed the manifest
+
+---
+
+## Session 23 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix three admin elevation bugs
+
+### What Was Done
+
+1. **Manifest not embedded in publish** — Added `<ApplicationManifest>app.manifest</ApplicationManifest>` to the main `<PropertyGroup>` in .csproj. Without this, the SDK doesn't embed the manifest in single-file publish, so the exe launches unelevated.
+
+2. **Singleton mutex blocks relaunch** — In the admin check relaunch path: release and dispose the singleton mutex BEFORE starting the elevated process, then call `Environment.Exit(0)` instead of `Shutdown()` to ensure immediate termination without continuing through `OnStartup`.
+
+3. **DPI warning cleanup** — Moved DPI settings from app.manifest to `<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>` in .csproj. The explicit `<ApplicationManifest>` reference caused WFAC010 warnings about duplicate DPI configuration. Manifest now contains only `requireAdministrator`.
+
+### Files Modified (4)
+
+```
+X3DCcdOptimizer.csproj — ApplicationManifest + ApplicationHighDpiMode
+app.manifest — removed DPI windowsSettings (now in .csproj)
+App.xaml.cs — release mutex before relaunch, Environment.Exit(0)
+SESSION_LOG.md — session 23 changelog
+```
 
 ---
 
