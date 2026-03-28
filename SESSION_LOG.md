@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 40
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 41
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,30 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 41 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Human-readable driver log messages in Activity Log
+
+### What Was Done
+
+1. **Driver set/restore messages humanized** — Replaced raw registry debug text with plain English:
+   - "amd3dvcache DefaultType=1 (PREFER_CACHE)" → "Resident Evil 4 — V-Cache CCD preferred"
+   - "DefaultType=0 (PREFER_FREQ)" → "Default preference restored (Frequency CCD)"
+   - Monitor mode variants updated similarly. Raw registry values still logged by VCacheDriverManager via Serilog for debugging.
+
+2. **LogEntryViewModel empty displayProcess fix** — When displayName is empty (driver restore actions), detail renders without leading space. Prevents "amd3dvcache" from showing in the Activity Log UI.
+
+### Files Modified (3)
+
+```
+src/X3DCcdOptimizer/Core/AffinityManager.cs — all driver Emit() calls use human-readable detail, restore actions pass displayName=""
+src/X3DCcdOptimizer/ViewModels/LogEntryViewModel.cs — handle empty displayProcess without leading space
+SESSION_LOG.md — session 41 changelog
+```
 
 ---
 

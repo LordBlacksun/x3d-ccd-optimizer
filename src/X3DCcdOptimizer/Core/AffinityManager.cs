@@ -165,7 +165,7 @@ public class AffinityManager : IDisposable
             {
                 if (_strategy == OptimizeStrategy.DriverPreference)
                     Emit(AffinityAction.WouldRestoreDriver, "amd3dvcache", 0,
-                        "game exited — would have restored driver default");
+                        "game exited \u2014 would restore default CCD preference", "");
 
                 Emit(AffinityAction.WouldRestore, "all", 0,
                     "game exited — would have restored all affinities");
@@ -353,19 +353,19 @@ public class AffinityManager : IDisposable
         if (VCacheDriverManager.SetCachePreferred())
         {
             Emit(AffinityAction.DriverSet, game.Name, game.Pid,
-                "amd3dvcache DefaultType=1 (PREFER_CACHE)", game.DisplayName);
+                "\u2014 V-Cache CCD preferred", game.DisplayName);
         }
         else
         {
             Emit(AffinityAction.Error, game.Name, game.Pid,
-                "Failed to set amd3dvcache driver preference", game.DisplayName);
+                "Failed to set V-Cache CCD preference", game.DisplayName);
         }
     }
 
     private void SimulateEngageViaDriver(ProcessInfo game)
     {
         Emit(AffinityAction.WouldSetDriver, game.Name, game.Pid,
-            "would set amd3dvcache DefaultType=1 (PREFER_CACHE)", game.DisplayName);
+            "\u2014 would prefer V-Cache CCD", game.DisplayName);
     }
 
     private void RestoreDriver()
@@ -373,12 +373,12 @@ public class AffinityManager : IDisposable
         if (VCacheDriverManager.RestoreDefault())
         {
             Emit(AffinityAction.DriverRestored, "amd3dvcache", 0,
-                "DefaultType=0 (PREFER_FREQ)");
+                "Default preference restored (Frequency CCD)", "");
         }
         else
         {
             Emit(AffinityAction.Error, "amd3dvcache", 0,
-                "Failed to restore amd3dvcache driver preference");
+                "Failed to restore default CCD preference", "");
         }
     }
 

@@ -18,7 +18,9 @@ public class LogEntryViewModel
     {
         Timestamp = evt.Timestamp.ToString("HH:mm:ss");
         var displayProcess = evt.DisplayName ?? evt.ProcessName;
-        DetailText = $"{displayProcess} {evt.Detail}";
+        DetailText = string.IsNullOrEmpty(displayProcess)
+            ? evt.Detail
+            : $"{displayProcess} {evt.Detail}";
 
         IsMonitorAction = evt.Action is AffinityAction.WouldEngage
             or AffinityAction.WouldMigrate
