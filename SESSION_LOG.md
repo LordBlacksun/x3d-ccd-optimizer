@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 29
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 30
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -54,6 +54,35 @@ Development session history for X3D Dual CCD Optimizer.
 - CcdMapper should fall back to SingleCcdStandard instead of throwing when both P/Invoke and WMI detection fail
 - GitHub Actions `dotnet publish` for framework-dependent single-file needs `-r win-x64 --self-contained false -p:PublishSingleFile=true`
 - ProcessRouter must deduplicate by exe name, not by PID — Chrome spawns 30+ PIDs but should show as one entry with count
+
+---
+
+## Session 30 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Tier-aware default strategy + liability disclaimer
+
+### What Was Done
+
+1. **Tier-aware default strategy** — On first run, default strategy auto-selected based on tier: DualCcdX3D/SingleCcdX3D with driver → Driver Preference; DualCcdStandard/no driver → Affinity Pinning. Strategy dropdown hidden for single-CCD standard (no optimization). Driver Preference listed first as "(recommended for X3D)". Fallback validation expanded: DriverPreference allowed on SingleCcdX3D (not just DualCcdX3D).
+
+2. **Affinity Pinning warning** — Yellow warning text shown in Settings > General when Affinity Pinning is selected: warns about anti-cheat systems and modified affinity masks. Hidden when Driver Preference is selected.
+
+3. **Driver not detected warning** — Updated to: "AMD 3D V-Cache driver not detected. Install AMD chipset drivers or use Affinity Pinning."
+
+4. **Advanced tab disclaimer** — Permanent disclaimer in bordered section: liability disclaimer covering anti-cheat, game bans, system instability, data loss. References GPL v2 LICENSE.
+
+5. **Installer disclaimer** — Created `installer/DISCLAIMER.txt` with same text. Added `InfoBeforeFile` to `setup.iss` — shows disclaimer page after GPL license during installation.
+
+### Files Modified (4) + Files Created (1)
+
+```
+App.xaml.cs — tier-aware default strategy on first run, SingleCcdX3D driver validation
+ViewModels/SettingsViewModel.cs — StrategyVisibility, AffinityPinningWarningVisibility, updated driver/strategy properties
+Views/SettingsWindow.xaml — strategy section with tier-aware labels + affinity warning + Advanced disclaimer
+installer/setup.iss — InfoBeforeFile for disclaimer
+NEW: installer/DISCLAIMER.txt — liability disclaimer for installer
+```
 
 ---
 

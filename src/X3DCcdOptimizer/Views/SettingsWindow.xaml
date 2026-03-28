@@ -55,24 +55,32 @@
                             <ComboBoxItem Content="optimize" IsEnabled="{Binding CanOptimize}"/>
                         </ComboBox>
 
-                        <TextBlock Text="Optimization strategy:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"/>
+                        <TextBlock Text="Optimization strategy:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"
+                                   Visibility="{Binding StrategyVisibility}"/>
                         <ComboBox SelectedValue="{Binding OptimizeStrategy}" SelectedValuePath="Tag"
-                                  Width="280" HorizontalAlignment="Left"
+                                  Width="320" HorizontalAlignment="Left"
                                   IsEnabled="{Binding IsStrategyAvailable}"
-                                  Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                  ToolTip="Affinity Pinning directly assigns game threads to the V-Cache CCD. Driver Preference tells AMD's own driver to prefer V-Cache."
-                                  AutomationProperties.Name="Optimization strategy">
-                            <ComboBoxItem Content="Affinity Pinning (default)" Tag="affinityPinning"/>
-                            <ComboBoxItem Content="Driver Preference (AMD V-Cache)" Tag="driverPreference" IsEnabled="{Binding IsDriverAvailable}"/>
+                                  Visibility="{Binding StrategyVisibility}"
+                                  AutomationProperties.Name="Optimization strategy"
+                                  ToolTip="Choose how the app manages CCD affinity.">
+                            <ComboBoxItem Content="Driver Preference (recommended for X3D)" Tag="driverPreference" IsEnabled="{Binding IsDriverAvailable}"/>
+                            <ComboBoxItem Content="Affinity Pinning (advanced)" Tag="affinityPinning"/>
                         </ComboBox>
-                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
-                                   Text="Affinity Pinning pins the game directly. Driver Preference uses AMD's amd3dvcache driver registry."/>
+                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Visibility="{Binding StrategyVisibility}"
+                                   Text="Driver Preference uses AMD's 3D V-Cache driver — works with the scheduler. Affinity Pinning hard-pins processes to CCDs — more aggressive, overrides the scheduler."/>
                         <TextBlock Text="Strategy changes take effect on next launch."
                                    Foreground="{StaticResource TextTertiaryBrush}" FontSize="10" Margin="0,2,0,0"
-                                   Visibility="{Binding IsStrategyAvailable, Converter={StaticResource BoolToVis}}"/>
-                        <TextBlock Text="&#x26A0; AMD V-Cache driver not detected — Driver Preference unavailable"
+                                   Visibility="{Binding StrategyVisibility}"/>
+                        <TextBlock Text="&#x26A0; AMD 3D V-Cache driver not detected. Install AMD chipset drivers or use Affinity Pinning."
                                    Foreground="{StaticResource AccentAmberBrush}" FontSize="11" Margin="0,4,0,0"
+                                   TextWrapping="Wrap"
                                    Visibility="{Binding DriverWarningVisibility}"/>
+                        <!-- Affinity Pinning liability warning -->
+                        <TextBlock Foreground="{StaticResource AccentAmberBrush}" FontSize="10" TextWrapping="Wrap"
+                                   Margin="0,6,0,0"
+                                   Visibility="{Binding AffinityPinningWarningVisibility}"
+                                   Text="&#x26A0; Affinity Pinning directly modifies process CPU affinity. Some anti-cheat systems may behave unexpectedly with modified affinity masks. Use at your own risk in competitive online games. The developer assumes no liability for any consequences of using this software."/>
 
                         <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,16,0,4">
                             <Run Text="Polling interval:"/> <Run Text="{Binding PollingIntervalMs, StringFormat={}{0}ms}" FontWeight="SemiBold"/>
@@ -356,6 +364,16 @@
                             Style="{StaticResource SubtleButtonStyle}" Padding="10,4"
                             HorizontalAlignment="Left" Margin="0,16,0,0"
                             AutomationProperties.Name="Reset all settings to defaults button"/>
+
+                    <!-- Disclaimer -->
+                    <Border Margin="0,20,0,0" Padding="10" CornerRadius="4"
+                            BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1">
+                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="10"
+                                   TextWrapping="Wrap" LineHeight="16">
+                            <Run FontWeight="SemiBold">DISCLAIMER:</Run>
+                            <Run Text="X3D CCD Optimizer modifies CPU affinity and/or AMD driver registry preferences to optimize CCD scheduling. While these are standard Windows and AMD features, the developer provides this software as-is with no warranty. The developer assumes no liability for any consequences including but not limited to: anti-cheat detection, game bans, system instability, or data loss. Use at your own risk. See LICENSE (GPL v2) for full terms."/>
+                        </TextBlock>
+                    </Border>
                 </StackPanel>
             </TabItem>
         </TabControl>

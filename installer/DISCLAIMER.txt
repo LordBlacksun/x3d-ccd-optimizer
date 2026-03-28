@@ -1,0 +1,19 @@
+DISCLAIMER
+
+X3D CCD Optimizer modifies CPU affinity and/or AMD driver registry
+preferences to optimize CCD scheduling. While these are standard
+Windows and AMD features, the developer provides this software as-is
+with no warranty.
+
+The developer assumes no liability for any consequences including
+but not limited to:
+
+  - Anti-cheat detection or game bans
+  - System instability
+  - Data loss
+  - Hardware damage
+
+Use at your own risk.
+
+This software is licensed under the GNU General Public License v2.
+See the LICENSE file for full terms.

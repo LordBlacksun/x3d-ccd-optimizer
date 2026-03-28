@@ -30,6 +30,7 @@ AppUpdatesURL={#MyAppURL}/releases
 DefaultDirName={autopf}\X3DCcdOptimizer
 DefaultGroupName={#MyAppName}
 LicenseFile={#SourceRoot}\LICENSE
+InfoBeforeFile={#SourceRoot}\installer\DISCLAIMER.txt
 OutputDir={#SourceRoot}\installer\output
 OutputBaseFilename=X3DCcdOptimizer-Setup-{#MyAppVersion}
 SetupIconFile={#SourceRoot}\src\X3DCcdOptimizer\Resources\app.ico

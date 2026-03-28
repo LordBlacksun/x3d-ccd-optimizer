@@ -173,15 +173,29 @@ public partial class App : System.Windows.Application
             mode = OperationMode.Monitor;
         }
 
+        // Tier-aware default strategy (on first run, set optimal default)
+        if (_config.IsFirstRun)
+        {
+            var defaultStrategy = _topology.Tier switch
+            {
+                ProcessorTier.DualCcdX3D when VCacheDriverManager.IsDriverAvailable => "driverPreference",
+                ProcessorTier.SingleCcdX3D when VCacheDriverManager.IsDriverAvailable => "driverPreference",
+                _ => "affinityPinning"
+            };
+            _config.OptimizeStrategy = defaultStrategy;
+            Log.Information("First run — default strategy set to {Strategy} for {Tier}", defaultStrategy, _topology.Tier);
+        }
+
         var strategy = _config.GetOptimizeStrategy();
         if (strategy == OptimizeStrategy.DriverPreference && !VCacheDriverManager.IsDriverAvailable)
         {
             Log.Warning("Config says DriverPreference but amd3dvcache driver not detected — falling back to AffinityPinning");
             strategy = OptimizeStrategy.AffinityPinning;
         }
-        if (strategy == OptimizeStrategy.DriverPreference && _topology.Tier != ProcessorTier.DualCcdX3D)
+        if (strategy == OptimizeStrategy.DriverPreference &&
+            _topology.Tier is not (ProcessorTier.DualCcdX3D or ProcessorTier.SingleCcdX3D))
         {
-            Log.Warning("DriverPreference only available for dual-CCD X3D — falling back to AffinityPinning");
+            Log.Warning("DriverPreference requires X3D processor — falling back to AffinityPinning");
             strategy = OptimizeStrategy.AffinityPinning;
         }
 

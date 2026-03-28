@@ -67,12 +67,30 @@ public class SettingsViewModel : ViewModelBase
     // General
     public bool StartWithWindows { get => _startWithWindows; set => SetProperty(ref _startWithWindows, value); }
     public string DefaultMode { get => _defaultMode; set => SetProperty(ref _defaultMode, value); }
-    public string OptimizeStrategy { get => _optimizeStrategy; set => SetProperty(ref _optimizeStrategy, value); }
+    public string OptimizeStrategy
+    {
+        get => _optimizeStrategy;
+        set
+        {
+            if (SetProperty(ref _optimizeStrategy, value))
+            {
+                OnPropertyChanged(nameof(AffinityPinningWarningVisibility));
+            }
+        }
+    }
     public bool HasVCache => _topology.HasVCache;
     public bool CanOptimize => _topology.IsDualCcd;
-    public bool IsStrategyAvailable => _topology.IsDualCcd;
-    public bool IsDriverAvailable => VCacheDriverManager.IsDriverAvailable && _topology.Tier == ProcessorTier.DualCcdX3D;
-    public Visibility DriverWarningVisibility => IsDriverAvailable ? Visibility.Collapsed : Visibility.Visible;
+    public bool IsStrategyAvailable => _topology.IsDualCcd &&
+        _topology.Tier is ProcessorTier.DualCcdX3D or ProcessorTier.DualCcdStandard;
+    public bool IsDriverAvailable => VCacheDriverManager.IsDriverAvailable &&
+        _topology.Tier is ProcessorTier.DualCcdX3D or ProcessorTier.SingleCcdX3D;
+    public Visibility DriverWarningVisibility =>
+        (_topology.Tier is ProcessorTier.DualCcdX3D or ProcessorTier.SingleCcdX3D) && !VCacheDriverManager.IsDriverAvailable
+            ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility StrategyVisibility => IsStrategyAvailable ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility AffinityPinningWarningVisibility =>
+        string.Equals(_optimizeStrategy, "affinityPinning", StringComparison.OrdinalIgnoreCase) && IsStrategyAvailable
+            ? Visibility.Visible : Visibility.Collapsed;
     public string TierDescription => _topology.Tier switch
     {
         ProcessorTier.SingleCcdX3D => "Single-CCD X3D — monitoring only, no CCD steering needed",
