@@ -17,9 +17,12 @@ public partial class OverlayWindow : Window
     private bool _eventsSubscribed;
     private const double SlideDistance = 60;
 
+    private string _appliedPosition;
+
     public OverlayWindow(OverlayConfig overlayConfig)
     {
         _overlayConfig = overlayConfig;
+        _appliedPosition = overlayConfig.OverlayPosition;
         InitializeComponent();
 
         // Restore position
@@ -38,10 +41,7 @@ public partial class OverlayWindow : Window
         }
         else
         {
-            // Default: top-right corner with margin
-            Left = SystemParameters.PrimaryScreenWidth - 320;
-            Top = 20;
-            WindowStartupLocation = WindowStartupLocation.Manual;
+            ApplyCornerPosition(overlayConfig.OverlayPosition);
         }
 
         // Start hidden for slide-in
@@ -49,6 +49,47 @@ public partial class OverlayWindow : Window
         SlideTransform.X = SlideDistance;
 
         Loaded += OnLoaded;
+        IsVisibleChanged += OnVisibilityChanged;
+    }
+
+    private void OnVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (e.NewValue is true && _overlayConfig.OverlayPosition != _appliedPosition)
+        {
+            _appliedPosition = _overlayConfig.OverlayPosition;
+            _overlayConfig.Position = null; // Clear saved drag position
+            ApplyCornerPosition(_appliedPosition);
+        }
+    }
+
+    private void ApplyCornerPosition(string position)
+    {
+        const double margin = 10;
+        var workArea = SystemParameters.WorkArea;
+        // Use a reasonable default size for initial placement (SizeToContent not yet measured)
+        var w = ActualWidth > 0 ? ActualWidth : 300;
+        var h = ActualHeight > 0 ? ActualHeight : 80;
+
+        switch (position)
+        {
+            case "TopLeft":
+                Left = workArea.Left + margin;
+                Top = workArea.Top + margin;
+                break;
+            case "BottomLeft":
+                Left = workArea.Left + margin;
+                Top = workArea.Bottom - h - margin;
+                break;
+            case "BottomRight":
+                Left = workArea.Right - w - margin;
+                Top = workArea.Bottom - h - margin;
+                break;
+            default: // TopRight
+                Left = workArea.Right - w - margin;
+                Top = workArea.Top + margin;
+                break;
+        }
+        WindowStartupLocation = WindowStartupLocation.Manual;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)

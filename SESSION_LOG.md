@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 38
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 39
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,29 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 39 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Overlay position setting — corner selector in Settings
+
+### What Was Done
+
+1. **Overlay position ComboBox in Settings > Overlay** — Four choices: Top Left, Top Right, Bottom Left, Bottom Right. Default: Top Right. Persisted as `overlayPosition` string in `OverlayConfig`.
+
+2. **OverlayWindow corner positioning** — `ApplyCornerPosition()` calculates placement using `SystemParameters.WorkArea` minus overlay size with 10px margin. Used on initial load (when no saved drag position exists) and when the setting changes. `IsVisibleChanged` handler detects position setting changes, clears saved drag position, and repositions to the new corner.
+
+### Files Modified (5)
+
+```
+src/X3DCcdOptimizer/Config/AppConfig.cs — OverlayPosition property in OverlayConfig (default "TopRight")
+src/X3DCcdOptimizer/ViewModels/SettingsViewModel.cs — _overlayPosition field, property, init, save
+src/X3DCcdOptimizer/Views/SettingsWindow.xaml — ComboBox with 4 corner options in Overlay tab
+src/X3DCcdOptimizer/Views/OverlayWindow.xaml.cs — ApplyCornerPosition(), IsVisibleChanged repositioning
+SESSION_LOG.md — session 39 changelog
+```
 
 ---
 

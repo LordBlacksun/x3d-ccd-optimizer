@@ -322,6 +322,17 @@
                                 TickFrequency="1" IsSnapToTickEnabled="True"
                                 AutomationProperties.Name="Pixel shift interval slider"/>
 
+                        <TextBlock Text="Default position:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"/>
+                        <ComboBox SelectedValue="{Binding OverlayPosition}" SelectedValuePath="Tag"
+                                  Width="160" HorizontalAlignment="Left"
+                                  ToolTip="Screen corner for the overlay when not manually dragged."
+                                  AutomationProperties.Name="Overlay position selector">
+                            <ComboBoxItem Content="Top Left" Tag="TopLeft"/>
+                            <ComboBoxItem Content="Top Right" Tag="TopRight"/>
+                            <ComboBoxItem Content="Bottom Left" Tag="BottomLeft"/>
+                            <ComboBoxItem Content="Bottom Right" Tag="BottomRight"/>
+                        </ComboBox>
+
                         <TextBlock Text="Hotkey: Ctrl+Shift+O" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,12,0,0"/>
                     </StackPanel>
                 </ScrollViewer>

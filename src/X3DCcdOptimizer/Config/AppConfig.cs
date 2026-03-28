@@ -75,6 +75,9 @@ public class OverlayConfig
 
     [JsonPropertyName("position")]
     public int[]? Position { get; set; }
+
+    [JsonPropertyName("overlayPosition")]
+    public string OverlayPosition { get; set; } = "TopRight";
 }
 
 public class CcdOverrideConfig
