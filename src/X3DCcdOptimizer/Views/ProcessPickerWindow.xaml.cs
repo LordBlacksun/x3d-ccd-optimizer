@@ -28,6 +28,7 @@ public partial class ProcessPickerWindow : Window
     private List<ProcessPickerItem> _filteredItems = [];
 
     public List<string> SelectedExes { get; } = [];
+    public Dictionary<string, string> SelectedDisplayNames { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     public ProcessPickerWindow(IEnumerable<string> alreadyAssigned, string? currentGameExe = null)
     {
@@ -111,7 +112,10 @@ public partial class ProcessPickerWindow : Window
         foreach (var item in _allItems)
         {
             if (item.IsSelected)
+            {
                 SelectedExes.Add(item.ExeName);
+                SelectedDisplayNames[item.ExeName] = item.DisplayName;
+            }
         }
         DialogResult = true;
         Close();

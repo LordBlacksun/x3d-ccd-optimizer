@@ -200,27 +200,9 @@
 
                             <StackPanel Grid.Row="2" Margin="0,6,0,0">
                                 <Button Content="Pick Running Processes..." Command="{Binding AddBgFromPickerCommand}"
-                                        Style="{StaticResource SubtleButtonStyle}" Padding="8,3"
-                                        HorizontalAlignment="Stretch"
+                                        Style="{StaticResource SubtleButtonStyle}" Padding="8,5"
+                                        HorizontalAlignment="Stretch" FontWeight="SemiBold"
                                         AutomationProperties.Name="Open process picker"/>
-                                <Grid Margin="0,4,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding NewBgText, UpdateSourceTrigger=PropertyChanged}"
-                                             Padding="4,2"
-                                             ToolTip="Type an exe name to add manually."
-                                             AutomationProperties.Name="New background app executable name"/>
-                                    <Button Grid.Column="1" Content="Add" Command="{Binding AddBgCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                            Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add background app"/>
-                                </Grid>
-                                <ListBox ItemsSource="{Binding BgSuggestions}" MaxHeight="80" FontSize="10"
-                                         FontFamily="{StaticResource FontMono}"
-                                         Margin="0,2,0,0"
-                                         Visibility="{Binding BgSuggestions.Count, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
-                                         SelectionChanged="OnBgSuggestionSelected"
-                                         AutomationProperties.Name="Background app autocomplete suggestions"/>
                                 <Button Content="Remove" Command="{Binding RemoveBgCommand}" Style="{StaticResource SubtleButtonStyle}"
                                         Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
                                         AutomationProperties.Name="Remove selected background app"/>

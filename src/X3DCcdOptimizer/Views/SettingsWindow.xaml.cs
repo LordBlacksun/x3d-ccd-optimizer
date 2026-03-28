@@ -38,12 +38,4 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void OnBgSuggestionSelected(object sender, SelectionChangedEventArgs e)
-    {
-        if (sender is ListBox lb && lb.SelectedItem is string exe && DataContext is SettingsViewModel vm)
-        {
-            vm.NewBgText = exe;
-            vm.AddBgCommand.Execute(null);
-        }
-    }
 }

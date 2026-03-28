@@ -60,9 +60,7 @@ public class SettingsViewModel : ViewModelBase
 
     // Process Rules — autocomplete
     private string? _newGameText;
-    private string? _newBgText;
     private ObservableCollection<string> _gameSuggestions = [];
-    private ObservableCollection<string> _bgSuggestions = [];
 
     // General
     public bool StartWithWindows { get => _startWithWindows; set => SetProperty(ref _startWithWindows, value); }
@@ -160,7 +158,7 @@ public class SettingsViewModel : ViewModelBase
 
     // Process Rules
     public ObservableCollection<GameDisplayItem> ManualGames { get; } = [];
-    public ObservableCollection<string> BackgroundApps { get; } = [];
+    public ObservableCollection<GameDisplayItem> BackgroundApps { get; } = [];
     public Visibility BgEmptyHintVisibility => BackgroundApps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public ObservableCollection<string> ExcludedProcesses { get; } = [];
     public ObservableCollection<string> KnownGames { get; } = [];
@@ -180,25 +178,9 @@ public class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _gameSuggestions, value);
     }
 
-    public string? NewBgText
-    {
-        get => _newBgText;
-        set
-        {
-            if (SetProperty(ref _newBgText, value))
-                UpdateBgSuggestions(value);
-        }
-    }
-    public ObservableCollection<string> BgSuggestions
-    {
-        get => _bgSuggestions;
-        set => SetProperty(ref _bgSuggestions, value);
-    }
-
     // Commands
     public RelayCommand AddGameCommand { get; }
     public RelayCommand RemoveGameCommand { get; }
-    public RelayCommand AddBgCommand { get; }
     public RelayCommand AddBgFromPickerCommand { get; }
     public RelayCommand RemoveBgCommand { get; }
     public RelayCommand AddExclusionCommand { get; }
@@ -208,7 +190,7 @@ public class SettingsViewModel : ViewModelBase
     public RelayCommand ResetDefaultsCommand { get; }
 
     public GameDisplayItem? SelectedGame { get; set; }
-    public string? SelectedBg { get; set; }
+    public GameDisplayItem? SelectedBg { get; set; }
     public string? SelectedExclusion { get; set; }
     public string? NewExclusionText { get; set; }
 
@@ -244,7 +226,8 @@ public class SettingsViewModel : ViewModelBase
 
         _logLevel = config.Logging.Level;
 
-        foreach (var b in config.BackgroundApps) BackgroundApps.Add(b);
+        foreach (var b in config.BackgroundApps)
+            BackgroundApps.Add(new GameDisplayItem(b, ResolveBackgroundAppDisplayName(b)));
         foreach (var e in config.ExcludedProcesses) ExcludedProcesses.Add(e);
 
         BackgroundApps.CollectionChanged += (_, _) => OnPropertyChanged(nameof(BgEmptyHintVisibility));
@@ -308,32 +291,22 @@ public class SettingsViewModel : ViewModelBase
                 ManualGames.Remove(SelectedGame);
         });
 
-        AddBgCommand = new RelayCommand(() =>
-        {
-            if (!string.IsNullOrWhiteSpace(NewBgText))
-            {
-                var proc = NewBgText.Trim();
-                if (!proc.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                    proc += ".exe";
-                if (!BackgroundApps.Contains(proc, StringComparer.OrdinalIgnoreCase))
-                    BackgroundApps.Add(proc);
-                NewBgText = "";
-            }
-        });
-
         AddBgFromPickerCommand = new RelayCommand(() =>
         {
             var allAssigned = new List<string>();
             allAssigned.AddRange(ManualGames.Select(g => g.Exe));
-            allAssigned.AddRange(BackgroundApps);
+            allAssigned.AddRange(BackgroundApps.Select(b => b.Exe));
 
             var picker = new ProcessPickerWindow(allAssigned);
             if (picker.ShowDialog() == true)
             {
                 foreach (var exe in picker.SelectedExes)
                 {
-                    if (!BackgroundApps.Contains(exe, StringComparer.OrdinalIgnoreCase))
-                        BackgroundApps.Add(exe);
+                    if (!BackgroundApps.Any(b => string.Equals(b.Exe, exe, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        var displayName = picker.SelectedDisplayNames.GetValueOrDefault(exe);
+                        BackgroundApps.Add(new GameDisplayItem(exe, displayName));
+                    }
                 }
             }
         });
@@ -423,21 +396,37 @@ public class SettingsViewModel : ViewModelBase
         GameSuggestions = new ObservableCollection<string>(matches);
     }
 
-    private void UpdateBgSuggestions(string? text)
+    private static string? ResolveBackgroundAppDisplayName(string exe)
     {
-        if (string.IsNullOrWhiteSpace(text) || text.Length < 2)
-        {
-            BgSuggestions = [];
-            return;
-        }
+        // 1. Check curated suggestions database
+        var suggestion = BackgroundAppSuggestions.Apps
+            .FirstOrDefault(a => string.Equals(a.Exe, exe, StringComparison.OrdinalIgnoreCase));
+        if (suggestion.DisplayName != null)
+            return suggestion.DisplayName;
 
-        var matches = BackgroundAppSuggestions.Apps
-            .Where(a => a.DisplayName.Contains(text, StringComparison.OrdinalIgnoreCase) ||
-                        a.Exe.Contains(text, StringComparison.OrdinalIgnoreCase))
-            .Take(8)
-            .Select(a => a.Exe)
-            .ToList();
-        BgSuggestions = new ObservableCollection<string>(matches);
+        // 2. Check currently running processes for FileDescription
+        var nameWithoutExe = exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? exe[..^4] : exe;
+        try
+        {
+            foreach (var proc in Process.GetProcessesByName(nameWithoutExe))
+            {
+                try
+                {
+                    var path = proc.MainModule?.FileName;
+                    if (path != null)
+                    {
+                        var info = FileVersionInfo.GetVersionInfo(path);
+                        if (!string.IsNullOrWhiteSpace(info.FileDescription))
+                            return info.FileDescription;
+                    }
+                }
+                catch { }
+                finally { proc.Dispose(); }
+            }
+        }
+        catch { }
+
+        return null;
     }
 
     public void Apply()
@@ -476,7 +465,7 @@ public class SettingsViewModel : ViewModelBase
 
         // Process rules
         _config.ManualGames = ManualGames.Select(g => g.Exe).ToList();
-        _config.BackgroundApps = [.. BackgroundApps];
+        _config.BackgroundApps = BackgroundApps.Select(b => b.Exe).ToList();
         _config.ExcludedProcesses = [.. ExcludedProcesses];
 
         _config.Save();

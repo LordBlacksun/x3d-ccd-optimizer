@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 37
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 38
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,29 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 38 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Frequency CCD column UX fixes — picker-only entry, friendly display names
+
+### What Was Done
+
+1. **Removed manual text entry from Frequency CCD column** — Removed the TextBox + Add button and autocomplete suggestions below the Frequency CCD (Background) list. The only way to add background apps is now through the "Pick Running Processes..." button, which shows friendly names and is the correct UX. The picker button is now full-width with semibold text for prominence. V-Cache (Games) column retains its text entry with autocomplete.
+
+2. **Frequency CCD column shows friendly display names** — `BackgroundApps` changed from `ObservableCollection<string>` to `ObservableCollection<GameDisplayItem>`, matching the V-Cache column pattern. Display format: "Steam (steam.exe)", "Wallpaper Engine (webwallpaper32.exe)". Display names resolved at load time: checks `BackgroundAppSuggestions` database first, then `FileVersionInfo.FileDescription` from running processes, falls back to raw exe name. Config still saves exe names only for portability. Process picker now exposes `SelectedDisplayNames` alongside `SelectedExes` so display names propagate from the picker to the list.
+
+### Files Modified (5)
+
+```
+src/X3DCcdOptimizer/ViewModels/SettingsViewModel.cs — BackgroundApps → GameDisplayItem, removed text entry fields/commands, added ResolveBackgroundAppDisplayName()
+src/X3DCcdOptimizer/Views/SettingsWindow.xaml — removed TextBox+Add+Suggestions from BG column, made picker button prominent
+src/X3DCcdOptimizer/Views/SettingsWindow.xaml.cs — removed OnBgSuggestionSelected handler
+src/X3DCcdOptimizer/Views/ProcessPickerWindow.xaml.cs — added SelectedDisplayNames dictionary
+SESSION_LOG.md — session 38 changelog
+```
 
 ---
 
