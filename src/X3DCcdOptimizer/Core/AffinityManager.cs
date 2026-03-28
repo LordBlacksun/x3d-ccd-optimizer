@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Serilog;
@@ -239,7 +240,7 @@ public class AffinityManager : IDisposable
         {
             var err = Marshal.GetLastWin32Error();
             Emit(AffinityAction.Error, game.Name, game.Pid,
-                $"Failed to open process (error {err})", game.DisplayName);
+                $"Failed to open process — {FormatWin32Error(err)}", game.DisplayName);
             return;
         }
 
@@ -266,7 +267,7 @@ public class AffinityManager : IDisposable
             {
                 var err = Marshal.GetLastWin32Error();
                 Emit(AffinityAction.Error, game.Name, game.Pid,
-                    $"SetProcessAffinityMask failed (error {err})", game.DisplayName);
+                    $"engage failed — {FormatWin32Error(err)}", game.DisplayName);
             }
         }
         finally
@@ -307,7 +308,7 @@ public class AffinityManager : IDisposable
                 {
                     var err = Marshal.GetLastWin32Error();
                     if (err == 5)
-                        Emit(AffinityAction.Skipped, name + ".exe", proc.Id, "access denied");
+                        Emit(AffinityAction.Skipped, name + ".exe", proc.Id, "Access Denied (process is protected)");
                     continue;
                 }
 
@@ -477,7 +478,7 @@ public class AffinityManager : IDisposable
                 {
                     var err = Marshal.GetLastWin32Error();
                     Emit(AffinityAction.Error, processName, pid,
-                        err == 5 ? "restore failed — access denied" : $"restore failed — error {err}");
+                        $"restore failed — {FormatWin32Error(err)}");
                     errors++;
                     continue;
                 }
@@ -492,7 +493,7 @@ public class AffinityManager : IDisposable
                     {
                         var err = Marshal.GetLastWin32Error();
                         Emit(AffinityAction.Error, processName, pid,
-                            $"restore failed — SetProcessAffinityMask error {err}");
+                            $"restore failed — {FormatWin32Error(err)}");
                         errors++;
                     }
                 }
@@ -544,6 +545,17 @@ public class AffinityManager : IDisposable
     private bool IsProtected(string processName)
     {
         return _protectedProcesses.Contains(processName);
+    }
+
+    private static string FormatWin32Error(int errorCode)
+    {
+        return errorCode switch
+        {
+            5 => "Access Denied (process is protected)",
+            6 => "Invalid Handle (process exited)",
+            87 => "Invalid Parameter",
+            _ => new Win32Exception(errorCode).Message
+        };
     }
 
     private void MigrateNewProcesses()

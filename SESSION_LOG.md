@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 39
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 40
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,26 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 40 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Human-readable Win32 error messages in Activity Log
+
+### What Was Done
+
+1. **`FormatWin32Error()` helper** — Maps common Win32 error codes to user-friendly messages: error 5 → "Access Denied (process is protected)", error 6 → "Invalid Handle (process exited)", error 87 → "Invalid Parameter". Falls back to `Win32Exception(errorCode).Message` for all other codes.
+
+2. **Replaced all 5 raw error code sites** in AffinityManager: `EngageGame` OpenProcess, `EngageGame` SetProcessAffinityMask, `MigrateBackground` OpenProcess, `RestoreAll` OpenProcess, `RestoreAll` SetProcessAffinityMask. Activity log now shows e.g. "Malwarebytes.exe restore failed — Access Denied (process is protected)" instead of "SetProcessAffinityMask error 5".
+
+### Files Modified (2)
+
+```
+src/X3DCcdOptimizer/Core/AffinityManager.cs — FormatWin32Error() helper, all error messages humanized
+SESSION_LOG.md — session 40 changelog
+```
 
 ---
 
