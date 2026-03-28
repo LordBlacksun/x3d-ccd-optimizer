@@ -47,6 +47,7 @@ Development session history for X3D Dual CCD Optimizer.
 - WPF grid rows with star sizing compete for space — use Auto for fixed-content rows (CCD panels), star for scrollable areas (process router, activity log)
 
 - WPF ListBox inside StackPanel grows unbounded (no scrollbar) — use Grid with `*` row sizing to constrain height
+- Process.MainModule.FileName and FileVersionInfo.GetVersionInfo() throw on protected processes — always try/catch, skip silently
 
 ---
 
