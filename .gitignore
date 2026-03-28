@@ -57,6 +57,8 @@ publish/
 ## Internal audit documents (not for public repo)
 SECURITY_AUDIT.md
 SECURITY_AUDIT_V2.md
+DEFENSIVE_AUDIT.md
+DEFENSIVE_AUDIT_V2.md
 PRE_RELEASE_AUDIT.md
 ZERO_CONFIG_AUDIT.md
 

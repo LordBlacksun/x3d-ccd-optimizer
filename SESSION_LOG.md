@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 43
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 44
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,28 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 44 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Defensive coding audit V2
+
+### What Was Done
+
+1. **Comprehensive defensive coding audit** — Read every file in the codebase. Reviewed for: null references, empty collections, process exit races, config migration, single-CCD edge cases, driver service missing, no-games-detected UI, long process names, high process count performance, rapid mode switching, multi-monitor overlay, settings staleness, disk full, corrupted known_games.json, timer disposal.
+
+2. **Results:** 0 critical, 3 high, 8 medium, 6 low, 5 info (22 total). Key findings: TrayIconManager `Application.Current.Dispatcher` missing null-safe operator (crash during shutdown), ProcessRouterViewModel._pruneTimer not disposed (resource leak), PruneExitedProcesses uses per-PID kernel calls (performance with 500+ processes). Single-CCD edge cases, disk full handling, no-games UI state, and driver graceful degradation all confirmed properly handled.
+
+3. **Audit file saved locally only** — `DEFENSIVE_AUDIT_V2.md` added to `.gitignore` (not committed to repo).
+
+### Files Modified (2)
+
+```
+.gitignore — added DEFENSIVE_AUDIT.md and DEFENSIVE_AUDIT_V2.md
+SESSION_LOG.md — session 44 changelog
+```
 
 ---
 
