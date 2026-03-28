@@ -131,6 +131,54 @@ public class ProcessWatcher : IDisposable
                     }
                 }
 
+                // When an auto-detected game is tracked, still scan for known games
+                // that should take priority (e.g., Wallpaper Engine → Resident Evil 2)
+                if (current.Method == DetectionMethod.Auto)
+                {
+                    foreach (var proc in Process.GetProcesses())
+                    {
+                        try
+                        {
+                            string name = proc.ProcessName;
+                            var method = _detector.CheckGame(name);
+
+                            if (method != null)
+                            {
+                                var source = method switch
+                                {
+                                    DetectionMethod.Manual => "manual",
+                                    DetectionMethod.Database => "database",
+                                    DetectionMethod.LauncherScan => "launcher",
+                                    _ => "unknown"
+                                };
+
+                                var displayName = _detector.GetDisplayName(name);
+                                var info = new ProcessInfo
+                                {
+                                    Name = name + ".exe",
+                                    DisplayName = displayName,
+                                    Pid = proc.Id,
+                                    DetectionSource = $"[{source}]",
+                                    Method = method.Value
+                                };
+
+                                Log.Information("Known game {Name} (PID {Pid}) {Source} takes priority over auto-detected {Old}",
+                                    info.Name, info.Pid, info.DetectionSource, current.Name);
+                                HandleGameExit(current);
+                                _detector.CurrentGame = info;
+                                ResetAutoDetectState();
+                                GameDetected?.Invoke(info);
+                                return;
+                            }
+                        }
+                        catch (Exception ex) { Log.Debug("Skipping process during upgrade scan: {Error}", ex.Message); }
+                        finally
+                        {
+                            proc.Dispose();
+                        }
+                    }
+                }
+
                 return; // Game still tracked, don't scan
             }
 
@@ -209,6 +257,13 @@ public class ProcessWatcher : IDisposable
 
             // Skip excluded processes
             if (_detector.IsExcluded(name))
+            {
+                ResetAutoDetectState();
+                return;
+            }
+
+            // Skip background apps — user explicitly marked these as non-games
+            if (_detector.IsBackgroundApp(name))
             {
                 ResetAutoDetectState();
                 return;

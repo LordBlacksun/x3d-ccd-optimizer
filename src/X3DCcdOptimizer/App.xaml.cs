@@ -231,7 +231,7 @@ public partial class App : System.Windows.Application
         // Engine
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
         _gpuMonitor = new GpuMonitor();
-        _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses, launcherGames);
+        _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses, launcherGames, _config.BackgroundApps);
         _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode, strategy, _config.BackgroundApps);
         _processWatcher = new ProcessWatcher(
             _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground,

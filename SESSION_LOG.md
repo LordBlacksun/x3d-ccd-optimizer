@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 36
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 37
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,28 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 37 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Background apps excluded from game detection + known game priority over GPU heuristic
+
+### What Was Done
+
+1. **Background apps excluded from game detection** — Processes in the Frequency CCD (Background) rules are now automatically excluded from all game detection paths. `GameDetector` gains a `_backgroundApps` HashSet and `IsBackgroundApp()` method. `CheckGame()` returns null for background apps before checking manual/DB/launcher lists. `ProcessWatcher.TryAutoDetect()` checks background apps before the GPU usage query.
+
+2. **Known game priority over auto-detected game** — When the currently tracked game was auto-detected via GPU heuristic, `ProcessWatcher.Poll()` now continues scanning for known games (manual/DB/launcher). If found, the auto-detected game is exited and the known game takes over. Example: Wallpaper Engine (GPU heuristic) is replaced by Resident Evil 2 (known DB) when RE2 launches.
+
+### Files Modified (4)
+
+```
+src/X3DCcdOptimizer/Core/GameDetector.cs — _backgroundApps field, IsBackgroundApp(), CheckGame() guard
+src/X3DCcdOptimizer/Core/ProcessWatcher.cs — background app check in TryAutoDetect(), known-game upgrade scan in Poll()
+src/X3DCcdOptimizer/App.xaml.cs — pass BackgroundApps to GameDetector constructor
+SESSION_LOG.md — session 37 changelog
+```
 
 ---
 

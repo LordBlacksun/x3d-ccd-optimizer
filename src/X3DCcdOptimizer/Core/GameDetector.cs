@@ -19,6 +19,7 @@ public class GameDetector
     private readonly Dictionary<string, string> _knownGames; // exe -> display name
     private volatile Dictionary<string, string> _launcherGames; // exe -> display name (from launcher scan)
     private readonly HashSet<string> _excludedProcesses;
+    private readonly HashSet<string> _backgroundApps;
     private readonly object _gameLock = new();
     private ProcessInfo? _currentGame;
 
@@ -30,11 +31,13 @@ public class GameDetector
     public int GameCount => _manualGames.Count + _knownGames.Count + _launcherGames.Count;
 
     public GameDetector(IEnumerable<string> manualGames, IEnumerable<string>? excludedProcesses = null,
-        Dictionary<string, string>? launcherGames = null)
+        Dictionary<string, string>? launcherGames = null, IEnumerable<string>? backgroundApps = null)
     {
         _manualGames = new HashSet<string>(manualGames, StringComparer.OrdinalIgnoreCase);
         _excludedProcesses = new HashSet<string>(
             excludedProcesses ?? [], StringComparer.OrdinalIgnoreCase);
+        _backgroundApps = new HashSet<string>(
+            backgroundApps ?? [], StringComparer.OrdinalIgnoreCase);
         _knownGames = LoadKnownGames();
         _launcherGames = launcherGames ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
@@ -58,6 +61,10 @@ public class GameDetector
     /// </summary>
     public DetectionMethod? CheckGame(string processName)
     {
+        // Background apps are never games
+        if (IsBackgroundApp(processName))
+            return null;
+
         var nameWithExe = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
             ? processName : processName + ".exe";
         var nameWithoutExe = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
@@ -92,6 +99,16 @@ public class GameDetector
             ? processName[..^4] : processName;
 
         return _excludedProcesses.Contains(nameWithExe) || _excludedProcesses.Contains(nameWithoutExe);
+    }
+
+    public bool IsBackgroundApp(string processName)
+    {
+        var nameWithExe = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? processName : processName + ".exe";
+        var nameWithoutExe = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? processName[..^4] : processName;
+
+        return _backgroundApps.Contains(nameWithExe) || _backgroundApps.Contains(nameWithoutExe);
     }
 
     public string GetDisplayName(string processName)
