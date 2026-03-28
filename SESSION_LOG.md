@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 35
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 36
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,24 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 36 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Comprehensive README rewrite
+
+### What Was Done
+
+1. **Full README rewrite** — Restructured to reflect current feature set. Sections: What is this, Why it exists, Features, Screenshots (placeholder), Quick Start, Supported Processors, Requirements, Documentation (wiki links), How It Works, FAQ (5 entries), Disclaimer, Contributing, How This Was Built, Credits, License, Code Signing (SignPath placeholder). Honest tone throughout, credits AMD's work, upfront about AI-assisted development.
+
+### Files Modified (2)
+
+```
+README.md — complete rewrite reflecting sessions 21-35 features
+SESSION_LOG.md — session 36 changelog
+```
 
 ---
 
