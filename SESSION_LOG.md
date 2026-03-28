@@ -71,12 +71,15 @@ Development session history for X3D Dual CCD Optimizer.
 
 4. **CI badge** — Added build status badge to README.md after existing badges.
 
-### Files Created (3) + Modified (2)
+5. **Processor topology reference table** — Added comment block at top of `CcdMapper.cs` documenting known AMD Ryzen processor topologies (Zen 2/3/4/5) mapped to `ProcessorTier` values. For maintainer reference only — detection is hardware-based via `GetLogicalProcessorInformationEx`, not lookup.
+
+### Files Created (3) + Modified (3)
 
 ```
 NEW: .github/workflows/build.yml — CI build + test + publish + artifact
 NEW: .github/workflows/release.yml — tagged release with zip + GitHub Release
 NEW: tests/X3DCcdOptimizer.Tests/ProcessorTierTests.cs — 5 xUnit tests
+Core/CcdMapper.cs — processor topology reference table comment
 README.md — CI badge
 SESSION_LOG.md — session 26 changelog
 ```
