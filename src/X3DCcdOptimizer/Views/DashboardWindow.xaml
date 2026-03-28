@@ -127,16 +127,20 @@
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding ProcessName}"
+                                        <TextBlock Grid.Column="0"
                                                    FontFamily="{StaticResource FontMono}" FontSize="11"
                                                    Foreground="{StaticResource TextPrimaryBrush}"
-                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding ProcessName, Mode=OneWay}"/>
+                                            <Run Text="{Binding CountText, Mode=OneWay}"
+                                                 Foreground="{StaticResource TextTertiaryBrush}" FontSize="10"/>
+                                        </TextBlock>
                                         <Border Grid.Column="1" CornerRadius="3" Padding="6,1" Margin="6,0"
                                                 Background="{Binding TypeBadgeColor}"
                                                 Visibility="{Binding IsGame, Converter={StaticResource BoolToVis}}">
                                             <TextBlock Text="GAME" Foreground="White" FontSize="9" FontWeight="Bold"/>
                                         </Border>
-                                        <TextBlock Grid.Column="2" Text="{Binding PidText}"
+                                        <TextBlock Grid.Column="2" Text="{Binding ExeName}"
                                                    FontFamily="{StaticResource FontMono}" FontSize="10"
                                                    Foreground="{StaticResource TextTertiaryBrush}"
                                                    VerticalAlignment="Center"/>

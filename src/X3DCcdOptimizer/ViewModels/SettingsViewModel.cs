@@ -11,6 +11,21 @@ using X3DCcdOptimizer.Views;
 
 namespace X3DCcdOptimizer.ViewModels;
 
+public class GameDisplayItem
+{
+    public string Exe { get; }
+    public string Display { get; }
+
+    public GameDisplayItem(string exe, string? displayName = null)
+    {
+        Exe = exe;
+        var name = exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? exe[..^4] : exe;
+        Display = displayName != null ? $"{displayName} ({exe})" : exe;
+    }
+
+    public override string ToString() => Display;
+}
+
 public class SettingsViewModel : ViewModelBase
 {
     private readonly AppConfig _config;
@@ -126,7 +141,7 @@ public class SettingsViewModel : ViewModelBase
     };
 
     // Process Rules
-    public ObservableCollection<string> ManualGames { get; } = [];
+    public ObservableCollection<GameDisplayItem> ManualGames { get; } = [];
     public ObservableCollection<string> BackgroundApps { get; } = [];
     public ObservableCollection<string> ExcludedProcesses { get; } = [];
     public ObservableCollection<string> KnownGames { get; } = [];
@@ -173,7 +188,7 @@ public class SettingsViewModel : ViewModelBase
     public RelayCommand OpenConfigFolderCommand { get; }
     public RelayCommand ResetDefaultsCommand { get; }
 
-    public string? SelectedGame { get; set; }
+    public GameDisplayItem? SelectedGame { get; set; }
     public string? SelectedBg { get; set; }
     public string? SelectedExclusion { get; set; }
     public string? NewExclusionText { get; set; }
@@ -210,11 +225,10 @@ public class SettingsViewModel : ViewModelBase
 
         _logLevel = config.Logging.Level;
 
-        foreach (var g in config.ManualGames) ManualGames.Add(g);
         foreach (var b in config.BackgroundApps) BackgroundApps.Add(b);
         foreach (var e in config.ExcludedProcesses) ExcludedProcesses.Add(e);
 
-        // Load known games DB for autocomplete
+        // Load known games DB for autocomplete + display name resolution
         try
         {
             var dir = AppContext.BaseDirectory;
@@ -240,6 +254,15 @@ public class SettingsViewModel : ViewModelBase
         }
         catch { }
 
+        // Populate game list with display names resolved from known DB
+        foreach (var g in config.ManualGames)
+        {
+            var displayName = _knownGamesList
+                .FirstOrDefault(k => string.Equals(k.Exe, g, StringComparison.OrdinalIgnoreCase))
+                .DisplayName;
+            ManualGames.Add(new GameDisplayItem(g, displayName));
+        }
+
         AddGameCommand = new RelayCommand(() =>
         {
             if (!string.IsNullOrWhiteSpace(NewGameText))
@@ -247,8 +270,13 @@ public class SettingsViewModel : ViewModelBase
                 var game = NewGameText.Trim();
                 if (!game.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     game += ".exe";
-                if (!ManualGames.Contains(game, StringComparer.OrdinalIgnoreCase))
-                    ManualGames.Add(game);
+                if (!ManualGames.Any(g => string.Equals(g.Exe, game, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var displayName = _knownGamesList
+                        .FirstOrDefault(k => string.Equals(k.Exe, game, StringComparison.OrdinalIgnoreCase))
+                        .DisplayName;
+                    ManualGames.Add(new GameDisplayItem(game, displayName));
+                }
                 NewGameText = "";
             }
         });
@@ -275,7 +303,7 @@ public class SettingsViewModel : ViewModelBase
         AddBgFromPickerCommand = new RelayCommand(() =>
         {
             var allAssigned = new List<string>();
-            allAssigned.AddRange(ManualGames);
+            allAssigned.AddRange(ManualGames.Select(g => g.Exe));
             allAssigned.AddRange(BackgroundApps);
 
             var picker = new ProcessPickerWindow(allAssigned);
@@ -426,7 +454,7 @@ public class SettingsViewModel : ViewModelBase
         _config.Logging.Level = _logLevel;
 
         // Process rules
-        _config.ManualGames = [.. ManualGames];
+        _config.ManualGames = ManualGames.Select(g => g.Exe).ToList();
         _config.BackgroundApps = [.. BackgroundApps];
         _config.ExcludedProcesses = [.. ExcludedProcesses];
 

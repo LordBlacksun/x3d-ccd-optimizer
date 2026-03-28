@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 26
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 27
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -53,6 +53,36 @@ Development session history for X3D Dual CCD Optimizer.
 - WPF ComboBox default template ignores Style.Resources SystemColors overrides for the toggle button and content area — need full ControlTemplate
 - CcdMapper should fall back to SingleCcdStandard instead of throwing when both P/Invoke and WMI detection fail
 - GitHub Actions `dotnet publish` for framework-dependent single-file needs `-r win-x64 --self-contained false -p:PublishSingleFile=true`
+- ProcessRouter must deduplicate by exe name, not by PID — Chrome spawns 30+ PIDs but should show as one entry with count
+
+---
+
+## Session 27 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix Process Router, activity log dedup, game display names
+
+### What Was Done
+
+1. **Process Router shows all managed processes** — Rewrote `ProcessRouterViewModel` with deduplication by exe name per CCD group. Multi-PID processes (chrome.exe with 30 instances) show as one entry: "chrome.exe (6 processes)". `ProcessEntryViewModel` now tracks a `HashSet<int> Pids` and `InstanceCount`. Group header shows count: "Frequency CCD (23)".
+
+2. **Process exit removal** — Added 5-second prune timer that checks all tracked PIDs via `Process.GetProcessById`. Dead PIDs are removed from entries; entries with zero PIDs are removed from the router. Timer starts on engagement, stops when all processes clear.
+
+3. **Activity Log dedup verified** — The `_originalMasks.ContainsKey(proc.Id)` check in `MigrateNewProcesses()` already prevents re-logging. Each PID is only emitted once — subsequent scan cycles skip via the dictionary lookup. No code change needed.
+
+4. **Game display names in Process Rules** — New `GameDisplayItem` class wraps exe name + resolved display name from known games DB. `ManualGames` collection changed from `ObservableCollection<string>` to `ObservableCollection<GameDisplayItem>`. Items display as "Elite Dangerous (elitedangerous64.exe)" in the list. Exe names are extracted back on config save.
+
+5. **Process Router item template** — Shows `ProcessName` + `CountText` (e.g., "(6 processes)") + `ExeName` in tertiary text. GAME badge retained for game entries.
+
+### Files Modified (5)
+
+```
+ViewModels/ProcessRouterViewModel.cs — dedup by exe name, prune timer, PID tracking
+ViewModels/ProcessEntryViewModel.cs — Pids HashSet, InstanceCount, CountText, ExeName
+ViewModels/SettingsViewModel.cs — GameDisplayItem class, ManualGames type change, display name resolution
+Views/DashboardWindow.xaml — Process Router item template with CountText + ExeName
+SESSION_LOG.md — session 27 changelog
+```
 
 ---
 
