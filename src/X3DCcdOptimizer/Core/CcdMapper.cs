@@ -7,6 +7,38 @@ using X3DCcdOptimizer.Native;
 
 namespace X3DCcdOptimizer.Core;
 
+// Known AMD Ryzen processor topologies (for reference — detection is hardware-based, not lookup):
+//
+// Zen 2 (2019):
+//   3900X, 3900XT     — 2 CCD, 6+6 cores, 2x 32MB L3          → DualCcdStandard
+//   3950X              — 2 CCD, 8+8 cores, 2x 32MB L3          → DualCcdStandard
+//   3600, 3700X, etc.  — 1 CCD, 6-8 cores, 32MB L3             → SingleCcdStandard
+//
+// Zen 3 (2020):
+//   5900X              — 2 CCD, 6+6 cores, 2x 32MB L3          → DualCcdStandard
+//   5950X              — 2 CCD, 8+8 cores, 2x 32MB L3          → DualCcdStandard
+//   5800X3D            — 1 CCD, 8 cores, 96MB L3 (32+64 V-Cache) → SingleCcdX3D
+//   5600X, 5800X, etc. — 1 CCD, 6-8 cores, 32MB L3             → SingleCcdStandard
+//
+// Zen 4 (2022):
+//   7950X              — 2 CCD, 8+8 cores, 2x 32MB L3          → DualCcdStandard
+//   7900X              — 2 CCD, 6+6 cores, 2x 32MB L3          → DualCcdStandard
+//   7950X3D            — 2 CCD, 8+8 cores, 96MB + 32MB L3      → DualCcdX3D
+//   7900X3D            — 2 CCD, 6+6 cores, 96MB + 32MB L3      → DualCcdX3D
+//   7800X3D            — 1 CCD, 8 cores, 96MB L3               → SingleCcdX3D
+//   7600X, 7700X, etc. — 1 CCD, 6-8 cores, 32MB L3             → SingleCcdStandard
+//
+// Zen 5 (2024):
+//   9950X              — 2 CCD, 8+8 cores, 2x 32MB L3          → DualCcdStandard
+//   9900X              — 2 CCD, 6+6 cores, 2x 32MB L3          → DualCcdStandard
+//   9950X3D            — 2 CCD, 8+8 cores, 96MB + 32MB L3      → DualCcdX3D
+//   9900X3D            — 2 CCD, 6+6 cores, 96MB + 32MB L3      → DualCcdX3D
+//   9800X3D            — 1 CCD, 8 cores, 96MB L3               → SingleCcdX3D
+//   9600X, 9700X, etc. — 1 CCD, 6-8 cores, 32MB L3             → SingleCcdStandard
+//
+// Detection logic does NOT use this table — it reads actual hardware topology
+// via GetLogicalProcessorInformationEx. This comment exists for maintainer reference.
+
 public static class CcdMapper
 {
     /// <summary>
