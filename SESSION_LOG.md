@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 42
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 43
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,26 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 43 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Full security audit V2
+
+### What Was Done
+
+1. **Comprehensive security audit** — Read every file in the codebase. Produced `SECURITY_AUDIT_V2.md` covering: admin elevation surface, registry operations, process enumeration, config/recovery file validation, P/Invoke correctness, thread safety, exception handling, input validation, global hotkey, singleton mutex, file I/O, process picker, and installer script.
+
+2. **Results:** 0 critical, 3 high, 5 medium, 5 low, 4 info (17 total). Key findings: callbacks fired inside `_syncLock` (potential deadlock), registry write without read-back verification, no input length validation for user-entered game names. P/Invoke declarations verified correct (except `CloseHandle` SetLastError). Thread safety properly implemented across all shared state. Admin privilege surface confirmed minimal (SetProcessAffinityMask + OpenProcess + amd3dvcache registry only). No code execution risks in config/recovery deserialization.
+
+### Files Modified (2)
+
+```
+SECURITY_AUDIT_V2.md — full audit report (not included in published build)
+SESSION_LOG.md — session 43 changelog
+```
 
 ---
 
