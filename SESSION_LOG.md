@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 34
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 35
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -60,6 +60,29 @@ Development session history for X3D Dual CCD Optimizer.
 
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
+- Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 35 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix activity log re-logging same processes every scan cycle
+
+### What Was Done
+
+1. **Activity log dedup by exe name** — Added `_loggedMigrateExes` HashSet to AffinityManager. Once an exe name (e.g. `docker`) has been logged as migrated, subsequent child PIDs of the same exe are migrated silently without emitting an activity log entry. This prevents apps like Docker and Firefox (which spawn/recycle child processes constantly) from flooding the log with repeated MIGRATE entries.
+
+2. **Applied to both migration paths** — `MigrateBackground()` (initial pass) and `MigrateNewProcesses()` (continuous 3s timer) both check `_loggedMigrateExes.Add(name)` before emitting. Migration still happens for all PIDs — only the log entry is suppressed for duplicates.
+
+3. **Set cleared on disengage** — `_loggedMigrateExes` cleared in `OnGameDetected` (new engagement), `SwitchToOptimize` (re-engagement), and `RestoreAll` (game exit/mode switch). This ensures fresh logging on the next game session.
+
+### Files Modified (2)
+
+```
+Core/AffinityManager.cs — _loggedMigrateExes HashSet, dedup in both migrate paths, clear on disengage
+SESSION_LOG.md — session 35 changelog
+```
 
 ---
 

@@ -11,6 +11,7 @@ public class AffinityManager : IDisposable
     private readonly CpuTopology _topology;
     private readonly HashSet<string> _protectedProcesses;
     private readonly Dictionary<int, IntPtr> _originalMasks = new();
+    private readonly HashSet<string> _loggedMigrateExes = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _syncLock = new();
     private readonly OptimizeStrategy _strategy;
     private readonly System.Timers.Timer? _reMigrationTimer;
@@ -95,6 +96,7 @@ public class AffinityManager : IDisposable
             _engaged = true;
             _currentGame = game;
             _originalMasks.Clear();
+            _loggedMigrateExes.Clear();
 
             // Single-CCD processors have no second CCD to steer to
             if (_topology.IsSingleCcd)
@@ -185,6 +187,7 @@ public class AffinityManager : IDisposable
             if (_engaged && _currentGame != null)
             {
                 _originalMasks.Clear();
+                _loggedMigrateExes.Clear();
                 RecoveryManager.OnEngage(_currentGame.Name, _currentGame.Pid, _strategy);
 
                 // Game handling depends on strategy
@@ -316,10 +319,15 @@ public class AffinityManager : IDisposable
 
                         if (Kernel32.SetProcessAffinityMask(handle, _topology.FrequencyMask))
                         {
-                            var reason = IsBackgroundApp(name) ? "rule" : "auto";
                             RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, originalMask);
-                            Emit(AffinityAction.Migrated, name + ".exe", proc.Id,
-                                $"\u2192 Frequency CCD ({reason})");
+
+                            // Only log first migration per exe name
+                            if (_loggedMigrateExes.Add(name))
+                            {
+                                var reason = IsBackgroundApp(name) ? "rule" : "auto";
+                                Emit(AffinityAction.Migrated, name + ".exe", proc.Id,
+                                    $"\u2192 Frequency CCD ({reason})");
+                            }
                         }
                     }
                 }
@@ -509,6 +517,7 @@ public class AffinityManager : IDisposable
         Emit(AffinityAction.Restored, "all", 0, summary);
 
         _originalMasks.Clear();
+        _loggedMigrateExes.Clear();
     }
 
     public void UpdateBackgroundApps(IEnumerable<string> apps)
@@ -609,10 +618,15 @@ public class AffinityManager : IDisposable
 
                             if (Kernel32.SetProcessAffinityMask(handle, _topology.FrequencyMask))
                             {
-                                var reason = IsBackgroundApp(name) ? "rule" : "auto";
                                 RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, originalMask);
-                                Emit(AffinityAction.Migrated, name + ".exe", proc.Id,
-                                    $"\u2192 Frequency CCD ({reason})");
+
+                                // Only log first migration per exe name — subsequent child PIDs migrate silently
+                                if (_loggedMigrateExes.Add(name))
+                                {
+                                    var reason = IsBackgroundApp(name) ? "rule" : "auto";
+                                    Emit(AffinityAction.Migrated, name + ".exe", proc.Id,
+                                        $"\u2192 Frequency CCD ({reason})");
+                                }
                             }
                         }
                     }
