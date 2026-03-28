@@ -76,12 +76,10 @@ public class AffinityManager : IDisposable
             }
         }
 
-        if (strategy == OptimizeStrategy.AffinityPinning)
-        {
-            _reMigrationTimer = new System.Timers.Timer(3000);
-            _reMigrationTimer.AutoReset = true;
-            _reMigrationTimer.Elapsed += (_, _) => MigrateNewProcesses();
-        }
+        // Background re-migration runs for both strategies — only game handling differs
+        _reMigrationTimer = new System.Timers.Timer(3000);
+        _reMigrationTimer.AutoReset = true;
+        _reMigrationTimer.Elapsed += (_, _) => MigrateNewProcesses();
     }
 
     public void OnGameDetected(ProcessInfo game)
@@ -110,28 +108,25 @@ public class AffinityManager : IDisposable
             {
                 RecoveryManager.OnEngage(game.Name, game.Pid, _strategy);
 
+                // Game handling depends on strategy
                 if (_strategy == OptimizeStrategy.DriverPreference)
-                {
                     EngageGameViaDriver(game);
-                }
                 else
-                {
                     EngageGame(game);
-                    MigrateBackground(game.Pid);
-                    _reMigrationTimer?.Start();
-                }
+
+                // Background migration runs for both strategies
+                MigrateBackground(game.Pid);
+                _reMigrationTimer?.Start();
             }
             else
             {
+                // Monitor mode simulation
                 if (_strategy == OptimizeStrategy.DriverPreference)
-                {
                     SimulateEngageViaDriver(game);
-                }
                 else
-                {
                     SimulateEngage(game);
-                    SimulateMigrateBackground(game.Pid);
-                }
+
+                SimulateMigrateBackground(game.Pid);
             }
         }
     }
@@ -154,25 +149,23 @@ public class AffinityManager : IDisposable
 
             if (Mode == OperationMode.Optimize)
             {
+                // Restore game handling
                 if (_strategy == OptimizeStrategy.DriverPreference)
                     RestoreDriver();
-                else
-                    RestoreAll();
+
+                // Restore background affinities (both strategies)
+                RestoreAll();
 
                 RecoveryManager.OnDisengage();
             }
             else
             {
                 if (_strategy == OptimizeStrategy.DriverPreference)
-                {
                     Emit(AffinityAction.WouldRestoreDriver, "amd3dvcache", 0,
                         "game exited — would have restored driver default");
-                }
-                else
-                {
-                    Emit(AffinityAction.WouldRestore, "all", 0,
-                        "game exited — would have restored all affinities");
-                }
+
+                Emit(AffinityAction.WouldRestore, "all", 0,
+                    "game exited — would have restored all affinities");
             }
 
             _currentGame = null;
@@ -194,16 +187,15 @@ public class AffinityManager : IDisposable
                 _originalMasks.Clear();
                 RecoveryManager.OnEngage(_currentGame.Name, _currentGame.Pid, _strategy);
 
+                // Game handling depends on strategy
                 if (_strategy == OptimizeStrategy.DriverPreference)
-                {
                     EngageGameViaDriver(_currentGame);
-                }
                 else
-                {
                     EngageGame(_currentGame);
-                    MigrateBackground(_currentGame.Pid);
-                    _reMigrationTimer?.Start();
-                }
+
+                // Background migration runs for both strategies
+                MigrateBackground(_currentGame.Pid);
+                _reMigrationTimer?.Start();
             }
         }
     }
@@ -551,8 +543,7 @@ public class AffinityManager : IDisposable
 
         lock (_syncLock)
         {
-            if (!_engaged || Mode != OperationMode.Optimize ||
-                _strategy != OptimizeStrategy.AffinityPinning || _currentGame == null)
+            if (!_engaged || Mode != OperationMode.Optimize || _currentGame == null)
                 return;
 
             var gamePid = _currentGame.Pid;

@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 31
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 32
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -56,6 +56,33 @@ Development session history for X3D Dual CCD Optimizer.
 - ProcessRouter must deduplicate by exe name, not by PID — Chrome spawns 30+ PIDs but should show as one entry with count
 
 - WPF ComboBox `SelectedValue` with inline `ComboBoxItem` elements needs `SelectedValuePath="Content"` to match string values — without it the ComboBox shows blank
+- Background process migration must run for both optimization strategies — only game handling differs between Driver Preference and Affinity Pinning
+
+---
+
+## Session 32 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Background migration for both optimization strategies
+
+### What Was Done
+
+1. **Background migration runs for both strategies** — Separated game handling (strategy-dependent) from background migration (strategy-independent) in AffinityManager. Previously, `MigrateBackground()`, `MigrateNewProcesses()`, and the 3s re-migration timer only ran in Affinity Pinning mode. Now they run in both Driver Preference and Affinity Pinning modes. The only difference between strategies is how the game process is handled:
+   - **Driver Preference**: game via `EngageGameViaDriver()` (registry) + background via `MigrateBackground()` (affinity)
+   - **Affinity Pinning**: game via `EngageGame()` (affinity) + background via `MigrateBackground()` (affinity)
+
+2. **Re-migration timer created for both strategies** — Timer was previously only created in constructor when strategy was AffinityPinning. Now always created.
+
+3. **Game exit restore handles both** — In Driver Preference mode, game exit now restores driver default AND restores background affinities. Previously only the driver was restored.
+
+4. **MigrateNewProcesses guard simplified** — Removed `_strategy != AffinityPinning` check. Now only checks `_engaged`, `Mode == Optimize`, and `_currentGame != null`.
+
+### Files Modified (2)
+
+```
+Core/AffinityManager.cs — strategy-independent background migration in all paths
+SESSION_LOG.md — session 32 changelog
+```
 
 ---
 
