@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 27
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 28
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -54,6 +54,23 @@ Development session history for X3D Dual CCD Optimizer.
 - CcdMapper should fall back to SingleCcdStandard instead of throwing when both P/Invoke and WMI detection fail
 - GitHub Actions `dotnet publish` for framework-dependent single-file needs `-r win-x64 --self-contained false -p:PublishSingleFile=true`
 - ProcessRouter must deduplicate by exe name, not by PID — Chrome spawns 30+ PIDs but should show as one entry with count
+
+---
+
+## Session 28 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Inno Setup installer script
+
+### What Was Done
+
+1. **Inno Setup installer script** (`installer/setup.iss`) — Complete installer for local builds. Installs exe, known_games.json, app.ico, LICENSE, README.md, UserManual.pdf (optional). Creates Start Menu shortcuts + optional Desktop shortcut. Sets RUNASADMIN compatibility flag via registry. On uninstall: removes all files, removes "Start with Windows" registry entry, asks user whether to delete `%AppData%\X3DCCDOptimizer\` (config, logs, recovery). LZMA2 compression, modern wizard style, GPL v2 license shown during install. Output: `X3DCcdOptimizer-Setup-1.0.0.exe`.
+
+### Files Created (1)
+
+```
+NEW: installer/setup.iss — Inno Setup 6.x installer script
+```
 
 ---
 
