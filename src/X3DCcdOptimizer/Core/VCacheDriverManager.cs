@@ -45,6 +45,9 @@ public static class VCacheDriverManager
                 return null;
             }
 
+            if (value != null)
+                Log.Warning("amd3dvcache DefaultType has unexpected type: {Type}", value.GetType().Name);
+
             return null;
         }
         catch (Exception ex)

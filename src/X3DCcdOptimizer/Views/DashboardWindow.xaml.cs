@@ -11,6 +11,7 @@ public partial class DashboardWindow : Window
 {
     private readonly AppConfig _config;
     private bool _trayBalloonShown;
+    private NotifyCollectionChangedEventHandler? _logScrollHandler;
 
     /// <summary>Raised once when the window first minimizes to tray, to trigger a balloon tip.</summary>
     public event Action? TrayBalloonRequested;
@@ -52,13 +53,12 @@ public partial class DashboardWindow : Window
         // Auto-scroll activity log
         if (DataContext is MainViewModel vm)
         {
-            ((INotifyCollectionChanged)vm.ActivityLog.Entries).CollectionChanged += (_, _) =>
+            _logScrollHandler = (_, _) =>
             {
                 if (LogListBox.Items.Count > 0)
-                {
                     LogListBox.ScrollIntoView(LogListBox.Items[^1]);
-                }
             };
+            ((INotifyCollectionChanged)vm.ActivityLog.Entries).CollectionChanged += _logScrollHandler;
         }
     }
 

@@ -408,6 +408,7 @@ public partial class App : System.Windows.Application
         RecoveryManager.OnDisengage();
 
         _overlayViewModel?.StopTimers();
+        _mainViewModel?.ProcessRouter.Dispose();
 
         // Unregister hotkey
         if (_hotkeyRegistered && _dashboardWindow != null)

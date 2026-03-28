@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 44
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 45
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,61 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 45 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix all findings from DEFENSIVE_AUDIT_V2.md
+
+### What Was Done
+
+Fixed all 17 findings from the defensive coding audit:
+
+**HIGH (3):**
+1. TrayIconManager — replaced 7 `Application.Current.Dispatcher` calls with null-safe `?.` operator
+2. ProcessRouterViewModel — implemented IDisposable, dispose _pruneTimer, wired in App.OnExit
+3. PruneExitedProcesses — replaced per-PID Process.GetProcessById() with single Process.GetProcesses() + HashSet lookup
+
+**MEDIUM (8):**
+4. AppConfig.Load — added config version migration (v<3 → v3 with log + save)
+5. CcdMapper.ApplyOverride — added null check throwing ArgumentException
+6. VCacheDriverManager — log warning when registry value type is not int
+7. GameDetector.LoadKnownGames — count and log skipped malformed entries
+8. PerformanceMonitor — track per-core load counter availability, skip failed cores
+9. ProcessPickerWindow — moved LoadProcesses to background thread via Task.Run + async/await
+10. OverlayWindow — tightened saved position bounds check (200px/80px margins), fallback to corner position
+11. DashboardWindow — stored CollectionChanged handler in field for future unsubscription
+
+**LOW (6):**
+12. GpuMonitor — replaced `_idleSkipCounter++` with `Interlocked.Increment`
+13. CcdMapper.ParseL3Caches — added bounds check before Marshal.PtrToStructure
+14. RecoveryManager.AddModifiedProcess — added 500ms debounce timer for batching rapid writes
+15. ProcessEntryViewModel XAML — verified TextTrimming="CharacterEllipsis" already present (no change needed)
+16. LogEntryViewModel — truncate display name to 50 chars in DetailText
+17. SettingsViewModel.Apply — call `_config.Validate()` before `_config.Save()`
+
+### Files Modified (14)
+
+```
+src/X3DCcdOptimizer/Tray/TrayIconManager.cs — null-safe dispatcher calls
+src/X3DCcdOptimizer/ViewModels/ProcessRouterViewModel.cs — IDisposable, optimized prune, null-safe dispatcher
+src/X3DCcdOptimizer/App.xaml.cs — ProcessRouter.Dispose() in OnExit
+src/X3DCcdOptimizer/Config/AppConfig.cs — version migration in Load()
+src/X3DCcdOptimizer/Core/CcdMapper.cs — ApplyOverride null check, ParseL3Caches bounds check
+src/X3DCcdOptimizer/Core/VCacheDriverManager.cs — log unexpected registry type
+src/X3DCcdOptimizer/Core/GameDetector.cs — count/log skipped known_games.json entries
+src/X3DCcdOptimizer/Core/PerformanceMonitor.cs — per-core load counter tracking
+src/X3DCcdOptimizer/Views/ProcessPickerWindow.xaml.cs — async LoadProcesses on background thread
+src/X3DCcdOptimizer/Views/OverlayWindow.xaml.cs — tighter position bounds for monitor disconnect
+src/X3DCcdOptimizer/Views/DashboardWindow.xaml.cs — stored CollectionChanged handler in field
+src/X3DCcdOptimizer/Core/GpuMonitor.cs — Interlocked.Increment for idle skip counter
+src/X3DCcdOptimizer/Core/RecoveryManager.cs — 500ms debounce on AddModifiedProcess writes
+src/X3DCcdOptimizer/ViewModels/LogEntryViewModel.cs — truncate display name to 50 chars
+src/X3DCcdOptimizer/ViewModels/SettingsViewModel.cs — Validate() before Save() in Apply()
+SESSION_LOG.md — session 45 changelog
+```
 
 ---
 

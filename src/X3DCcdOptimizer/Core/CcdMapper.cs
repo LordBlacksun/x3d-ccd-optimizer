@@ -154,6 +154,9 @@ public static class CcdMapper
             if (relationship == Kernel32.RelationCache)
             {
                 // CACHE_RELATIONSHIP starts at offset 8 (after the header)
+                if (offset + 8 + Marshal.SizeOf<CACHE_RELATIONSHIP>() > bufferSize)
+                    break;
+
                 var cachePtr = IntPtr.Add(ptr, 8);
                 var cacheRel = Marshal.PtrToStructure<CACHE_RELATIONSHIP>(cachePtr);
 
@@ -255,6 +258,9 @@ public static class CcdMapper
 
     private static void ApplyOverride(CpuTopology topology, CcdOverrideConfig ovr)
     {
+        if (ovr.VCacheCores == null || ovr.FrequencyCores == null)
+            throw new ArgumentException("CCD override requires both VCacheCores and FrequencyCores");
+
         topology.VCacheCores = ovr.VCacheCores!;
         topology.FrequencyCores = ovr.FrequencyCores!;
         topology.VCacheMask = CoresMask(ovr.VCacheCores!);

@@ -153,6 +153,7 @@ public class GameDetector
 
             if (doc.RootElement.TryGetProperty("games", out var gamesArray))
             {
+                int skipped = 0;
                 foreach (var game in gamesArray.EnumerateArray())
                 {
                     if (game.TryGetProperty("exe", out var exeEl) && game.TryGetProperty("name", out var nameEl))
@@ -161,8 +162,17 @@ public class GameDetector
                         var name = nameEl.GetString();
                         if (exe != null && name != null)
                             result[exe] = name;
+                        else
+                            skipped++;
+                    }
+                    else
+                    {
+                        skipped++;
                     }
                 }
+
+                if (skipped > 0)
+                    Log.Warning("Skipped {Count} malformed entries in known_games.json", skipped);
             }
         }
         catch (Exception ex)

@@ -39,8 +39,7 @@ public class GpuMonitor : IDisposable
         // When idle (no game detected), skip every other query to reduce WMI overhead
         if (!IsGameActive)
         {
-            _idleSkipCounter++;
-            if (_idleSkipCounter % 2 != 0)
+            if (Interlocked.Increment(ref _idleSkipCounter) % 2 != 0)
                 return 0;
         }
 

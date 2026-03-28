@@ -117,12 +117,12 @@ public class TrayIconManager : IDisposable
 
         _monitorItem.Checked = _viewModel.CurrentMode == OperationMode.Monitor;
         _monitorItem.Click += (_, _) =>
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
                 _viewModel.CurrentMode = OperationMode.Monitor);
 
         _optimizeItem.Checked = _viewModel.CurrentMode == OperationMode.Optimize;
         _optimizeItem.Click += (_, _) =>
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
                 _viewModel.CurrentMode = OperationMode.Optimize);
 
         menu.Items.Add(_monitorItem);
@@ -131,11 +131,11 @@ public class TrayIconManager : IDisposable
 
         var dashboardItem = new WinForms.ToolStripMenuItem("Open Dashboard");
         dashboardItem.Click += (_, _) =>
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(ShowDashboard);
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(ShowDashboard);
         menu.Items.Add(dashboardItem);
 
         _overlayItem.Click += (_, _) =>
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
             {
                 _viewModel.IsOverlayVisible = !_viewModel.IsOverlayVisible;
                 _viewModel.OnPropertyChanged(nameof(MainViewModel.OverlayButtonText));
@@ -146,7 +146,7 @@ public class TrayIconManager : IDisposable
 
         var settingsItem = new WinForms.ToolStripMenuItem("Settings...");
         settingsItem.Click += (_, _) =>
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
                 _viewModel.OpenSettingsCommand.Execute(null));
         menu.Items.Add(settingsItem);
 
@@ -163,7 +163,7 @@ public class TrayIconManager : IDisposable
 
         var aboutItem = new WinForms.ToolStripMenuItem("About");
         aboutItem.Click += (_, _) =>
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
                 System.Windows.MessageBox.Show(
                     "X3D Dual CCD Optimizer v1.0.0\n\nMonitor and optimize CCD affinity for AMD Ryzen processors.\n\nGPL v2 — github.com/LordBlacksun/x3d-ccd-optimizer",
                     "About", MessageBoxButton.OK, MessageBoxImage.Information));
@@ -172,7 +172,7 @@ public class TrayIconManager : IDisposable
 
         var exitItem = new WinForms.ToolStripMenuItem("Exit");
         exitItem.Click += (_, _) =>
-            System.Windows.Application.Current.Dispatcher.BeginInvoke(() =>
+            System.Windows.Application.Current?.Dispatcher?.BeginInvoke(() =>
                 System.Windows.Application.Current.Shutdown());
         menu.Items.Add(exitItem);
 

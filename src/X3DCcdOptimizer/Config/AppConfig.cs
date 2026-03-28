@@ -195,7 +195,15 @@ public class AppConfig
                 var json = File.ReadAllText(ConfigPath);
                 var config = JsonSerializer.Deserialize<AppConfig>(json, JsonOptions);
                 if (config != null)
+                {
+                    if (config.Version < 3)
+                    {
+                        try { Serilog.Log.Information("Migrating config from v{Old} to v3", config.Version); } catch { }
+                        config.Version = 3;
+                        config.Save();
+                    }
                     return config;
+                }
             }
         }
         catch (Exception ex)

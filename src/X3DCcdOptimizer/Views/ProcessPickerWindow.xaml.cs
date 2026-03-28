@@ -35,10 +35,22 @@ public partial class ProcessPickerWindow : Window
         _alreadyAssigned = new HashSet<string>(alreadyAssigned, StringComparer.OrdinalIgnoreCase);
         _currentGameExe = currentGameExe;
         InitializeComponent();
-        Loaded += (_, _) => LoadProcesses(showAll: false);
+        Loaded += async (_, _) => await LoadProcessesAsync(showAll: false);
     }
 
-    private void LoadProcesses(bool showAll)
+    private async Task LoadProcessesAsync(bool showAll)
+    {
+        CountText.Text = "Loading...";
+
+        var items = await Task.Run(() => EnumerateProcesses(showAll));
+
+        _allItems = items;
+        _filteredItems = _allItems;
+        ProcessList.ItemsSource = new ObservableCollection<ProcessPickerItem>(_filteredItems);
+        CountText.Text = $"{_filteredItems.Count} processes";
+    }
+
+    private List<ProcessPickerItem> EnumerateProcesses(bool showAll)
     {
         var seen = new Dictionary<string, ProcessPickerItem>(StringComparer.OrdinalIgnoreCase);
         var windowsDir = Environment.GetFolderPath(Environment.SpecialFolder.Windows)
@@ -96,15 +108,12 @@ public partial class ProcessPickerWindow : Window
             }
         }
 
-        _allItems = seen.Values.OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
-        _filteredItems = _allItems;
-        ProcessList.ItemsSource = new ObservableCollection<ProcessPickerItem>(_filteredItems);
-        CountText.Text = $"{_filteredItems.Count} processes";
+        return seen.Values.OrderBy(p => p.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    private void OnShowAllChanged(object sender, RoutedEventArgs e)
+    private async void OnShowAllChanged(object sender, RoutedEventArgs e)
     {
-        LoadProcesses(ShowAllCheckBox.IsChecked == true);
+        await LoadProcessesAsync(ShowAllCheckBox.IsChecked == true);
     }
 
     private void OnConfirm(object sender, RoutedEventArgs e)

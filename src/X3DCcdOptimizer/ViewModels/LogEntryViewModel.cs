@@ -18,6 +18,8 @@ public class LogEntryViewModel
     {
         Timestamp = evt.Timestamp.ToString("HH:mm:ss");
         var displayProcess = evt.DisplayName ?? evt.ProcessName;
+        if (displayProcess.Length > 50)
+            displayProcess = displayProcess[..47] + "...";
         DetailText = string.IsNullOrEmpty(displayProcess)
             ? evt.Detail
             : $"{displayProcess} {evt.Detail}";

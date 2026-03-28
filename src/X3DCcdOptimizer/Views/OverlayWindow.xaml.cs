@@ -25,18 +25,22 @@ public partial class OverlayWindow : Window
         _appliedPosition = overlayConfig.OverlayPosition;
         InitializeComponent();
 
-        // Restore position
+        // Restore position — tighter bounds to handle monitor disconnect
         if (overlayConfig.Position is [var x, var y])
         {
             var left = SystemParameters.VirtualScreenLeft;
             var top = SystemParameters.VirtualScreenTop;
             var right = left + SystemParameters.VirtualScreenWidth;
             var bottom = top + SystemParameters.VirtualScreenHeight;
-            if (x >= left && x < right - 50 && y >= top && y < bottom - 50)
+            if (x >= left && x <= right - 200 && y >= top && y <= bottom - 80)
             {
                 Left = x;
                 Top = y;
                 WindowStartupLocation = WindowStartupLocation.Manual;
+            }
+            else
+            {
+                ApplyCornerPosition(overlayConfig.OverlayPosition);
             }
         }
         else

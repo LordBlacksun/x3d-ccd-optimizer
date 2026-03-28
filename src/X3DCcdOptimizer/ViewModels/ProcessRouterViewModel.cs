@@ -7,7 +7,7 @@ using X3DCcdOptimizer.Models;
 
 namespace X3DCcdOptimizer.ViewModels;
 
-public class ProcessRouterViewModel : ViewModelBase
+public class ProcessRouterViewModel : ViewModelBase, IDisposable
 {
     private readonly string _ccd0Name;
     private readonly string _ccd1Name;
@@ -112,28 +112,27 @@ public class ProcessRouterViewModel : ViewModelBase
 
     private void PruneExitedProcesses()
     {
-        Application.Current?.Dispatcher.BeginInvoke(() =>
+        // Build live PID set once instead of per-PID kernel calls
+        HashSet<int> livePids;
+        try
+        {
+            var processes = Process.GetProcesses();
+            livePids = new HashSet<int>(processes.Length);
+            foreach (var p in processes)
+            {
+                livePids.Add(p.Id);
+                p.Dispose();
+            }
+        }
+        catch { return; }
+
+        Application.Current?.Dispatcher?.BeginInvoke(() =>
         {
             var toRemove = new List<ProcessEntryViewModel>();
 
             foreach (var entry in Processes)
             {
-                var deadPids = new List<int>();
-                foreach (var pid in entry.Pids)
-                {
-                    try
-                    {
-                        using var proc = Process.GetProcessById(pid);
-                        if (proc.HasExited)
-                            deadPids.Add(pid);
-                    }
-                    catch (ArgumentException)
-                    {
-                        deadPids.Add(pid);
-                    }
-                    catch { }
-                }
-
+                var deadPids = entry.Pids.Where(pid => !livePids.Contains(pid)).ToList();
                 foreach (var pid in deadPids)
                     entry.Pids.Remove(pid);
 
@@ -154,5 +153,12 @@ public class ProcessRouterViewModel : ViewModelBase
     private void UpdateEmptyVisibility()
     {
         EmptyVisibility = Processes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    public void Dispose()
+    {
+        _pruneTimer.Stop();
+        _pruneTimer.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

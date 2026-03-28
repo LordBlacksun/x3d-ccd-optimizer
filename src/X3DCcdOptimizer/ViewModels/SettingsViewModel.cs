@@ -476,6 +476,7 @@ public class SettingsViewModel : ViewModelBase
         _config.BackgroundApps = BackgroundApps.Select(b => b.Exe).ToList();
         _config.ExcludedProcesses = [.. ExcludedProcesses];
 
+        _config.Validate();
         _config.Save();
         Log.Information("Settings saved");
     }

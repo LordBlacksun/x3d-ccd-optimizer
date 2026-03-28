@@ -13,6 +13,7 @@ public class PerformanceMonitor : IDisposable
     private readonly IntPtr[] _loadCounters;
     private readonly IntPtr[] _freqCounters;
     private readonly bool[] _freqAvailable;
+    private readonly bool[] _loadAvailable;
     private readonly object _disposeLock = new();
     private volatile bool _disposed;
     private volatile bool _firstCollectionDone;
@@ -25,6 +26,7 @@ public class PerformanceMonitor : IDisposable
         _loadCounters = new IntPtr[topology.TotalLogicalCores];
         _freqCounters = new IntPtr[topology.TotalLogicalCores];
         _freqAvailable = new bool[topology.TotalLogicalCores];
+        _loadAvailable = new bool[topology.TotalLogicalCores];
 
         InitializePdhCounters();
 
@@ -65,12 +67,15 @@ public class PerformanceMonitor : IDisposable
             double freq = 0;
 
             // Read load
-            status = Pdh.PdhGetFormattedCounterValue(
-                _loadCounters[i], Pdh.PDH_FMT_DOUBLE, out _, out var loadVal);
-            if (status == 0 &&
-                (loadVal.CStatus == Pdh.PDH_CSTATUS_VALID_DATA || loadVal.CStatus == Pdh.PDH_CSTATUS_NEW_DATA))
+            if (_loadAvailable[i])
             {
-                load = Math.Clamp(loadVal.doubleValue, 0, 100);
+                status = Pdh.PdhGetFormattedCounterValue(
+                    _loadCounters[i], Pdh.PDH_FMT_DOUBLE, out _, out var loadVal);
+                if (status == 0 &&
+                    (loadVal.CStatus == Pdh.PDH_CSTATUS_VALID_DATA || loadVal.CStatus == Pdh.PDH_CSTATUS_NEW_DATA))
+                {
+                    load = Math.Clamp(loadVal.doubleValue, 0, 100);
+                }
             }
 
             // Read frequency
@@ -144,6 +149,7 @@ public class PerformanceMonitor : IDisposable
                 if (status != 0)
                     Log.Warning("Failed to add load counter for core {Core}: 0x{Status:X8}", i, status);
             }
+            _loadAvailable[i] = status == 0;
 
             // Frequency counter
             string freqPath = $@"\Processor Information(0,{i})\Processor Frequency";

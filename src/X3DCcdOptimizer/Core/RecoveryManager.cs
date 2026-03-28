@@ -25,6 +25,8 @@ public static class RecoveryManager
 
     private static RecoveryState? _currentState;
     private static readonly object _lock = new();
+    private static Timer? _debounceTimer;
+    private static volatile bool _writePending;
 
     /// <summary>
     /// Check if a dirty shutdown occurred and recover if needed.
@@ -240,7 +242,18 @@ public static class RecoveryManager
                 Pid = pid,
                 OriginalMask = $"0x{originalMask.ToInt64():X}"
             });
-            WriteState();
+
+            // Debounce: batch rapid writes during initial migration
+            if (!_writePending)
+            {
+                _writePending = true;
+                _debounceTimer?.Dispose();
+                _debounceTimer = new Timer(_ =>
+                {
+                    _writePending = false;
+                    lock (_lock) { WriteState(); }
+                }, null, 500, Timeout.Infinite);
+            }
         }
     }
 
@@ -251,6 +264,9 @@ public static class RecoveryManager
     {
         lock (_lock)
         {
+            _debounceTimer?.Dispose();
+            _debounceTimer = null;
+            _writePending = false;
             _currentState = null;
             DeleteRecoveryFile();
         }
