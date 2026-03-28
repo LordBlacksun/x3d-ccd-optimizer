@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Settings — X3D CCD Optimizer"
-        Width="520" Height="620"
+        Width="580" Height="640"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
         Background="{StaticResource BgPrimaryBrush}"
@@ -60,7 +60,7 @@
                                   Width="280" HorizontalAlignment="Left"
                                   IsEnabled="{Binding IsStrategyAvailable}"
                                   Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                  ToolTip="Affinity Pinning directly assigns game threads to the V-Cache CCD. Driver Preference tells AMD's own driver to prefer V-Cache — lighter touch but may take a moment to apply."
+                                  ToolTip="Affinity Pinning directly assigns game threads to the V-Cache CCD. Driver Preference tells AMD's own driver to prefer V-Cache."
                                   AutomationProperties.Name="Optimization strategy">
                             <ComboBoxItem Content="Affinity Pinning (default)" Tag="affinityPinning"/>
                             <ComboBoxItem Content="Driver Preference (AMD V-Cache)" Tag="driverPreference" IsEnabled="{Binding IsDriverAvailable}"/>
@@ -79,7 +79,7 @@
                         </TextBlock>
                         <Slider Minimum="1000" Maximum="5000" Value="{Binding PollingIntervalMs}"
                                 TickFrequency="500" IsSnapToTickEnabled="True"
-                                ToolTip="How often the app checks for running games. Lower = faster detection, slightly more CPU usage."
+                                ToolTip="How often the app checks for running games."
                                 AutomationProperties.Name="Polling interval slider"/>
 
                         <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
@@ -87,14 +87,14 @@
                         </TextBlock>
                         <Slider Minimum="500" Maximum="5000" Value="{Binding DashboardRefreshMs}"
                                 TickFrequency="500" IsSnapToTickEnabled="True"
-                                ToolTip="How often the dashboard updates core load and frequency. Lower = smoother display, slightly more CPU usage."
+                                ToolTip="How often the dashboard updates core load and frequency."
                                 AutomationProperties.Name="Dashboard refresh interval slider"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
 
-            <!-- Tab 2: Game List -->
-            <TabItem Header="G_ames" AutomationProperties.Name="Games settings tab">
+            <!-- Tab 2: Process Rules -->
+            <TabItem Header="_Process Rules" AutomationProperties.Name="Process rules settings tab">
                 <Grid Margin="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -102,136 +102,212 @@
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Manual games -->
-                    <DockPanel Grid.Column="0">
-                        <TextBlock DockPanel.Dock="Top" Text="Manual Games" Style="{StaticResource EmphasisText}" Margin="0,0,0,6"/>
-                        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,6,0,0">
-                            <TextBox Width="140" Text="{Binding NewGameText, UpdateSourceTrigger=PropertyChanged}"
-                                     Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                                     BorderThickness="1" BorderBrush="{StaticResource BorderDefaultBrush}" Padding="4,2"
-                                     ToolTip="Type a game executable name (e.g., game.exe) and click Add."
-                                     AutomationProperties.Name="New game executable name"/>
-                            <Button Content="Add" Command="{Binding AddGameCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                    Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add game to manual list"/>
-                            <Button Content="Remove" Command="{Binding RemoveGameCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                    Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Remove selected game"/>
-                        </StackPanel>
-                        <ListBox ItemsSource="{Binding ManualGames}" SelectedItem="{Binding SelectedGame}"
+                    <!-- Left: V-Cache CCD (Games) -->
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Foreground="{StaticResource AccentGreenBrush}"
+                                   FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6">
+                            <Run Text="&#xE83D;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
+                            <Run Text="V-Cache CCD (Games)"/>
+                        </TextBlock>
+
+                        <ListBox Grid.Row="1" ItemsSource="{Binding ManualGames}" SelectedItem="{Binding SelectedGame}"
                                  Background="{StaticResource BgSecondaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
                                  BorderBrush="{StaticResource BorderDefaultBrush}" FontFamily="{StaticResource FontMono}" FontSize="11"
-                                 ToolTip="Games you've manually added. These are always detected regardless of GPU usage."
-                                 AutomationProperties.Name="Manual games list"/>
-                    </DockPanel>
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ToolTip="Games pinned to V-Cache CCD in Optimize mode."
+                                 AutomationProperties.Name="V-Cache games list"/>
 
-                    <!-- Known games (read-only) -->
-                    <DockPanel Grid.Column="2">
-                        <TextBlock DockPanel.Dock="Top" Style="{StaticResource EmphasisText}" Margin="0,0,0,6">
-                            <Run Text="Known Database"/> <Run Text="{Binding KnownGames.Count, StringFormat=({0} games)}" Foreground="{StaticResource TextTertiaryBrush}"/>
+                        <StackPanel Grid.Row="2" Margin="0,6,0,0">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding NewGameText, UpdateSourceTrigger=PropertyChanged}"
+                                         Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                                         BorderThickness="1" BorderBrush="{StaticResource BorderDefaultBrush}" Padding="4,2"
+                                         ToolTip="Type a game exe or search the known database."
+                                         AutomationProperties.Name="New game executable name"/>
+                                <Button Grid.Column="1" Content="Add" Command="{Binding AddGameCommand}" Style="{StaticResource SubtleButtonStyle}"
+                                        Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add game"/>
+                            </Grid>
+                            <ListBox ItemsSource="{Binding GameSuggestions}" MaxHeight="80" FontSize="10"
+                                     Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextSecondaryBrush}"
+                                     BorderBrush="{StaticResource BorderDefaultBrush}" FontFamily="{StaticResource FontMono}"
+                                     Margin="0,2,0,0"
+                                     Visibility="{Binding GameSuggestions.Count, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
+                                     SelectionChanged="OnGameSuggestionSelected"
+                                     AutomationProperties.Name="Game autocomplete suggestions"/>
+                            <Button Content="Remove" Command="{Binding RemoveGameCommand}" Style="{StaticResource SubtleButtonStyle}"
+                                    Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                    AutomationProperties.Name="Remove selected game"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Right: Frequency CCD (Background) -->
+                    <Grid Grid.Column="2">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Foreground="{StaticResource AccentBlueBrush}"
+                                   FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6">
+                            <Run Text="&#xE7EE;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
+                            <Run Text="Frequency CCD (Background)"/>
                         </TextBlock>
-                        <ListBox ItemsSource="{Binding KnownGames}"
-                                 Background="{StaticResource BgSecondaryBrush}" Foreground="{StaticResource TextSecondaryBrush}"
-                                 BorderBrush="{StaticResource BorderDefaultBrush}" FontSize="11" IsEnabled="False"
-                                 ToolTip="Built-in database of known games. These are detected automatically."
-                                 AutomationProperties.Name="Known games database"/>
-                    </DockPanel>
+
+                        <ListBox Grid.Row="1" ItemsSource="{Binding BackgroundApps}" SelectedItem="{Binding SelectedBg}"
+                                 Background="{StaticResource BgSecondaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                                 BorderBrush="{StaticResource BorderDefaultBrush}" FontFamily="{StaticResource FontMono}" FontSize="11"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 ToolTip="Apps explicitly pinned to Frequency CCD in Optimize mode."
+                                 AutomationProperties.Name="Background apps list"/>
+
+                        <StackPanel Grid.Row="2" Margin="0,6,0,0">
+                            <Button Content="Pick Running Processes..." Command="{Binding AddBgFromPickerCommand}"
+                                    Style="{StaticResource SubtleButtonStyle}" Padding="8,3"
+                                    HorizontalAlignment="Stretch"
+                                    ToolTip="Select from currently running processes."
+                                    AutomationProperties.Name="Open process picker"/>
+                            <Grid Margin="0,4,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding NewBgText, UpdateSourceTrigger=PropertyChanged}"
+                                         Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                                         BorderThickness="1" BorderBrush="{StaticResource BorderDefaultBrush}" Padding="4,2"
+                                         ToolTip="Type an exe name to add manually."
+                                         AutomationProperties.Name="New background app executable name"/>
+                                <Button Grid.Column="1" Content="Add" Command="{Binding AddBgCommand}" Style="{StaticResource SubtleButtonStyle}"
+                                        Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add background app"/>
+                            </Grid>
+                            <ListBox ItemsSource="{Binding BgSuggestions}" MaxHeight="80" FontSize="10"
+                                     Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextSecondaryBrush}"
+                                     BorderBrush="{StaticResource BorderDefaultBrush}" FontFamily="{StaticResource FontMono}"
+                                     Margin="0,2,0,0"
+                                     Visibility="{Binding BgSuggestions.Count, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
+                                     SelectionChanged="OnBgSuggestionSelected"
+                                     AutomationProperties.Name="Background app autocomplete suggestions"/>
+                            <Button Content="Remove" Command="{Binding RemoveBgCommand}" Style="{StaticResource SubtleButtonStyle}"
+                                    Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
+                                    AutomationProperties.Name="Remove selected background app"/>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
             </TabItem>
 
             <!-- Tab 3: Detection -->
             <TabItem Header="_Detection" AutomationProperties.Name="Detection settings tab">
-                <StackPanel Margin="8,4">
-                    <CheckBox Content="Enable GPU auto-detection" IsChecked="{Binding AutoDetectEnabled}"
-                              Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
-                              ToolTip="Automatically detect games by monitoring GPU usage. Catches games not in the manual or known lists."
-                              AutomationProperties.Name="Enable GPU auto-detection checkbox"/>
-                    <CheckBox Content="Require foreground window" IsChecked="{Binding RequireForeground}"
-                              Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
-                              ToolTip="Only detect a game if it's the active foreground window. Prevents background GPU tasks from triggering detection."
-                              AutomationProperties.Name="Require foreground window checkbox"/>
+                <Grid Margin="8,4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
-                        <Run Text="GPU threshold:"/> <Run Text="{Binding GpuThreshold, StringFormat={}{0}%}" FontWeight="SemiBold"/>
-                    </TextBlock>
-                    <Slider Minimum="20" Maximum="90" Value="{Binding GpuThreshold}"
-                            TickFrequency="5" IsSnapToTickEnabled="True"
-                            ToolTip="Minimum GPU usage to consider a process a game. Lower catches more games but may trigger on non-games."
-                            AutomationProperties.Name="GPU threshold slider"/>
+                    <StackPanel Grid.Row="0">
+                        <CheckBox Content="Enable GPU auto-detection" IsChecked="{Binding AutoDetectEnabled}"
+                                  Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
+                                  ToolTip="Automatically detect games by monitoring GPU usage."
+                                  AutomationProperties.Name="Enable GPU auto-detection checkbox"/>
+                        <CheckBox Content="Require foreground window" IsChecked="{Binding RequireForeground}"
+                                  Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
+                                  ToolTip="Only detect a game if it's the active foreground window."
+                                  AutomationProperties.Name="Require foreground window checkbox"/>
+                    </StackPanel>
 
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
-                        <Run Text="Detection delay:"/> <Run Text="{Binding DetectionDelay, StringFormat={}{0}s}" FontWeight="SemiBold"/>
-                    </TextBlock>
-                    <Slider Minimum="1" Maximum="15" Value="{Binding DetectionDelay}"
-                            TickFrequency="1" IsSnapToTickEnabled="True"
-                            ToolTip="How long a process must stay above the GPU threshold before being treated as a game."
-                            AutomationProperties.Name="Detection delay slider"/>
+                    <StackPanel Grid.Row="1">
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
+                            <Run Text="GPU threshold:"/> <Run Text="{Binding GpuThreshold, StringFormat={}{0}%}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <Slider Minimum="20" Maximum="90" Value="{Binding GpuThreshold}"
+                                TickFrequency="5" IsSnapToTickEnabled="True"
+                                AutomationProperties.Name="GPU threshold slider"/>
 
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
-                        <Run Text="Exit delay:"/> <Run Text="{Binding ExitDelay, StringFormat={}{0}s}" FontWeight="SemiBold"/>
-                    </TextBlock>
-                    <Slider Minimum="5" Maximum="30" Value="{Binding ExitDelay}"
-                            TickFrequency="5" IsSnapToTickEnabled="True"
-                            ToolTip="How long to wait after a game drops below GPU threshold before restoring CPU settings. Prevents flicker during loading screens."
-                            AutomationProperties.Name="Exit delay slider"/>
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
+                            <Run Text="Detection delay:"/> <Run Text="{Binding DetectionDelay, StringFormat={}{0}s}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <Slider Minimum="1" Maximum="15" Value="{Binding DetectionDelay}"
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                AutomationProperties.Name="Detection delay slider"/>
 
-                    <TextBlock Text="Excluded Processes:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"/>
-                    <ListBox ItemsSource="{Binding ExcludedProcesses}" SelectedItem="{Binding SelectedExclusion}"
-                             Height="120" Background="{StaticResource BgSecondaryBrush}"
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
+                            <Run Text="Exit delay:"/> <Run Text="{Binding ExitDelay, StringFormat={}{0}s}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <Slider Minimum="5" Maximum="30" Value="{Binding ExitDelay}"
+                                TickFrequency="5" IsSnapToTickEnabled="True"
+                                AutomationProperties.Name="Exit delay slider"/>
+                    </StackPanel>
+
+                    <TextBlock Grid.Row="2" Text="Excluded Processes:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"/>
+
+                    <ListBox Grid.Row="3" ItemsSource="{Binding ExcludedProcesses}" SelectedItem="{Binding SelectedExclusion}"
+                             Background="{StaticResource BgSecondaryBrush}"
                              Foreground="{StaticResource TextPrimaryBrush}" BorderBrush="{StaticResource BorderDefaultBrush}"
                              FontFamily="{StaticResource FontMono}" FontSize="11"
-                             ToolTip="Processes that should never be detected as games, even if they use the GPU."
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             ToolTip="Processes that should never be detected as games."
                              AutomationProperties.Name="Excluded processes list"/>
-                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+
+                    <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,4,0,0">
                         <TextBox Width="160" Text="{Binding NewExclusionText, UpdateSourceTrigger=PropertyChanged}"
                                  Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
                                  BorderThickness="1" BorderBrush="{StaticResource BorderDefaultBrush}" Padding="4,2"
-                                 ToolTip="Type a process name to exclude (e.g., chrome.exe)."
                                  AutomationProperties.Name="New exclusion process name"/>
                         <Button Content="Add" Command="{Binding AddExclusionCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add process to exclusion list"/>
+                                Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add exclusion"/>
                         <Button Content="Remove" Command="{Binding RemoveExclusionCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Remove selected exclusion"/>
+                                Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Remove exclusion"/>
                     </StackPanel>
-                </StackPanel>
+                </Grid>
             </TabItem>
 
             <!-- Tab 4: Overlay -->
             <TabItem Header="_Overlay" AutomationProperties.Name="Overlay settings tab">
-                <StackPanel Margin="8,4">
-                    <CheckBox Content="Enable overlay" IsChecked="{Binding OverlayEnabled}"
-                              Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
-                              ToolTip="Show a compact always-on-top overlay with CCD load info while gaming."
-                              AutomationProperties.Name="Enable overlay checkbox"/>
-                    <CheckBox Content="Show CCD load bars" IsChecked="{Binding ShowOverlayBars}"
-                              Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
-                              ToolTip="Display per-CCD average load bars in the overlay."
-                              AutomationProperties.Name="Show CCD load bars checkbox"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="8">
+                    <StackPanel Margin="8,4">
+                        <CheckBox Content="Enable overlay" IsChecked="{Binding OverlayEnabled}"
+                                  Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
+                                  AutomationProperties.Name="Enable overlay checkbox"/>
+                        <CheckBox Content="Show CCD load bars" IsChecked="{Binding ShowOverlayBars}"
+                                  Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
+                                  AutomationProperties.Name="Show CCD load bars checkbox"/>
 
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
-                        <Run Text="Opacity:"/> <Run Text="{Binding OverlayOpacity, StringFormat={}{0:F0}%}" FontWeight="SemiBold"/>
-                    </TextBlock>
-                    <Slider Minimum="30" Maximum="100" Value="{Binding OverlayOpacity}"
-                            TickFrequency="5" IsSnapToTickEnabled="True"
-                            ToolTip="Overlay transparency. Lower = more see-through."
-                            AutomationProperties.Name="Overlay opacity slider"/>
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
+                            <Run Text="Opacity:"/> <Run Text="{Binding OverlayOpacity, StringFormat={}{0:F0}%}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <Slider Minimum="30" Maximum="100" Value="{Binding OverlayOpacity}"
+                                TickFrequency="5" IsSnapToTickEnabled="True"
+                                AutomationProperties.Name="Overlay opacity slider"/>
 
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
-                        <Run Text="Auto-hide after:"/> <Run Text="{Binding AutoHideSeconds, StringFormat={}{0}s}" FontWeight="SemiBold"/>
-                    </TextBlock>
-                    <Slider Minimum="5" Maximum="30" Value="{Binding AutoHideSeconds}"
-                            TickFrequency="5" IsSnapToTickEnabled="True"
-                            ToolTip="Seconds before the overlay fades out after the last event. Move your mouse over it to bring it back."
-                            AutomationProperties.Name="Auto-hide delay slider"/>
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
+                            <Run Text="Auto-hide after:"/> <Run Text="{Binding AutoHideSeconds, StringFormat={}{0}s}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <Slider Minimum="5" Maximum="30" Value="{Binding AutoHideSeconds}"
+                                TickFrequency="5" IsSnapToTickEnabled="True"
+                                AutomationProperties.Name="Auto-hide delay slider"/>
 
-                    <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
-                        <Run Text="Pixel shift every:"/> <Run Text="{Binding PixelShiftMinutes, StringFormat={}{0} min}" FontWeight="SemiBold"/>
-                    </TextBlock>
-                    <Slider Minimum="1" Maximum="10" Value="{Binding PixelShiftMinutes}"
-                            TickFrequency="1" IsSnapToTickEnabled="True"
-                            ToolTip="Minutes between overlay position shifts to prevent OLED burn-in."
-                            AutomationProperties.Name="Pixel shift interval slider"/>
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4">
+                            <Run Text="Pixel shift every:"/> <Run Text="{Binding PixelShiftMinutes, StringFormat={}{0} min}" FontWeight="SemiBold"/>
+                        </TextBlock>
+                        <Slider Minimum="1" Maximum="10" Value="{Binding PixelShiftMinutes}"
+                                TickFrequency="1" IsSnapToTickEnabled="True"
+                                AutomationProperties.Name="Pixel shift interval slider"/>
 
-                    <TextBlock Text="Hotkey: Ctrl+Shift+O" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,12,0,0"/>
-                </StackPanel>
+                        <TextBlock Text="Hotkey: Ctrl+Shift+O" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <!-- Tab 5: Advanced -->
@@ -240,7 +316,6 @@
                     <TextBlock Text="Log level:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,4"/>
                     <ComboBox SelectedValue="{Binding LogLevel}" Width="160" HorizontalAlignment="Left"
                               Background="{StaticResource BgTertiaryBrush}" Foreground="{StaticResource TextPrimaryBrush}"
-                              ToolTip="Controls how much detail is written to the log file. Debug is most verbose, Error is least."
                               AutomationProperties.Name="Log level selector">
                         <ComboBoxItem Content="Debug"/>
                         <ComboBoxItem Content="Information"/>
@@ -251,18 +326,15 @@
                     <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
                         <Button Content="Open Log Folder" Command="{Binding OpenLogFolderCommand}"
                                 Style="{StaticResource SubtleButtonStyle}" Padding="10,4" Margin="0,0,8,0"
-                                ToolTip="Open the folder containing log files in Windows Explorer."
                                 AutomationProperties.Name="Open log folder button"/>
                         <Button Content="Open Config Folder" Command="{Binding OpenConfigFolderCommand}"
                                 Style="{StaticResource SubtleButtonStyle}" Padding="10,4"
-                                ToolTip="Open the folder containing config.json in Windows Explorer."
                                 AutomationProperties.Name="Open config folder button"/>
                     </StackPanel>
 
                     <Button Content="_Reset All to Defaults" Command="{Binding ResetDefaultsCommand}"
                             Style="{StaticResource SubtleButtonStyle}" Padding="10,4"
                             HorizontalAlignment="Left" Margin="0,16,0,0"
-                            ToolTip="Reset all settings to their default values. This cannot be undone."
                             AutomationProperties.Name="Reset all settings to defaults button"/>
                 </StackPanel>
             </TabItem>

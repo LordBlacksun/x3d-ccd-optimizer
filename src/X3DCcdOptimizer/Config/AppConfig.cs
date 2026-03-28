@@ -152,6 +152,9 @@ public class AppConfig
         "code.exe"
     ];
 
+    [JsonPropertyName("backgroundApps")]
+    public List<string> BackgroundApps { get; set; } = [];
+
     [JsonPropertyName("protectedProcesses")]
     public List<string> ProtectedProcesses { get; set; } =
     [

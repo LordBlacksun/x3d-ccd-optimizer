@@ -29,6 +29,9 @@ public class AffinityManager : IDisposable
         "Registry", "dllhost", "conhost", "dasHost", "sihost", "taskhostw"
     };
 
+    public static bool IsCriticalSystemProcess(string processName) =>
+        CriticalSystemProcesses.Contains(processName);
+
     public event Action<AffinityEvent>? AffinityChanged;
 
     public OperationMode Mode { get; private set; }
@@ -43,13 +46,16 @@ public class AffinityManager : IDisposable
         get { lock (_syncLock) return _engaged; }
     }
 
+    private HashSet<string> _backgroundApps;
+
     public AffinityManager(CpuTopology topology, IEnumerable<string> configProtected, OperationMode initialMode,
-        OptimizeStrategy strategy = OptimizeStrategy.AffinityPinning)
+        OptimizeStrategy strategy = OptimizeStrategy.AffinityPinning, IEnumerable<string>? backgroundApps = null)
     {
         _topology = topology;
         Mode = initialMode;
         _strategy = strategy;
         _protectedProcesses = new HashSet<string>(HardcodedProtected, StringComparer.OrdinalIgnoreCase);
+        _backgroundApps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var name in configProtected)
         {
@@ -57,6 +63,17 @@ public class AffinityManager : IDisposable
                 ? name[..^4]
                 : name;
             _protectedProcesses.Add(clean);
+        }
+
+        if (backgroundApps != null)
+        {
+            foreach (var name in backgroundApps)
+            {
+                var clean = name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                    ? name[..^4]
+                    : name;
+                _backgroundApps.Add(clean);
+            }
         }
 
         if (strategy == OptimizeStrategy.AffinityPinning)
@@ -307,9 +324,10 @@ public class AffinityManager : IDisposable
 
                         if (Kernel32.SetProcessAffinityMask(handle, _topology.FrequencyMask))
                         {
+                            var reason = IsBackgroundApp(name) ? "rule" : "auto";
                             RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, originalMask);
                             Emit(AffinityAction.Migrated, name + ".exe", proc.Id,
-                                $"→ CCD1 (Frequency, mask {_topology.FrequencyMaskHex})");
+                                $"\u2192 Frequency CCD ({reason})");
                         }
                     }
                 }
@@ -469,6 +487,27 @@ public class AffinityManager : IDisposable
         _originalMasks.Clear();
     }
 
+    public void UpdateBackgroundApps(IEnumerable<string> apps)
+    {
+        lock (_syncLock)
+        {
+            var newSet = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var name in apps)
+            {
+                var clean = name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                    ? name[..^4]
+                    : name;
+                newSet.Add(clean);
+            }
+            _backgroundApps = newSet;
+        }
+    }
+
+    private bool IsBackgroundApp(string processName)
+    {
+        return _backgroundApps.Contains(processName);
+    }
+
     private bool IsProtected(string processName)
     {
         return _protectedProcesses.Contains(processName);
@@ -547,9 +586,10 @@ public class AffinityManager : IDisposable
 
                             if (Kernel32.SetProcessAffinityMask(handle, _topology.FrequencyMask))
                             {
+                                var reason = IsBackgroundApp(name) ? "rule" : "auto";
                                 RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, originalMask);
                                 Emit(AffinityAction.Migrated, name + ".exe", proc.Id,
-                                    $"\u2192 CCD1 (Frequency, mask {_topology.FrequencyMaskHex})");
+                                    $"\u2192 Frequency CCD ({reason})");
                             }
                         }
                     }

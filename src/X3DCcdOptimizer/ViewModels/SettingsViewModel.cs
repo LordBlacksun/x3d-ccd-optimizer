@@ -5,7 +5,9 @@ using System.Windows;
 using Serilog;
 using X3DCcdOptimizer.Config;
 using X3DCcdOptimizer.Core;
+using X3DCcdOptimizer.Data;
 using X3DCcdOptimizer.Models;
+using X3DCcdOptimizer.Views;
 
 namespace X3DCcdOptimizer.ViewModels;
 
@@ -40,6 +42,12 @@ public class SettingsViewModel : ViewModelBase
 
     // Advanced
     private string _logLevel;
+
+    // Process Rules — autocomplete
+    private string? _newGameText;
+    private string? _newBgText;
+    private ObservableCollection<string> _gameSuggestions = [];
+    private ObservableCollection<string> _bgSuggestions = [];
 
     // General
     public bool StartWithWindows { get => _startWithWindows; set => SetProperty(ref _startWithWindows, value); }
@@ -81,14 +89,48 @@ public class SettingsViewModel : ViewModelBase
     // Advanced
     public string LogLevel { get => _logLevel; set => SetProperty(ref _logLevel, value); }
 
-    // Game lists
+    // Process Rules
     public ObservableCollection<string> ManualGames { get; } = [];
+    public ObservableCollection<string> BackgroundApps { get; } = [];
     public ObservableCollection<string> ExcludedProcesses { get; } = [];
     public ObservableCollection<string> KnownGames { get; } = [];
+
+    public string? NewGameText
+    {
+        get => _newGameText;
+        set
+        {
+            if (SetProperty(ref _newGameText, value))
+                UpdateGameSuggestions(value);
+        }
+    }
+    public ObservableCollection<string> GameSuggestions
+    {
+        get => _gameSuggestions;
+        set => SetProperty(ref _gameSuggestions, value);
+    }
+
+    public string? NewBgText
+    {
+        get => _newBgText;
+        set
+        {
+            if (SetProperty(ref _newBgText, value))
+                UpdateBgSuggestions(value);
+        }
+    }
+    public ObservableCollection<string> BgSuggestions
+    {
+        get => _bgSuggestions;
+        set => SetProperty(ref _bgSuggestions, value);
+    }
 
     // Commands
     public RelayCommand AddGameCommand { get; }
     public RelayCommand RemoveGameCommand { get; }
+    public RelayCommand AddBgCommand { get; }
+    public RelayCommand AddBgFromPickerCommand { get; }
+    public RelayCommand RemoveBgCommand { get; }
     public RelayCommand AddExclusionCommand { get; }
     public RelayCommand RemoveExclusionCommand { get; }
     public RelayCommand OpenLogFolderCommand { get; }
@@ -96,9 +138,12 @@ public class SettingsViewModel : ViewModelBase
     public RelayCommand ResetDefaultsCommand { get; }
 
     public string? SelectedGame { get; set; }
+    public string? SelectedBg { get; set; }
     public string? SelectedExclusion { get; set; }
-    public string? NewGameText { get; set; }
     public string? NewExclusionText { get; set; }
+
+    // Known games database for autocomplete (display → exe)
+    private readonly List<(string DisplayName, string Exe)> _knownGamesList = [];
 
     public SettingsViewModel(AppConfig config, CpuTopology topology)
     {
@@ -130,9 +175,10 @@ public class SettingsViewModel : ViewModelBase
         _logLevel = config.Logging.Level;
 
         foreach (var g in config.ManualGames) ManualGames.Add(g);
+        foreach (var b in config.BackgroundApps) BackgroundApps.Add(b);
         foreach (var e in config.ExcludedProcesses) ExcludedProcesses.Add(e);
 
-        // Load known games DB names
+        // Load known games DB for autocomplete
         try
         {
             var dir = AppContext.BaseDirectory;
@@ -148,7 +194,10 @@ public class SettingsViewModel : ViewModelBase
                             var name = nameEl.GetString();
                             var exe = exeEl.GetString();
                             if (name != null && exe != null)
+                            {
+                                _knownGamesList.Add((name, exe));
                                 KnownGames.Add($"{name} ({exe})");
+                            }
                         }
                     }
             }
@@ -162,10 +211,9 @@ public class SettingsViewModel : ViewModelBase
                 var game = NewGameText.Trim();
                 if (!game.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                     game += ".exe";
-                if (!ManualGames.Contains(game))
+                if (!ManualGames.Contains(game, StringComparer.OrdinalIgnoreCase))
                     ManualGames.Add(game);
                 NewGameText = "";
-                OnPropertyChanged(nameof(NewGameText));
             }
         });
 
@@ -173,6 +221,42 @@ public class SettingsViewModel : ViewModelBase
         {
             if (SelectedGame != null)
                 ManualGames.Remove(SelectedGame);
+        });
+
+        AddBgCommand = new RelayCommand(() =>
+        {
+            if (!string.IsNullOrWhiteSpace(NewBgText))
+            {
+                var proc = NewBgText.Trim();
+                if (!proc.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                    proc += ".exe";
+                if (!BackgroundApps.Contains(proc, StringComparer.OrdinalIgnoreCase))
+                    BackgroundApps.Add(proc);
+                NewBgText = "";
+            }
+        });
+
+        AddBgFromPickerCommand = new RelayCommand(() =>
+        {
+            var allAssigned = new List<string>();
+            allAssigned.AddRange(ManualGames);
+            allAssigned.AddRange(BackgroundApps);
+
+            var picker = new ProcessPickerWindow(allAssigned);
+            if (picker.ShowDialog() == true)
+            {
+                foreach (var exe in picker.SelectedExes)
+                {
+                    if (!BackgroundApps.Contains(exe, StringComparer.OrdinalIgnoreCase))
+                        BackgroundApps.Add(exe);
+                }
+            }
+        });
+
+        RemoveBgCommand = new RelayCommand(() =>
+        {
+            if (SelectedBg != null)
+                BackgroundApps.Remove(SelectedBg);
         });
 
         AddExclusionCommand = new RelayCommand(() =>
@@ -237,6 +321,40 @@ public class SettingsViewModel : ViewModelBase
         });
     }
 
+    private void UpdateGameSuggestions(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || text.Length < 2)
+        {
+            GameSuggestions = [];
+            return;
+        }
+
+        var matches = _knownGamesList
+            .Where(g => g.DisplayName.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+                        g.Exe.Contains(text, StringComparison.OrdinalIgnoreCase))
+            .Take(8)
+            .Select(g => g.Exe)
+            .ToList();
+        GameSuggestions = new ObservableCollection<string>(matches);
+    }
+
+    private void UpdateBgSuggestions(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || text.Length < 2)
+        {
+            BgSuggestions = [];
+            return;
+        }
+
+        var matches = BackgroundAppSuggestions.Apps
+            .Where(a => a.DisplayName.Contains(text, StringComparison.OrdinalIgnoreCase) ||
+                        a.Exe.Contains(text, StringComparison.OrdinalIgnoreCase))
+            .Take(8)
+            .Select(a => a.Exe)
+            .ToList();
+        BgSuggestions = new ObservableCollection<string>(matches);
+    }
+
     public void Apply()
     {
         // Start with Windows
@@ -271,8 +389,9 @@ public class SettingsViewModel : ViewModelBase
         // Advanced
         _config.Logging.Level = _logLevel;
 
-        // Game lists
+        // Process rules
         _config.ManualGames = [.. ManualGames];
+        _config.BackgroundApps = [.. BackgroundApps];
         _config.ExcludedProcesses = [.. ExcludedProcesses];
 
         _config.Save();

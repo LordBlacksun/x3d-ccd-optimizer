@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Controls;
 using X3DCcdOptimizer.ViewModels;
 
 namespace X3DCcdOptimizer.Views;
@@ -28,5 +29,23 @@ public partial class SettingsWindow : Window
     {
         if (DataContext is SettingsViewModel vm)
             vm.Apply();
+    }
+
+    private void OnGameSuggestionSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListBox lb && lb.SelectedItem is string exe && DataContext is SettingsViewModel vm)
+        {
+            vm.NewGameText = exe;
+            vm.AddGameCommand.Execute(null);
+        }
+    }
+
+    private void OnBgSuggestionSelected(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is ListBox lb && lb.SelectedItem is string exe && DataContext is SettingsViewModel vm)
+        {
+            vm.NewBgText = exe;
+            vm.AddBgCommand.Execute(null);
+        }
     }
 }

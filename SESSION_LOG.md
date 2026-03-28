@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 21
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 22
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -19,7 +19,8 @@ Development session history for X3D Dual CCD Optimizer.
 - **Compact overlay:** Discord-style toast/pill (auto-width 200-400px), slide-in/out animation (300ms cubic ease), semi-transparent dark (#1A1A1A at 85%), single/two-line contextual messages, opt-in CCD load bars (8px, green V-Cache + blue Freq, toggle in Settings > Overlay), OLED-safe (auto-hide, pixel shift), Ctrl+Shift+O hotkey, draggable, position persisted
 - **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
 - **Monitor/Optimize dual-mode:** Monitor (default, observe-only, all tiers), Optimize (active affinity or driver preference, dual-CCD only, tier-gated, continuous re-migration every 3s for new processes)
-- **Settings window:** 5-tab modal dialog (General, Games, Detection, Overlay, Advanced) with live-apply. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
+- **Settings window:** 5-tab modal dialog (General, Process Rules, Detection, Overlay, Advanced) with live-apply. Process Rules tab: left column "V-Cache CCD (Games)" with known-game autocomplete, right column "Frequency CCD (Background)" with live process picker dialog + background app suggestions autocomplete. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
+- **Background app pinning:** `backgroundApps` config list. AffinityManager distinguishes rule-based vs auto migration in log entries ("rule" vs "auto"). Live process picker filters out C:\Windows\, CriticalSystemProcesses, already-assigned; shows FileDescription from FileVersionInfo; deduplicates by process name.
 - **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
 - **Admin elevation:** app.manifest requires administrator. Startup check with relaunch dialog if not elevated. First-launch trust dialog explaining admin usage (persisted via `hasDismissedAdminDialog` config flag). UAC shield indicator in dashboard footer.
@@ -27,7 +28,7 @@ Development session history for X3D Dual CCD Optimizer.
 - **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Session 17 defensive coding audit (0 critical, 0 high, 2 medium, 6 low, 22 info — all 8 actionable findings fixed in session 18). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
 
-**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (4-tier), `Core/GameLibraryScanner.cs` (Steam+Epic scanner), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
+**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (4-tier), `Core/GameLibraryScanner.cs` (Steam+Epic scanner), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `Data/BackgroundAppSuggestions.cs` (autocomplete hints), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings), `Views/ProcessPickerWindow.xaml` (live process picker)
 
 **What's next:** Phase 3 remaining (settings window enhancements, per-game profiles), Phase 4 (CI/CD, trimmed build, installer, release)
 
@@ -44,6 +45,43 @@ Development session history for X3D Dual CCD Optimizer.
 - Steam VDF files use Valve KeyValues format (not JSON) — need custom parser; escaped backslashes in paths
 - WPF ComboBox dropdown popup uses SystemColors for background/text — override WindowBrushKey, HighlightBrushKey, ControlTextBrushKey in style for dark theme
 - WPF grid rows with star sizing compete for space — use Auto for fixed-content rows (CCD panels), star for scrollable areas (process router, activity log)
+
+- WPF ListBox inside StackPanel grows unbounded (no scrollbar) — use Grid with `*` row sizing to constrain height
+
+---
+
+## Session 22 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Redesign Games tab as Process Rules tab with background app pinning + process picker
+
+### What Was Done
+
+1. **Process Rules tab** — Replaced "Games" tab with "Process Rules" two-column layout. Left: "V-Cache CCD (Games)" with green accent header, games list with known-game database autocomplete (min 2 chars, searches display name + exe). Right: "Frequency CCD (Background)" with blue accent header, background apps list with live process picker and background app suggestions autocomplete.
+
+2. **Live Process Picker** — New `ProcessPickerWindow` (XAML + code-behind). Scans running processes, filters out `C:\Windows\` paths, CriticalSystemProcesses, already-assigned processes. Shows `FileVersionInfo.FileDescription` with exe name. Deduplicates by process name. Checkbox multi-select. "Show all processes" toggle for power users. All `Process.MainModule` and `FileVersionInfo.GetVersionInfo()` calls wrapped in try/catch.
+
+3. **BackgroundAppSuggestions.cs** — Curated list of ~20 common background apps (browsers, communication, streaming, launchers, utilities) for manual-entry autocomplete fallback.
+
+4. **Config: backgroundApps** — New `List<string>` in `AppConfig`, persisted as `backgroundApps` JSON array. Empty default list. Existing `manualGames` entries load unchanged.
+
+5. **AffinityManager rule vs auto logging** — `MigrateBackground()` and `MigrateNewProcesses()` now distinguish rule-based vs auto migration: processes matching `_backgroundApps` set log as "→ Frequency CCD (rule)", others as "→ Frequency CCD (auto)". Constructor accepts optional `backgroundApps` parameter. Public `UpdateBackgroundApps()` method for runtime updates. Public static `IsCriticalSystemProcess()` for process picker.
+
+6. **Scrollbar fix** — Detection tab exclusion list: replaced fixed `Height="120"` ListBox inside StackPanel with Grid rows using `*` sizing. Process Rules tab uses Grid rows with `*` sizing for both columns. All ListBoxes now have constrained heights and working scrollbars.
+
+### Files Modified (7) + Files Created (3)
+
+```
+Config/AppConfig.cs — backgroundApps list
+Core/AffinityManager.cs — backgroundApps set, rule/auto distinction, IsCriticalSystemProcess(), UpdateBackgroundApps()
+App.xaml.cs — pass backgroundApps to AffinityManager constructor
+ViewModels/SettingsViewModel.cs — BackgroundApps collection, process picker command, autocomplete
+Views/SettingsWindow.xaml — Process Rules tab (was Games), Grid layouts, scrollbar fixes
+Views/SettingsWindow.xaml.cs — autocomplete selection handlers
+NEW: Data/BackgroundAppSuggestions.cs — curated background app list for autocomplete
+NEW: Views/ProcessPickerWindow.xaml — live process picker dialog
+NEW: Views/ProcessPickerWindow.xaml.cs — process enumeration, filtering, FileVersionInfo
+```
 
 ---
 
