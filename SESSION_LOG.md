@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 46
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 47
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -61,6 +61,36 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 47 — 2026-03-28
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Dashboard layout redesign — compact cores, tabbed lower section, responsive sizing
+
+### What Was Done
+
+1. **Compact core cells** — CCD panels now use 8x1 single-row grid (UniformGrid Rows="1") instead of 2x4. Each cell shows core number (top, 9px), load percentage (center, 20px bold), frequency (below, 9px), and load bar (bottom, 3px). CoreTileStyle reduced: padding 6,4, margin 2, minHeight 56. Halves vertical height of CCD panels.
+
+2. **Compact CCD panel header** — Collapsed 3-line header (name, core range, role) into a single DockPanel row. Badge, L3 size, core range, and role label all inline. Reduced panel padding from 16,14 to 12,8.
+
+3. **Tabbed lower section** — Replaced stacked Process Router + Activity Log with TabControl. Two tabs: "Process Router" and "Activity Log". Default to Activity Log tab (SelectedIndex="1"). Tab section gets all remaining vertical space via `*` row sizing.
+
+4. **Responsive window sizing** — Default 1100x750 (up from 860x740), MinWidth 900 (up from 680), MinHeight 600 (up from 540). Main grid uses `Auto` for status/CCD/footer + `*` for tab section. All content scales with window — CCD cores stretch wider on larger monitors, tab section fills remaining height. No fixed pixel heights on main sections.
+
+5. **Window size persistence** — Already existed via AppConfig.Ui.WindowPosition/WindowSize (saved in DashboardWindow.xaml.cs SaveWindowState, restored in RestoreWindowState). Off-screen detection already handled.
+
+### Files Modified (6)
+
+```
+src/X3DCcdOptimizer/Views/DashboardWindow.xaml — new 4-row grid, tabbed lower section, responsive sizing
+src/X3DCcdOptimizer/Views/CcdPanel.xaml — single-row DockPanel header, UniformGrid Rows="1"
+src/X3DCcdOptimizer/Views/CoreTile.xaml — vertical compact layout (core#, %, freq, bar)
+src/X3DCcdOptimizer/Themes/Controls.xaml — CoreTileStyle compact: padding 6,4, margin 2, minHeight 56
+src/X3DCcdOptimizer/Themes/Typography.xaml — BigNumber font 20px (down from 26px)
+SESSION_LOG.md — session 47 changelog
+```
 
 ---
 

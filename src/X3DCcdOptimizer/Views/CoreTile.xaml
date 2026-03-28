@@ -9,42 +9,38 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
 
-            <!-- Core index -->
-            <TextBlock Grid.Row="0" Grid.Column="0"
+            <!-- Core index (small, top) -->
+            <TextBlock Grid.Row="0"
                        Text="{Binding CoreLabel}"
                        FontFamily="{StaticResource FontMono}"
-                       FontSize="10" FontWeight="SemiBold"
+                       FontSize="9" FontWeight="SemiBold"
                        Foreground="{StaticResource TextTertiaryBrush}"
-                       HorizontalAlignment="Left"/>
+                       HorizontalAlignment="Center"/>
 
-            <!-- Frequency -->
-            <TextBlock Grid.Row="0" Grid.Column="1"
-                       Text="{Binding FrequencyText}"
-                       FontFamily="{StaticResource FontMono}"
-                       FontSize="10"
-                       Foreground="{StaticResource TextTertiaryBrush}"
-                       HorizontalAlignment="Right"/>
-
-            <!-- Load percentage — big mono number -->
-            <TextBlock Grid.Row="1" Grid.ColumnSpan="2"
+            <!-- Load percentage (large, center) -->
+            <TextBlock Grid.Row="1"
                        Text="{Binding LoadText}"
                        Style="{StaticResource BigNumber}"
                        HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       Margin="0,0,0,0"/>
+                       VerticalAlignment="Center"/>
 
-            <!-- Load bar at bottom — thin accent indicator -->
-            <Border Grid.Row="2" Grid.ColumnSpan="2"
-                    Height="2" CornerRadius="1"
-                    Background="{StaticResource BorderSubtleBrush}"
-                    Margin="0,4,0,0">
-                <Border CornerRadius="1" HorizontalAlignment="Left"
+            <!-- Frequency (small, below percentage) -->
+            <TextBlock Grid.Row="2"
+                       Text="{Binding FrequencyText}"
+                       FontFamily="{StaticResource FontMono}"
+                       FontSize="9"
+                       Foreground="{StaticResource TextTertiaryBrush}"
+                       HorizontalAlignment="Center"
+                       Margin="0,0,0,2"/>
+
+            <!-- Load bar (thin, bottom) -->
+            <Border Grid.Row="3"
+                    Height="3" CornerRadius="1.5"
+                    Background="{StaticResource BorderSubtleBrush}">
+                <Border CornerRadius="1.5" HorizontalAlignment="Left"
                         Background="{StaticResource AccentGreenBrush}"
                         Opacity="0.7">
                     <Border.Width>
