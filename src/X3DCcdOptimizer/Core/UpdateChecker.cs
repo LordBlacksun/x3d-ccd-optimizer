@@ -105,8 +105,6 @@ public static class UpdateChecker
             string? downloadUrl = null;
             string? assetName = null;
 
-            // Find the best ZIP asset: prefer standalone (self-contained), fall back to framework-dependent
-            string? fallbackUrl = null;
             if (doc.RootElement.TryGetProperty("assets", out var assets))
             {
                 foreach (var asset in assets.EnumerateArray())
@@ -115,22 +113,13 @@ public static class UpdateChecker
                     var url = asset.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
                     if (name == null || url == null) continue;
 
-                    if (!name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) continue;
-
-                    if (name.Contains("standalone", StringComparison.OrdinalIgnoreCase))
+                    if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
                     {
-                        // Prefer standalone — no runtime dependency
                         downloadUrl = url;
                         assetName = name;
                         break;
                     }
-
-                    // Remember first ZIP as fallback
-                    fallbackUrl ??= url;
-                    assetName ??= name;
                 }
-
-                downloadUrl ??= fallbackUrl;
             }
 
             if (downloadUrl == null)

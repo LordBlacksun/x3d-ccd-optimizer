@@ -40,13 +40,10 @@ For the full technical breakdown, see the Wiki: [AMD X3D Scheduling Explained](.
 
 ## Download & Install
 
-### Option 1: Installer (recommended)
-Download `X3DCcdOptimizer-Setup-*.exe` from the latest [Release](../../releases). The installer sets up the app in Program Files, creates Start Menu shortcuts, and configures the "Run as administrator" compatibility flag automatically.
+### Option 1: Portable ZIP (recommended)
+Download the `.zip` from the latest [Release](../../releases), extract anywhere, and run `X3DCcdOptimizer.exe`. No installation or runtime needed — everything is included. You'll need to right-click and "Run as administrator" or accept the UAC prompt.
 
-### Option 2: Portable ZIP
-Download the `.zip` from [Releases](../../releases), extract anywhere, and run `X3DCcdOptimizer.exe`. No installation required. You'll need to right-click and "Run as administrator" manually, or set the compatibility flag yourself.
-
-### Option 3: Build from source
+### Option 2: Build from source
 ```bash
 # Requires .NET 8 SDK
 git clone https://github.com/LordBlacksun/x3d-ccd-optimizer.git
@@ -54,8 +51,6 @@ cd x3d-ccd-optimizer
 dotnet build
 dotnet run --project src/X3DCcdOptimizer
 ```
-
-> **Note:** The app requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) for the portable ZIP and installer builds. The self-contained build (~155 MB) bundles the runtime.
 
 ## Quick Start
 
@@ -79,7 +74,7 @@ Non-AMD processors are also detected and shown a separate exit dialog.
 ## Requirements
 
 - **OS:** Windows 10/11 64-bit
-- **Runtime:** [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) (included in self-contained builds)
+- **Runtime:** None — the release includes everything needed
 - **CPU:** AMD Ryzen dual-CCD processor (7950X3D, 9950X3D, 5950X, etc.)
 - **Admin:** Required for process affinity and driver registry access
 
