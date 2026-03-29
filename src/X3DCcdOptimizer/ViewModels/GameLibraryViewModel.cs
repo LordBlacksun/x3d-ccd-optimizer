@@ -101,8 +101,14 @@ public class GameLibraryViewModel : ViewModelBase
     {
         Games.Clear();
 
-        // Load built-in games from known_games.json
+        // Track seen exe names to prevent duplicates (built-in wins over scanned)
+        var seenExes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var builtInCount = 0;
+        var steamCount = 0;
+        var epicCount = 0;
+        var gogCount = 0;
+
+        // Load built-in games from known_games.json (highest priority)
         try
         {
             var path = Path.Combine(AppContext.BaseDirectory, "Data", "known_games.json");
@@ -115,7 +121,7 @@ public class GameLibraryViewModel : ViewModelBase
                     {
                         var exe = g.TryGetProperty("exe", out var e) ? e.GetString() : null;
                         var name = g.TryGetProperty("name", out var n) ? n.GetString() : null;
-                        if (exe != null && name != null)
+                        if (exe != null && name != null && seenExes.Add(exe))
                         {
                             Games.Add(new GameLibraryItemViewModel(name, exe, "builtin"));
                             builtInCount++;
@@ -129,36 +135,11 @@ public class GameLibraryViewModel : ViewModelBase
             Log.Debug("Failed to load built-in games for library view: {Error}", ex.Message);
         }
 
-        // Load scanned games from LiteDB
-        var steamCount = 0;
-        var epicCount = 0;
-        var gogCount = 0;
-        var builtInExes = new HashSet<string>(Games.Select(g => g.ExeName), StringComparer.OrdinalIgnoreCase);
-
+        // Load scanned games from LiteDB — skip any exe already covered by built-in
         foreach (var game in _gameDb.GetAllGames().OrderBy(g => g.DisplayName))
         {
-            // Skip if already in built-in list
-            if (builtInExes.Contains(game.ProcessName))
-            {
-                // Update the built-in entry's artwork if available from scanned data
-                if (game.ArtworkPath != null)
-                {
-                    var existing = Games.FirstOrDefault(g =>
-                        string.Equals(g.ExeName, game.ProcessName, StringComparison.OrdinalIgnoreCase)
-                        && g.Source == "builtin");
-                    if (existing != null && existing.ArtworkImage == null)
-                    {
-                        // Can't update built-in entry's artwork after creation — just count
-                    }
-                }
-                switch (game.Source)
-                {
-                    case "steam": steamCount++; break;
-                    case "epic": epicCount++; break;
-                    case "gog": gogCount++; break;
-                }
-                continue;
-            }
+            if (!seenExes.Add(game.ProcessName))
+                continue; // Already shown (built-in or earlier scanned entry)
 
             Games.Add(new GameLibraryItemViewModel(
                 game.DisplayName, game.ProcessName, game.Source,
@@ -172,10 +153,9 @@ public class GameLibraryViewModel : ViewModelBase
             }
         }
 
-        // Sort: built-in first, then alphabetically by name
+        // Sort: alphabetically by name
         var sorted = Games
-            .OrderBy(g => g.Source == "builtin" ? 0 : 1)
-            .ThenBy(g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
             .ToList();
         Games.Clear();
         foreach (var g in sorted)
