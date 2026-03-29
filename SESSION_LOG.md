@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 50
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 51
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -66,6 +66,28 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 51 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Complete documentation rewrite — all docs, wiki, CLAUDE.md, PDF
+
+### Changes
+- **README.md:** Full rewrite. Dual-CCD only processor table, new features (Game Library, GOG, box art, About dialog), updated detection pipeline, adaptive polling, single-CCD friendly exit messaging.
+- **All 11 wiki pages:** Full rewrite. Removed all single-CCD/4-tier/monitoring-only references. Updated: Home, Getting-Started, How-It-Works, Installation (exact trust dialog text), AMD-X3D-Scheduling-Explained (References section with citations), Settings-Explained (all 5 tabs with every setting including Rescan + Artwork), Process-Rules, The-Overlay, FAQ (new Q&As for launchers, network, updated single-CCD answer), Troubleshooting (GOG, artwork, library scan issues), AMD-V-Cache-Driver-Preference (default strategy section).
+- **CLAUDE.md:** Full rewrite. ProcessorTier model, 4-tier detection, 13-value AffinityAction enum, all new files in project structure, Phase 3 marked COMPLETE, polling intervals section, NuGet dependencies, all new technical details.
+- **generate_manual.py:** Version updated from "1.0.0-beta" to "1.0.0", subtitle updated.
+- **PDF regenerated:** 67 KB, includes all updated wiki content.
+
+### Verification
+- Zero hits for: "monitoring only", "4-tier", "500+"
+- Zero hits for phantom features: "Detection cooldown", "Compact mode", "Show overlay on startup"
+- All "3 seconds" references are overlay pixel shift (correct)
+- Trust dialog text in Installation.md matches App.xaml.cs
+- Settings-Explained.md matches SettingsWindow.xaml (all 5 tabs)
+- Supported processor table is dual-CCD only everywhere
 
 ---
 

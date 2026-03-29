@@ -1,0 +1,936 @@
+<html><head><meta charset='utf-8'><style>
+    body { font-family: 'Segoe UI', sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #222; line-height: 1.6; }
+    h1 { color: #1a1a2e; border-bottom: 2px solid #e74c3c; padding-bottom: 6px; page-break-before: always; }
+    h2 { color: #2c3e50; border-bottom: 1px solid #ddd; }
+    h3 { color: #34495e; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    th { background: #2c3e50; color: white; padding: 8px 10px; text-align: left; }
+    td { border: 1px solid #ddd; padding: 6px 10px; }
+    tr:nth-child(even) { background: #f8f9fa; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 3px; font-family: Consolas, monospace; }
+    pre { background: #f5f5f5; border: 1px solid #ddd; padding: 10px; overflow-x: auto; }
+    blockquote { border-left: 3px solid #e74c3c; margin-left: 0; padding: 8px 16px; background: #fdf6f6; color: #555; }
+    a { color: #2980b9; }
+    .cover { text-align: center; padding: 100px 0; page-break-after: always; }
+    .cover h1 { border: none; font-size: 2.5em; }
+    </style></head><body>
+<div class='cover'><h1>X3D CCD Optimizer</h1><p>User Manual</p><p>Version 1.0.0-beta</p></div>
+<h1>X3D CCD Optimizer -- User Manual</h1>
+<p>Welcome to the X3D CCD Optimizer documentation. This guide covers everything you need to know to install, configure, and use the application.</p>
+<h2>What is X3D CCD Optimizer?</h2>
+<p>X3D CCD Optimizer is a free, open-source Windows application for AMD Ryzen dual-CCD processors. It provides real-time CCD monitoring, automatic game detection with library scanning (Steam, Epic Games, GOG Galaxy), and optional CPU affinity optimization. For dual-CCD X3D chips, it ensures your games run on the V-Cache CCD for optimal performance while keeping background apps on the frequency-optimized CCD. For standard dual-CCD chips, it provides CCD isolation and visibility.</p>
+<h2>Why does this exist?</h2>
+<p>AMD's Ryzen 7950X3D, 9950X3D, and similar chips have two CCDs (Core Complex Dies) -- one with a large V-Cache for gaming performance, and one optimized for clock speed. Windows 11 has some awareness of this topology through CPPC and AMD's V-Cache driver, but these mechanisms work behind the scenes. Users have no way to see which CCD their game is actually running on, or to explicitly control which processes go where.</p>
+<p>AMD and Microsoft have made improvements on Windows -- including CPPC-based scheduler hints and the V-Cache driver registry preference -- but these solutions work implicitly and give users no visibility or direct control. This tool provides explicit, transparent control over CCD affinity.</p>
+<h2>Who is this for?</h2>
+<ul>
+<li>Owners of AMD Ryzen X3D dual-CCD processors (7950X3D, 9950X3D, 7900X3D, 9900X3D)</li>
+<li>Owners of any AMD Ryzen dual-CCD processor who want CCD affinity control and visibility</li>
+<li>Anyone currently using Process Lasso for X3D core management who wants a free, open-source, purpose-built alternative</li>
+</ul>
+<h2>Supported Processors</h2>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Examples</th>
+<th>Features</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Dual-CCD X3D</td>
+<td>7950X3D, 9950X3D, 7900X3D, 9900X3D</td>
+<td>Full optimization -- game pinning + background migration</td>
+</tr>
+<tr>
+<td>Dual-CCD Standard</td>
+<td>7950X, 7900X, 5950X, 5900X, 9950X, 9900X</td>
+<td>CCD isolation -- pin games to one CCD, background to the other</td>
+</tr>
+</tbody>
+</table>
+<p>Processors that are not dual-CCD AMD Ryzen (including single-CCD processors and non-AMD systems) are detected at startup and shown a friendly exit dialog explaining why the tool is not applicable.</p>
+<h2>Quick Start</h2>
+<ol>
+<li><a href="https://github.com/LordBlacksun/X3D-CCD-Optimizer/releases">Download the latest release</a></li>
+<li>Run <code>X3DCcdOptimizer.exe</code> -- accept the UAC prompt</li>
+<li>The app starts in <strong>Monitor</strong> mode, showing your CCD topology and core activity</li>
+<li>A background library scan (Steam, Epic Games, GOG Galaxy) runs automatically on first launch</li>
+<li>Open <strong>Settings --&gt; Process Rules</strong> to configure which games and background apps to manage</li>
+<li>Toggle to <strong>Optimize</strong> mode when you're ready to activate affinity pinning</li>
+</ol>
+<h2>Documentation</h2>
+<ul>
+<li>Installation -- Download, requirements, first launch</li>
+<li>Getting Started -- Understanding Monitor and Optimize modes</li>
+<li>AMD X3D Scheduling Explained -- How AMD's built-in CCD management works, and where this tool fits</li>
+<li>Process Rules -- Configuring games and background apps</li>
+<li>The Overlay -- In-game overlay setup and options</li>
+<li>Settings Explained -- Every setting and what it does</li>
+<li>How It Works -- Technical explanation of CCDs, V-Cache, and scheduling</li>
+<li>FAQ -- Common questions answered</li>
+<li>Troubleshooting -- Solving common issues</li>
+<li>AMD V-Cache Driver Preference -- Alternative optimization strategy</li>
+</ul>
+<h1>Getting Started</h1>
+<h2>The Dashboard</h2>
+<p>The main window is split into several areas:</p>
+<ul>
+<li><strong>Status bar (top):</strong> Shows current mode (Monitor or Optimize), detected game, and what the app is doing</li>
+<li><strong>CCD panels:</strong> Compact 4x2 core grid layout showing CCD0 (V-Cache) and CCD1 (Frequency) with per-core load heatmaps, frequency display, L3 cache sizes, and core ranges</li>
+<li><strong>Tabbed lower section:</strong> Three tabs -- Process Router (managed processes grouped by CCD assignment), Activity Log (timestamped record of every action), and Game Library (detected games from Steam, Epic Games, and GOG Galaxy library scans)</li>
+<li><strong>Footer:</strong> Processor model, core/thread count, polling interval, and ADMIN badge confirming elevated rights</li>
+</ul>
+<h2>Unsupported Processors</h2>
+<p>X3D CCD Optimizer requires a dual-CCD AMD Ryzen processor. If the app detects a single-CCD processor or a non-AMD system, it displays a friendly exit dialog explaining why the tool is not needed for that hardware. Single-CCD processors do not have the cross-CCD scheduling problem this tool solves.</p>
+<h2>Two Modes</h2>
+<h3>Monitor Mode (Default)</h3>
+<p>Monitor mode is completely passive. The app:
+- Watches for game processes using its detection pipeline (manual rules, 65 built-in known games, Steam/Epic/GOG library scan, GPU heuristic)
+- Shows per-core CPU usage on each CCD
+- Logs when it detects a game that <em>would</em> be optimized
+- Does <strong>not</strong> change any process affinity</p>
+<p>This is the safe mode. Use it to verify the app detects your games correctly before enabling optimization.</p>
+<h3>Optimize Mode</h3>
+<p>Optimize mode actively manages CPU affinity:
+- Detected games are pinned to the V-Cache CCD (CCD0)
+- Background apps matching your Process Rules are pinned to the Frequency CCD (CCD1)
+- Unmatched processes are also migrated to CCD1 to keep the V-Cache CCD clear (excluding system and protected processes)
+- Polling runs at 4 seconds when idle, switching to 2 seconds when a game is detected (and back to 4 seconds when the game exits)
+- Re-migration of newly launched processes occurs within 5 seconds
+- Every action is logged with a timestamp</p>
+<p>To switch modes, click the <strong>Monitor</strong> / <strong>Optimize</strong> toggle in the top right corner of the dashboard.</p>
+<h3>What happens when you switch to Optimize?</h3>
+<ol>
+<li>The app scans all running processes</li>
+<li>If a known game is running, it pins that game's process to CCD0</li>
+<li>Background apps in your rules get pinned to CCD1</li>
+<li>Other non-system processes get migrated to CCD1</li>
+<li>The continuous loop starts -- polling at 2 seconds (active) to catch new processes and apply rules</li>
+<li>The activity log shows every action in real time</li>
+</ol>
+<h3>What happens when you switch back to Monitor?</h3>
+<ol>
+<li>All affinities are restored to their original values</li>
+<li>The continuous scan continues in passive mode (4-second polling)</li>
+<li>Processes return to their default Windows scheduling behavior</li>
+<li>The activity log records the restoration</li>
+</ol>
+<h2>Library Scanning</h2>
+<p>On first launch, the app automatically performs a background scan of your installed game libraries:
+- <strong>Steam:</strong> Reads ACF manifest files from Steam library folders
+- <strong>Epic Games Store:</strong> Parses JSON manifest files
+- <strong>GOG Galaxy:</strong> Reads the SQLite database combined with registry data</p>
+<p>Scanned games are stored in a local LiteDB database (<code>user_games.db</code>) and appear in the Game Library tab. You can trigger a manual rescan at any time from Settings --&gt; Detection --&gt; Rescan Game Libraries.</p>
+<h2>A Typical Session</h2>
+<ol>
+<li>Launch X3D CCD Optimizer (it starts in Monitor mode)</li>
+<li>Open Settings --&gt; Process Rules, verify your games are listed</li>
+<li>Add any background apps you want pinned to CCD1 (Discord, Chrome, etc.)</li>
+<li>Launch your game</li>
+<li>Toggle to Optimize mode</li>
+<li>Watch the activity log confirm your game is pinned to V-Cache and background apps are on the Frequency CCD</li>
+<li>Play your game</li>
+<li>When done, toggle back to Monitor (or just close the app -- it restores everything on exit)</li>
+</ol>
+<h2>Safe by Design</h2>
+<ul>
+<li><strong>Monitor mode is the default.</strong> Nothing changes until you explicitly toggle to Optimize.</li>
+<li><strong>Affinities are always restored.</strong> When you switch back to Monitor or close the app, everything returns to normal.</li>
+<li><strong>Dirty shutdown recovery.</strong> If the app crashes while in Optimize mode, it saves a recovery file. On next launch, it restores all affinities automatically.</li>
+<li><strong>System processes are protected.</strong> Critical Windows processes (csrss, lsass, dwm, svchost, etc.) are never touched, even with admin rights.</li>
+</ul>
+<h1>How It Works</h1>
+<p>This page explains the technical background in plain terms. You don't need to understand any of this to use the app -- but if you're curious about <em>why</em> it exists and what it does under the hood, read on.</p>
+<h2>What is a CCD?</h2>
+<p>CCD stands for Core Complex Die. It's a physical chiplet on your processor containing CPU cores and L3 cache. AMD's high-end Ryzen processors use two CCDs to reach 16 cores:</p>
+<ul>
+<li><strong>CCD0:</strong> Cores 0-15 (8 cores, 16 threads)</li>
+<li><strong>CCD1:</strong> Cores 16-31 (8 cores, 16 threads)</li>
+</ul>
+<p>Each CCD has its own L3 cache. Cores within the same CCD share cache and communicate quickly. Cores on different CCDs must communicate through the slower Infinity Fabric interconnect.</p>
+<h2>What is V-Cache?</h2>
+<p>V-Cache (3D Vertical Cache) is AMD's technology for stacking extra L3 cache on top of a CCD. On a 7950X3D:</p>
+<ul>
+<li><strong>CCD0:</strong> 96 MB of L3 cache (32 MB base + 64 MB V-Cache stacked on top)</li>
+<li><strong>CCD1:</strong> 32 MB of L3 cache (standard)</li>
+</ul>
+<p>Games benefit enormously from large L3 caches because they constantly access the same data -- textures, game state, physics objects. More cache means fewer slow trips to RAM.</p>
+<h2>The Windows Scheduling Problem</h2>
+<p>Windows has some CCD awareness through CPPC (Collaborative Processor Performance Control) and AMD's V-Cache driver hints. However, the scheduler's decisions are implicit and not always optimal for gaming. In practice, game threads can still land on CCD1, and background apps can still occupy CCD0, competing for V-Cache resources. Users have no visibility into these scheduling decisions and no way to override them without third-party tools.</p>
+<p>The result:</p>
+<ul>
+<li>Your game might place threads on CCD1 (missing out on V-Cache)</li>
+<li>Background apps like Discord and Chrome might land on CCD0 (polluting the V-Cache with non-game data)</li>
+<li>Threads bounce between CCDs, crossing the slow Infinity Fabric unnecessarily</li>
+</ul>
+<p>AMD and Microsoft have taken steps to address this:</p>
+<ul>
+<li><strong>Linux:</strong> AMD shipped a kernel-level patch that makes the scheduler fully CCD-aware. This is the most complete solution.</li>
+<li><strong>Windows -- CPPC hints:</strong> Windows 11 uses Collaborative Processor Performance Control to receive hints about preferred cores from the processor. This helps but operates invisibly and inconsistently.</li>
+<li><strong>Windows -- V-Cache driver:</strong> AMD's <code>amd3dvcache</code> driver exposes a registry-based CCD preference. This is a step in the right direction but is underdocumented, implicit, and doesn't give users visibility into what's happening.</li>
+<li><strong>Windows -- no user-facing control:</strong> None of the Windows-side solutions let you see where your game is actually running, or explicitly decide which processes go where.</li>
+</ul>
+<p>X3D CCD Optimizer fills the control and visibility gap. It doesn't replace AMD's scheduling improvements -- it gives you a transparent layer on top of them, letting you see exactly what's happening across your CCDs and make explicit decisions when the implicit solutions aren't enough.</p>
+<h2>What This App Does</h2>
+<p>X3D CCD Optimizer solves this by directly managing process affinity on dual-CCD AMD Ryzen systems:</p>
+<ol>
+<li>
+<p><strong>Detects your topology:</strong> Reads your processor's CCD layout, identifies which CCD has V-Cache (if applicable), and maps core numbers to CCDs.</p>
+</li>
+<li>
+<p><strong>Detects games:</strong> Uses a four-tier detection pipeline: manual rules (highest priority), 65 built-in known games, library scanning of installed Steam/Epic/GOG games, and GPU usage heuristics for anything not recognized.</p>
+</li>
+<li>
+<p><strong>Pins games to V-Cache:</strong> Sets the game process's CPU affinity mask so it can only run on CCD0 cores. The game's threads stay on V-Cache where they perform best.</p>
+</li>
+<li>
+<p><strong>Migrates background apps:</strong> Sets background processes' affinity masks to CCD1 cores only. This clears CCD0 for the game and prevents cache pollution.</p>
+</li>
+</ol>
+<p>The app offers two optimization strategies: <strong>Affinity Pinning</strong> (directly sets CPU affinity masks for guaranteed CCD isolation) and <strong>Driver Preference</strong> (sets AMD's V-Cache driver registry key to prefer one CCD, working with the scheduler rather than overriding it). Both strategies migrate background apps. See AMD V-Cache Driver Preference for details.</p>
+<ol>
+<li>
+<p><strong>Continuously monitors:</strong> Polling runs at 4 seconds when idle, switching to 2 seconds when a game is detected (active mode). Re-migration of newly launched processes happens within 5 seconds. Open Chrome mid-game? Caught and moved to CCD1 within seconds.</p>
+</li>
+<li>
+<p><strong>Restores on exit:</strong> When you switch back to Monitor mode or close the app, all affinity masks are restored to their original values. No permanent changes.</p>
+</li>
+</ol>
+<h2>Game Detection Pipeline</h2>
+<p>The app uses a four-tier detection pipeline, evaluated in priority order:</p>
+<ol>
+<li><strong>Manual rules</strong> (Settings --&gt; Process Rules) -- highest priority, always wins</li>
+<li><strong>Built-in database</strong> (65 known games) -- case-insensitive exe name matching</li>
+<li><strong>Library scan</strong> -- automatically scans installed games from Steam (ACF manifest files), Epic Games Store (JSON manifests), and GOG Galaxy (SQLite database + registry hybrid). Scanned results are stored in a local LiteDB database (<code>user_games.db</code>).</li>
+<li><strong>GPU heuristic</strong> -- monitors per-process GPU 3D engine utilization via WMI. Requires the process to be in the foreground and exceed the GPU threshold for the configured detection delay.</li>
+</ol>
+<p>Detection source is shown in the activity log: <code>[manual]</code>, <code>[database]</code>, <code>[library]</code>, <code>[auto-detected, GPU: XX%]</code>.</p>
+<h2>Library Scanners</h2>
+<p>The app includes three library scanners that run on first launch and can be triggered manually from Settings --&gt; Detection:</p>
+<ul>
+<li><strong>Steam:</strong> Reads <code>.acf</code> manifest files from each Steam library folder to identify installed games and their executables.</li>
+<li><strong>Epic Games Store:</strong> Parses <code>.item</code> JSON manifest files from Epic's local data directory.</li>
+<li><strong>GOG Galaxy:</strong> Uses a hybrid approach -- reads GOG Galaxy's SQLite database for installed games and cross-references with Windows registry entries for executable paths.</li>
+</ul>
+<h2>CCD1 is Not a Slow Core</h2>
+<p>A common misconception: CCD1 is not like an Intel E-core. It uses the same architecture running at the same clock speeds as CCD0. It just has less L3 cache (32 MB vs 96 MB on X3D chips). For background apps like Discord, Chrome, and Spotify, the cache difference is irrelevant. These apps are not cache-sensitive.</p>
+<p>The only workloads that notice the cache difference are games and certain professional applications with large working sets.</p>
+<h2>CPU Affinity</h2>
+<p>CPU affinity is a Windows feature that restricts which cores a process can use. Every process has an affinity mask -- a bitmask where each bit represents one logical processor. By default, all bits are set (the process can use any core).</p>
+<p>This app modifies that mask to limit processes to specific CCDs. The Windows API call is <code>SetProcessAffinityMask()</code> -- a standard, documented Win32 function that Process Lasso and many other tools use.</p>
+<p>Setting affinity does not:
+- Modify your processor or BIOS settings
+- Change system-wide scheduling
+- Affect other processes not managed by the app
+- Persist after the app restores affinities</p>
+<h2>Performance Impact of the App Itself</h2>
+<p>The app's continuous monitoring loop is lightweight:
+- Polls the process list at 4-second intervals when idle, 2-second intervals when a game is active
+- Only reads process IDs and names -- no expensive operations
+- Checks against in-memory HashSets (nanosecond lookups)
+- The dashboard heatmap uses standard Windows performance counters</p>
+<p>Typical CPU usage of the app itself: under 0.5%.</p>
+<h1>AMD's X3D Scheduling: The Full Picture</h1>
+<p>Before diving into what X3D CCD Optimizer does, it's worth understanding what AMD and Microsoft have already built. The scheduling system for dual-CCD X3D processors is a multi-layered stack -- and when every layer is correctly configured, it works well. The challenge is that it's fragmented, largely invisible, and has a history of not working reliably for many users.</p>
+<p>This page aims to be the most complete plain-English explanation of the system that exists. If something here is wrong, please open a GitHub issue.</p>
+<h2>The Five Layers</h2>
+<h3>Layer 1: CPPC (Collaborative Processor Performance Control)</h3>
+<p>CPPC is an AMD-wide feature, not specific to X3D. It's a communication protocol between the processor firmware and the operating system, delivered through ACPI registers.</p>
+<p>The CPU firmware ranks each core by quality -- how high it can boost, how efficiently it runs at a given voltage. These rankings account for silicon lottery (manufacturing variation) -- not all cores are equal, even on the same CCD.</p>
+<p>Windows uses these rankings to make smarter scheduling decisions. Instead of treating all cores as identical, it knows that core 4 might boost to 5.7 GHz while core 11 peaks at 5.5 GHz. Higher-ranked cores get priority for single-threaded and lightly-threaded workloads.</p>
+<p>On dual-CCD X3D processors, CPPC rankings also reflect the CCD split. CCD1 (frequency-optimized) cores typically receive higher CPPC rankings than CCD0 (V-Cache) cores for general workloads, because CCD1 cores clock higher. The V-Cache CCD's cores are slightly frequency-limited due to the additional 3D-stacked cache on top of the die adding thermal constraints.</p>
+<p>This means for non-gaming tasks, Windows naturally prefers the faster-clocking CCD1 cores -- which is actually the correct default behavior. You want your web browser and productivity apps on the fastest cores.</p>
+<h3>Layer 2: CPPC Dynamic Preferred Cores (BIOS Setting)</h3>
+<p>This is a BIOS-level setting found under AMD CBS &gt; SMU Common Options. It controls how the CCD preference system operates. The exact menu location and naming varies by motherboard manufacturer -- ASUS, MSI, Gigabyte, and ASRock all place it slightly differently, which is a source of confusion.</p>
+<p>The modes:</p>
+<ul>
+<li>
+<p><strong>Auto:</strong> Lets the system decide dynamically. This is the default on most motherboards. In theory, this should "just work." In practice, community testing indicates that Auto often does not reliably trigger correct core parking behavior (this finding was widely publicized by JayzTwoCents in a video examining 7950X3D core parking). Under Auto, the system may prefer the high-frequency CCD1 cores even during gaming, negating the V-Cache advantage.</p>
+</li>
+<li>
+<p><strong>Driver:</strong> Defers the CCD preference decision to the AMD 3D V-Cache driver (Layer 4). Community testing indicates this is the setting that resolves core parking issues on dual-CCD X3D processors. When set to Driver, the installed AMD 3D V-Cache driver service takes explicit control of CCD preference, producing reliable and consistent core parking behavior. <strong>This is the recommended setting for dual-CCD X3D chips.</strong></p>
+</li>
+<li>
+<p><strong>Cache:</strong> Forces preference toward the V-Cache CCD (CCD0) for all workloads. This means even non-gaming tasks will prefer the lower-clocking V-Cache cores. Useful for testing or if you exclusively game on your PC, but suboptimal for mixed workloads since V-Cache cores clock lower than frequency CCD cores.</p>
+</li>
+<li>
+<p><strong>Frequency:</strong> Forces preference toward the frequency CCD (CCD1). Essentially disables V-Cache preference entirely -- the system will avoid CCD0's V-Cache cores for foreground tasks.</p>
+</li>
+</ul>
+<p><strong>The recommended setup for dual-CCD X3D:</strong> Set CPPC Dynamic Preferred Cores to <strong>Driver</strong>, and ensure the AMD chipset drivers (including the 3D V-Cache driver) are installed and the service is running.</p>
+<h3>Layer 3: Windows Game Mode and the GameMode Power Sub-Profile</h3>
+<p>Windows has a built-in concept of "Game Mode" -- accessible under Settings &gt; Gaming &gt; Game Mode. When Game Mode detects a foreground game, it activates a special power sub-profile called GameMode.</p>
+<p>This is not just a "do not disturb" toggle. The GameMode power sub-profile is a core part of AMD's X3D scheduling chain:</p>
+<p><strong>What AMD's chipset driver installs:</strong> When you install AMD's chipset drivers on an X3D system, part of the installation includes PPM (Processor Power Management) provisioning files. These are XML configuration files that modify the Balanced power plan's GameMode sub-profile specifically for X3D processors. They set parameters like:</p>
+<ul>
+<li><code>CPConcurrency</code> -- controls how aggressively the system allows multiple cores to be active simultaneously</li>
+<li><code>CPMinCores</code> -- minimum number of cores that should remain unparked during gaming</li>
+</ul>
+<p><strong>The intended effect:</strong> When the GameMode profile activates (because you're playing a game), the core parking thresholds change. CCD0 (V-Cache) cores become preferred for the foreground game workload, while CCD1 cores may be parked or deprioritized. When you stop gaming, the GameMode profile deactivates, and CPPC rankings revert to favoring CCD1's higher clocks for general tasks.</p>
+<p><strong>Critical detail -- Balanced power plan required:</strong> The GameMode sub-profile modifications are stored within the Balanced power plan. If you're running High Performance, Ultimate Performance, or any custom power plan that doesn't inherit from Balanced, these AMD-specific GameMode modifications don't exist. The core parking behavior won't activate during gaming. This is one of the most common sources of "core parking isn't working" reports in the community -- gamers often switch to High Performance thinking it's better, but it actually disables AMD's X3D-specific scheduling.</p>
+<p><strong>Community-created workarounds:</strong> This power plan dependency has led to community members creating custom power plans that include the X3D-specific GameMode modifications while also offering different default behavior. Notable examples include ManniX-ITA's custom Ryzen power plans on Overclock.net, which attempt to combine AMD's X3D scheduling with more aggressive performance settings.</p>
+<h3>Layer 4: AMD 3D V-Cache Performance Optimizer Driver</h3>
+<p>When you install AMD's chipset drivers on an X3D system, several components are installed:</p>
+<ul>
+<li><strong>AMD 3D V-Cache Performance Optimizer Driver:</strong> Shows up in Device Manager under System Devices. This is the kernel-mode driver that manages CCD preference at the OS level.</li>
+<li><strong>amd3dvcacheSvc.exe:</strong> A background service that runs continuously. This service is responsible for monitoring workload patterns and adjusting CCD preference dynamically.</li>
+<li><strong>amd3dvcacheUser.exe:</strong> A user-mode component that works alongside the service to implement preference changes.</li>
+<li><strong>AMD PPM Provisioning File Driver:</strong> Installs the power plan modifications described in Layer 3.</li>
+</ul>
+<p>The V-Cache driver works with the CPPC rankings and GameMode profile to steer the right workloads to the right CCD. It uses a registry interface to store and adjust preferences -- this is the same registry interface that cocafe's vcache-tray tool documented, and that X3D CCD Optimizer's Driver Preference strategy uses.</p>
+<p><strong>Important:</strong> If the V-Cache driver service (amd3dvcacheSvc.exe) is not running -- perhaps because of a failed chipset driver installation, a Windows update that broke the service, or because the user uninstalled chipset drivers -- the CPPC Dynamic Preferred Cores = Driver setting has no driver to defer to. The system falls back to basic CPPC rankings, which favor CCD1 (frequency). This is a silent failure mode.</p>
+<p>You can verify the service is running in Task Manager &gt; Services &gt; look for <code>amd3dvcacheSvc</code>.</p>
+<h3>Layer 5: Xbox Game Bar (KGL -- Known Game List)</h3>
+<p>Xbox Game Bar maintains a list of known games called the KGL (Known Game List). When a game from this list is running in the foreground, Game Bar signals Windows to activate the GameMode power sub-profile, which triggers the X3D-specific scheduling changes described in Layer 3.</p>
+<p>The KGL is updated through the Microsoft Store independently of Windows updates. This is why AMD's setup documentation requires checking that Xbox Game Bar is updated to the latest KGL version -- an outdated game list means newer games won't be recognized, and the CCD preference won't activate for them.</p>
+<p><strong>Checking your KGL version:</strong> Press Win+G to open Game Bar, go to Settings (gear icon) &gt; General &gt; scroll to the bottom to find the KGL Version Loaded and KGL Service Version numbers. These should match.</p>
+<p><strong>Manually adding games:</strong> If a game isn't in the KGL, you can tell Game Bar it's a game: launch the game, press Win+G, and Game Bar should offer to remember the application as a game. This adds it to a local game list.</p>
+<p><strong>The Game Bar paradox:</strong> Many performance-conscious gamers disable Xbox Game Bar because it's perceived as bloatware that hurts performance. Ironically, on dual-CCD X3D processors, disabling Game Bar also disables the game detection that triggers CCD preference switching -- the very feature that would improve their gaming performance. AMD hasn't communicated this dependency clearly.</p>
+<h2>The Full Intended Flow</h2>
+<p>When every layer is correctly configured, the chain works like this:</p>
+<ol>
+<li><strong>System boots</strong> -- CPPC rankings default to favoring CCD1 (frequency) for general tasks</li>
+<li><strong>You launch a game</strong> that Xbox Game Bar recognizes via the KGL</li>
+<li><strong>Game Bar signals Windows</strong> that the foreground app is a game</li>
+<li><strong>Windows activates the GameMode power sub-profile</strong> within the Balanced plan</li>
+<li><strong>The AMD PPM provisioning settings</strong> adjust core parking thresholds, favoring CCD0 (V-Cache)</li>
+<li><strong>The AMD 3D V-Cache driver</strong> (because CPPC is set to Driver) adjusts CCD preference to reinforce V-Cache scheduling</li>
+<li><strong>Windows scheduler uses the updated preferences</strong> to place game threads on CCD0 and background work on CCD1</li>
+<li><strong>Core parking</strong> may park some CCD1 cores that aren't needed, reducing power and thermal overhead</li>
+<li><strong>When you stop gaming</strong>, the GameMode profile deactivates, CPPC rankings revert, and general tasks resume on CCD1's faster cores</li>
+</ol>
+<h2>Prerequisites Checklist</h2>
+<p>For AMD's system to work correctly, ALL of the following must be true:</p>
+<ul>
+<li>[ ] BIOS updated to latest version with AGESA support for your X3D chip</li>
+<li>[ ] CPPC Dynamic Preferred Cores set to <strong>Driver</strong> in BIOS (not Auto)</li>
+<li>[ ] C-States enabled in BIOS (required for CPPC to function)</li>
+<li>[ ] AMD chipset drivers installed (latest version from AMD's website)</li>
+<li>[ ] AMD 3D V-Cache Performance Optimizer visible in Device Manager</li>
+<li>[ ] <code>amd3dvcacheSvc.exe</code> service running in Task Manager</li>
+<li>[ ] <code>amd3dvcacheUser.exe</code> running in Task Manager</li>
+<li>[ ] Windows 10 21H2+ or Windows 11 22H2+ (supported Windows builds)</li>
+<li>[ ] Windows Game Mode enabled (Settings &gt; Gaming &gt; Game Mode)</li>
+<li>[ ] Xbox Game Bar installed and updated to latest KGL version</li>
+<li>[ ] Windows Balanced power plan active (not High Performance or Ultimate)</li>
+<li>[ ] No conflicting motherboard-specific settings (Core Flex, Gaming Preset, etc.) enabled</li>
+<li>[ ] No third-party tools interfering (Process Lasso, ParkControl, etc.)</li>
+</ul>
+<p>If any one of these is misconfigured, the system may appear to work (no errors) but silently fail to schedule games on the V-Cache CCD.</p>
+<h2>Known Issues and Community Findings</h2>
+<p><strong>The "Auto" problem:</strong> Community testing indicates that CPPC Dynamic Preferred Cores = Auto does not reliably produce correct core parking. Setting it to Driver consistently resolves this. The exact reason Auto fails is unclear -- it may be AGESA-dependent or motherboard-specific.</p>
+<p><strong>Chipset driver regressions:</strong> Community testing indicates that multiple AMD chipset driver versions have broken previously working core parking setups. Community members have documented cases where updating chipset drivers removes the core parking behavior that the previous version established correctly. There is no official AMD communication about which chipset driver versions are known to work correctly for each processor.</p>
+<p><strong>GFXOFF interaction:</strong> On some motherboard/BIOS combinations (notably ASRock), community testing indicates the GFXOFF BIOS setting needs to be explicitly set to Enabled alongside the CPPC = Driver change for core parking to function correctly.</p>
+<p><strong>Motherboard inconsistency:</strong> Different motherboard vendors implement CPPC settings in different menus, with different names, and sometimes with additional proprietary options that can interfere. ASRock, ASUS, MSI, and Gigabyte boards have all been reported to behave differently with the same CPU and same Windows installation.</p>
+<p><strong>Windows update disruptions:</strong> Community testing indicates that Windows updates can reset power plan configurations, potentially undoing AMD's PPM provisioning. Users may need to reinstall chipset drivers after major Windows updates.</p>
+<p><strong>The 9950X3D situation:</strong> The newer Zen 5-based 9950X3D appears to have a somewhat different scheduling approach, with some reports that AMD and Microsoft may be moving toward a hybrid-like scheduling model (similar to Intel's big.LITTLE approach) that doesn't rely as heavily on core parking. This is evolving and not yet well-documented.</p>
+<h2>Where X3D CCD Optimizer Fits</h2>
+<p>X3D CCD Optimizer does not replace AMD's scheduling system. It addresses the specific gaps in the user experience:</p>
+<ul>
+<li><strong>Visibility:</strong> The dashboard shows you exactly which CCD each process is on, in real time. No guessing, no HWiNFO or Ryzen Master required.</li>
+<li><strong>Direct control:</strong> Process Rules let you explicitly decide what goes where, overriding implicit scheduling when you need certainty.</li>
+<li><strong>Game detection without Game Bar:</strong> The app has its own four-tier game detection pipeline -- manual rules, 65 built-in known games, automatic scanning of installed Steam, Epic, and GOG libraries, and GPU usage heuristics -- completely independent of Xbox Game Bar's KGL. You don't need Game Bar enabled. You don't need to check KGL versions.</li>
+<li><strong>Background app management:</strong> AMD's system focuses entirely on steering the game to the right CCD. It does not explicitly manage where background apps go. The optimizer lets you pin specific apps (Discord, Chrome, OBS, etc.) to CCD1, ensuring they don't compete for V-Cache resources.</li>
+<li><strong>Continuous enforcement:</strong> AMD's system sets preferences and hopes the scheduler follows them. The optimizer sets hard CPU affinity masks and continuously monitors for new processes (polling at 4 seconds idle, 2 seconds active), catching anything that launches mid-game.</li>
+<li><strong>Power plan independence:</strong> Affinity Pinning mode works regardless of which power plan you're on. No Balanced requirement.</li>
+<li><strong>No BIOS dependency:</strong> The tool works regardless of your CPPC Dynamic Preferred Cores BIOS setting.</li>
+<li><strong>Transparency:</strong> Every action is logged with a timestamp. You can always verify exactly what the app did and when.</li>
+</ul>
+<p>For users who have a clean Windows 11 install with correct BIOS settings, updated chipset drivers, current Game Bar, and Balanced power plan -- AMD's built-in system may be working correctly and this tool simply adds visibility. For everyone else -- which community forums suggest is a significant portion of dual-CCD X3D owners -- the optimizer provides a reliable, visible, user-controlled alternative.</p>
+<h2>References</h2>
+<ol>
+<li><strong>cocafe/vcache-tray</strong> -- Open-source tool that discovered and documented the AMD 3D V-Cache driver's registry interface for CCD preference. <a href="https://github.com/cocafe/vcache-tray">github.com/cocafe/vcache-tray</a>.</li>
+<li><strong>JayzTwoCents, CPPC Dynamic Preferred Cores = Driver research</strong> -- YouTube video documenting the finding that setting CPPC Dynamic Preferred Cores to "Driver" in BIOS resolves core parking issues on dual-CCD X3D processors (7950X3D). This research was widely viewed and confirmed by community members.</li>
+<li><strong>AMD CPPC documentation</strong> -- CPPC (Collaborative Processor Performance Control) is described in AMD's Processor Programming Reference (PPR) documents and the ACPI specification. These documents cover the ACPI-based protocol for communicating core quality rankings between processor firmware and the operating system. Available through AMD's developer resources at <a href="https://developer.amd.com">developer.amd.com</a>.</li>
+<li><strong>AMD, "AMD Ryzen Processor Driver and Support"</strong> -- Chipset drivers including the 3D V-Cache Performance Optimizer Driver. Available at <a href="https://www.amd.com/en/support">amd.com/en/support</a>.</li>
+<li><strong>Microsoft, "Processor Power Management in Windows"</strong> -- Documentation on PPM, power plans, and the GameMode power sub-profile. Available at <a href="https://learn.microsoft.com/en-us/windows-hardware/design/device-experiences/powercfg-command-line-options">learn.microsoft.com</a>.</li>
+<li><strong>ManniX-ITA, "Custom Ryzen Power Plans"</strong> -- Community-created power plans incorporating AMD's X3D-specific PPM modifications. Published on Overclock.net forums.</li>
+</ol>
+<p><em>Note: Some claims in this document are based on community testing and user reports rather than official documentation. These are noted inline with phrases like "community testing indicates" or "has been reported." AMD's scheduling stack is largely underdocumented, and community findings remain the primary source for practical configuration guidance.</em></p>
+<h1>Settings Explained</h1>
+<p>Access settings via the <strong>Settings</strong> button in the bottom right of the dashboard, or through the system tray icon right-click menu.</p>
+<h2>Tab 1: General</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Start with Windows</td>
+<td>On</td>
+<td>Adds the app to Windows startup. It will launch automatically and start in your default mode.</td>
+</tr>
+<tr>
+<td>Start minimized to tray</td>
+<td>Off</td>
+<td>When combined with "Start with Windows," the app launches silently in the system tray.</td>
+</tr>
+<tr>
+<td>Minimize to tray on close</td>
+<td>Off</td>
+<td>When off (default), clicking X closes the app completely. When on, clicking X minimizes to the system tray instead.</td>
+</tr>
+<tr>
+<td>Show notifications</td>
+<td>On</td>
+<td>Enables Windows notification toasts for events like game detection.</td>
+</tr>
+<tr>
+<td>Default mode on launch</td>
+<td>Monitor</td>
+<td>Which mode the app starts in. Choose Monitor or Optimize. Set to Optimize if you want automatic optimization from the moment the app launches.</td>
+</tr>
+<tr>
+<td>Optimization strategy</td>
+<td>Driver Preference or Affinity Pinning</td>
+<td>Choose between Affinity Pinning (direct CCD assignment via <code>SetProcessAffinityMask</code>) or Driver Preference (AMD V-Cache registry key). On first run for Dual-CCD X3D processors, defaults to Driver Preference when the AMD V-Cache driver is detected; falls back to Affinity Pinning otherwise. For standard (non-X3D) dual-CCD processors, Affinity Pinning is the default since the V-Cache driver is not applicable. Strategy selection is tier-gated. See AMD V-Cache Driver Preference for details.</td>
+</tr>
+<tr>
+<td>Polling interval</td>
+<td>2000ms</td>
+<td>How often the app checks for running processes. The app uses adaptive polling: 4 seconds when idle, 2 seconds when a game is detected (active mode). This setting controls the base interval. Range: 1000ms-5000ms.</td>
+</tr>
+<tr>
+<td>Dashboard refresh</td>
+<td>1000ms</td>
+<td>How often the dashboard heatmap and UI updates. Lower values give smoother animations. Range: 500ms-5000ms.</td>
+</tr>
+</tbody>
+</table>
+<h2>Tab 2: Process Rules</h2>
+<p>This tab has two columns:</p>
+<ul>
+<li><strong>Games column (left):</strong> Processes to pin to the V-Cache CCD (CCD0). Includes autocomplete from the built-in 65-game database and scanned library results. Add or remove entries. Manual entry supported.</li>
+<li><strong>Background column (right):</strong> Processes to pin to the Frequency CCD (CCD1). Includes a process picker for selecting from currently running apps. Add or remove entries. Manual entry supported.</li>
+</ul>
+<p>See the dedicated Process Rules page for full documentation.</p>
+<h2>Tab 3: Detection</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enable GPU auto-detection</td>
+<td>On</td>
+<td>Automatically detect games by monitoring GPU usage. When disabled, only manual rules, the known game database, and library scan matches are used.</td>
+</tr>
+<tr>
+<td>Require foreground window</td>
+<td>On</td>
+<td>Only detect a game via GPU heuristic if it's the active foreground window. Prevents background GPU processes (video encoding, etc.) from being misidentified as games.</td>
+</tr>
+<tr>
+<td>GPU usage threshold</td>
+<td>50%</td>
+<td>Minimum GPU 3D engine usage a process must show before it's considered a game candidate. Higher values reduce false positives but may miss lighter games. Range: 20%-90%.</td>
+</tr>
+<tr>
+<td>Detection delay</td>
+<td>5s</td>
+<td>How long a process must continuously exceed the GPU threshold before being confirmed as a game. Prevents brief GPU spikes from triggering false detections. Range: 1s-15s.</td>
+</tr>
+<tr>
+<td>Exit delay</td>
+<td>10s</td>
+<td>How long to wait after GPU usage drops below threshold before declaring an auto-detected game has exited. Prevents brief dips (loading screens, cutscenes) from causing premature exit detection. Range: 5s-30s.</td>
+</tr>
+<tr>
+<td>Excluded processes</td>
+<td>(list)</td>
+<td>Processes that should never be detected as games, even if they exceed the GPU threshold. Default list includes browsers, media players, and development tools.</td>
+</tr>
+<tr>
+<td>Rescan Game Libraries</td>
+<td>(button)</td>
+<td>Triggers a manual rescan of all detected game libraries (Steam, Epic Games Store, GOG Galaxy). Use this after installing new games or if the Game Library tab is missing titles.</td>
+</tr>
+<tr>
+<td>Download Game Artwork</td>
+<td>Off</td>
+<td>When enabled, downloads box art images for games in the Game Library tab. Connects only to Steam's public CDN for artwork. No data is sent. Off by default for privacy.</td>
+</tr>
+</tbody>
+</table>
+<h3>Adaptive Polling</h3>
+<p>The app uses adaptive polling intervals for process scanning:
+- <strong>Idle (no game detected):</strong> 4-second polling interval
+- <strong>Active (game detected):</strong> 2-second polling interval
+- The app automatically switches between idle and active polling when a game is detected or exits
+- Re-migration of newly launched processes during active mode occurs within 5 seconds</p>
+<h2>Tab 4: Overlay</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enable overlay</td>
+<td>Off</td>
+<td>Show the compact always-on-top overlay window. Can also be toggled with Ctrl+Shift+O.</td>
+</tr>
+<tr>
+<td>Show CCD load bars</td>
+<td>On</td>
+<td>Display CCD usage bars in the overlay showing average load per CCD.</td>
+</tr>
+<tr>
+<td>Opacity</td>
+<td>80%</td>
+<td>Overlay transparency. Lower values make it more see-through. Range: 30%-100%.</td>
+</tr>
+<tr>
+<td>Auto-hide after</td>
+<td>10s</td>
+<td>Seconds of inactivity before the overlay fades out. It reappears when a new event occurs. Range: 5s-30s.</td>
+</tr>
+<tr>
+<td>Pixel shift every</td>
+<td>3 min</td>
+<td>How often the overlay shifts position by a few pixels to prevent OLED burn-in. Range: 1-10 minutes.</td>
+</tr>
+<tr>
+<td>Default position</td>
+<td>Top Right</td>
+<td>Which corner of the screen the overlay appears in when not manually dragged to a custom position.</td>
+</tr>
+<tr>
+<td>Hotkey</td>
+<td>Ctrl+Shift+O</td>
+<td>Toggle overlay visibility from anywhere, including while in-game.</td>
+</tr>
+</tbody>
+</table>
+<h2>Tab 5: Advanced</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Log level</td>
+<td>Information</td>
+<td>Controls verbosity of the log file at <code>%AppData%\X3DCCDOptimizer\logs\</code>. Options typically include Debug, Information, Warning, Error.</td>
+</tr>
+<tr>
+<td>Open Log folder</td>
+<td>(button)</td>
+<td>Opens the log directory in Windows Explorer for easy access to log files.</td>
+</tr>
+<tr>
+<td>Open Config folder</td>
+<td>(button)</td>
+<td>Opens the config directory in Windows Explorer.</td>
+</tr>
+<tr>
+<td>Reset all settings</td>
+<td>(button)</td>
+<td>Restores every setting to its default value. Requires confirmation.</td>
+</tr>
+</tbody>
+</table>
+<h2>Settings File Location</h2>
+<p>Settings are saved as JSON at <code>%AppData%\X3DCCDOptimizer\config.json</code>. You can back up or transfer this file between machines.</p>
+<h1>Process Rules</h1>
+<p>The Process Rules tab is where you configure which processes go where. It has two columns representing your two CCDs.</p>
+<h2>Layout</h2>
+<h3>Left Column: V-Cache CCD (Games)</h3>
+<p>This is your game list. Processes listed here will be pinned to CCD0 (the V-Cache CCD) when in Optimize mode. Games benefit most from V-Cache because of their large working sets and cache-sensitive rendering loops.</p>
+<p>The app comes with 65 built-in known games, plus automatic scanning of your installed Steam, Epic Games, and GOG Galaxy libraries -- on a typical gaming PC, this covers hundreds of titles. You can add games from this combined database using the search/autocomplete field, or manually type in any exe name.</p>
+<h3>Right Column: Frequency CCD (Background)</h3>
+<p>This is your background app list. Processes listed here will be explicitly pinned to CCD1 (the Frequency CCD) when in Optimize mode. This keeps them off the V-Cache CCD so your game doesn't compete for cache resources.</p>
+<p>Common picks: Discord, Chrome, Spotify, Steam, OBS, Wallpaper Engine.</p>
+<h2>Adding Games (Left Column)</h2>
+<p><strong>From the database:</strong> Type in the text field below the game list. After 2 characters, autocomplete suggestions appear from the known game database and scanned library results. It matches against both display names and exe names. Click a suggestion to add it.</p>
+<p><strong>Manual entry:</strong> Type the exact exe name (e.g. <code>mygame.exe</code>) and click "Add." Games added manually show a <code>[manual]</code> tag.</p>
+<h2>Adding Background Apps (Right Column)</h2>
+<p><strong>Live Process Picker (recommended):</strong> Click the <strong>"Pick Running Processes..."</strong> button. A window appears showing all user applications currently running on your system.</p>
+<p>The picker:
+- Shows friendly app names (e.g. "Logitech G Hub" not "lghub.exe")
+- Filters out Windows system processes automatically
+- Filters out anything already assigned to either column
+- Sorts by CPU usage so the busiest apps appear first
+- Lets you tick multiple apps and add them all at once</p>
+<p>This is the easiest way to build your background rules -- just launch all the apps you normally run alongside games, open the picker, tick them, done.</p>
+<p><strong>Autocomplete fallback:</strong> For apps not currently running, type in the text field. Autocomplete suggests common apps (browsers, Discord, Steam, OBS, etc.).</p>
+<p><strong>Manual entry:</strong> Type the exact exe name and click "Add."</p>
+<h2>How Rules Work in Optimize Mode</h2>
+<p>When you toggle to Optimize and a game is detected:</p>
+<table>
+<thead>
+<tr>
+<th>Process</th>
+<th>What happens</th>
+<th>Activity log shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Matches game list</td>
+<td>Pinned to CCD0 (V-Cache)</td>
+<td><code>-&gt; V-Cache CCD</code></td>
+</tr>
+<tr>
+<td>Matches background list</td>
+<td>Pinned to CCD1 (Frequency)</td>
+<td><code>-&gt; Frequency CCD (rule)</code></td>
+</tr>
+<tr>
+<td>Unknown process</td>
+<td>Migrated to CCD1 automatically</td>
+<td><code>-&gt; Frequency CCD (auto)</code></td>
+</tr>
+<tr>
+<td>System process</td>
+<td>Skipped entirely</td>
+<td>Not logged</td>
+</tr>
+</tbody>
+</table>
+<p>The distinction between <code>(rule)</code> and <code>(auto)</code> in the log helps you see which migrations happened because of your explicit choices vs. the app's automatic cleanup.</p>
+<h2>Continuous Scanning</h2>
+<p>Rules aren't just applied once. The app uses adaptive polling -- 4 seconds when idle, switching to 2 seconds when a game is detected:
+- Just opened Discord? Caught and pinned to CCD1 within seconds.
+- Launched a second game? Detected and pinned to CCD0.
+- A background app exited? Removed from tracking.
+- Re-migration of newly launched processes occurs within 5 seconds.</p>
+<p>The activity log shows every catch in real time with timestamps.</p>
+<h2>Game Detection Sources</h2>
+<p>The app uses a four-tier detection pipeline, evaluated in priority order:</p>
+<ol>
+<li><strong>Manual rules</strong> (this tab) -- highest priority</li>
+<li><strong>Built-in database</strong> -- 65 known games, case-insensitive exe matching</li>
+<li><strong>Library scan</strong> -- Steam (ACF manifests), Epic Games Store (JSON manifests), GOG Galaxy (SQLite + registry). Results stored in LiteDB (<code>user_games.db</code>).</li>
+<li><strong>GPU heuristic</strong> -- auto-detects unknown games by monitoring GPU 3D engine usage</li>
+</ol>
+<p>Detection source is shown in the activity log: <code>[manual]</code>, <code>[database]</code>, <code>[library]</code>, <code>[auto-detected, GPU: XX%]</code>.</p>
+<h2>Tips</h2>
+<ul>
+<li>You don't need to add every background app manually. Optimize mode automatically migrates unmatched processes to CCD1 anyway. Explicit rules just give you visibility and ensure specific apps are always handled.</li>
+<li>Game launchers (Steam, Epic, GOG Galaxy) are good candidates for the background column -- you don't want Steam's web browser competing with your game for V-Cache.</li>
+<li>If an app appears in the wrong column, select it and click "Remove," then add it to the correct side.</li>
+<li>Use the Game Library tab (third tab in the dashboard) to browse all games detected from your installed libraries.</li>
+</ul>
+<h1>The Overlay</h1>
+<p>The overlay is a small, always-on-top display that shows what the app is doing without switching away from your game.</p>
+<h2>Enabling the Overlay</h2>
+<p>Press <strong>Ctrl+Shift+O</strong> to toggle the overlay on/off, or enable it in <strong>Settings --&gt; Overlay --&gt; Enable overlay</strong>.</p>
+<h2>What It Shows</h2>
+<p>The overlay appears as a compact pill in the corner of your screen showing the current status:
+- Game detected and which CCD it's pinned to
+- Mode (Monitor or Optimize)
+- Recent actions (game engaged, processes migrated, etc.)</p>
+<h2>CCD Load Bars (Optional)</h2>
+<p>In <strong>Settings --&gt; Overlay</strong>, you can enable "Show CCD load bars." When enabled, the overlay expands to show two small horizontal bars below the status text:
+- <strong>Green bar (CCD0):</strong> V-Cache CCD average load
+- <strong>Blue bar (CCD1):</strong> Frequency CCD average load</p>
+<p>This gives you an at-a-glance view of whether your game is properly isolated on the V-Cache CCD. If you see both bars active, background processes may be spilling onto CCD0.</p>
+<h2>OLED Safety Features</h2>
+<p>The overlay includes features to protect OLED displays:
+- <strong>Auto-hide:</strong> The overlay fades out after a configurable period of inactivity (default: 10 seconds) and reappears when a new event occurs
+- <strong>Pixel shift:</strong> The overlay shifts position by a few pixels at a configurable interval (default: every 3 minutes) to prevent burn-in
+- <strong>Low opacity:</strong> Default 80% transparency reduces the brightness of static elements</p>
+<p>Configure these individually in <strong>Settings --&gt; Overlay</strong>.</p>
+<h2>Overlay Settings</h2>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Default</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enable overlay</td>
+<td>Off</td>
+<td>Show the overlay window. Can also be toggled with Ctrl+Shift+O.</td>
+</tr>
+<tr>
+<td>Show CCD load bars</td>
+<td>On</td>
+<td>Adds CCD usage bars below the status text.</td>
+</tr>
+<tr>
+<td>Opacity</td>
+<td>80%</td>
+<td>Transparency level. Lower values make it more see-through. Range: 30%-100%.</td>
+</tr>
+<tr>
+<td>Auto-hide after</td>
+<td>10s</td>
+<td>Seconds of inactivity before the overlay fades out. Range: 5s-30s.</td>
+</tr>
+<tr>
+<td>Pixel shift every</td>
+<td>3 min</td>
+<td>Interval for OLED burn-in protection position shifts. Range: 1-10 minutes.</td>
+</tr>
+<tr>
+<td>Default position</td>
+<td>Top Right</td>
+<td>Which corner of the screen the overlay appears in.</td>
+</tr>
+</tbody>
+</table>
+<h2>Hotkey</h2>
+<p><strong>Ctrl+Shift+O</strong> -- Toggle overlay visibility from anywhere, including while in-game.</p>
+<h2>Important: Fullscreen Compatibility</h2>
+<p>The overlay requires your game to run in <strong>borderless windowed</strong> or <strong>windowed</strong> mode. Exclusive fullscreen takes over the display adapter, and no standard Windows overlay can render on top. This is a Windows limitation, not a bug. If you don't see the overlay during gameplay, check your game's display settings.</p>
+<h1>AMD V-Cache Driver Preference</h1>
+<h2>What is it?</h2>
+<p>AMD's V-Cache driver (<code>amd3dvcache</code>) exposes a registry-based preference system that tells Windows which CCD to favor. This is AMD's official (if underdocumented) mechanism for CCD preference on Windows.</p>
+<p>The app supports this as an alternative to direct Affinity Pinning via the <strong>Optimization Strategy</strong> setting.</p>
+<h2>Two Strategies Compared</h2>
+<h3>Affinity Pinning</h3>
+<ul>
+<li><strong>How it works:</strong> Directly sets each process's CPU affinity mask, hard-pinning it to specific cores</li>
+<li><strong>Strength:</strong> Guaranteed enforcement -- the process physically cannot run on the wrong CCD</li>
+<li><strong>Weakness:</strong> Overrides Windows scheduler completely; if a V-Cache core is busy, the game can't overflow to CCD1</li>
+</ul>
+<h3>Driver Preference</h3>
+<ul>
+<li><strong>How it works:</strong> Sets the AMD V-Cache driver's registry key to prefer one CCD over the other</li>
+<li><strong>Strength:</strong> Works with the Windows scheduler rather than overriding it; gentler approach</li>
+<li><strong>Weakness:</strong> It's a preference, not enforcement -- the scheduler may still place threads on the non-preferred CCD under load</li>
+</ul>
+<h2>When to Use Which</h2>
+<p><strong>Use Affinity Pinning if:</strong>
+- You play games that are well-optimized for 8 threads or fewer
+- You want guaranteed V-Cache isolation
+- You're comfortable with the game being limited to 8 cores</p>
+<p><strong>Use Driver Preference if:</strong>
+- You play games that genuinely use more than 16 threads and need both CCDs
+- You want the scheduler to have flexibility under heavy load
+- You prefer a lighter-touch optimization</p>
+<h2>Default Strategy</h2>
+<p>On first run, the app automatically selects the strategy based on your processor:</p>
+<ul>
+<li><strong>Dual-CCD X3D processors</strong> (7950X3D, 9950X3D, 7900X3D, 9900X3D): defaults to <strong>Driver Preference</strong> when the AMD V-Cache driver is detected and its service is running. Falls back to Affinity Pinning if the driver is not available.</li>
+<li><strong>Dual-CCD Standard processors</strong> (7950X, 7900X, 5950X, 5900X, 9950X, 9900X): defaults to <strong>Affinity Pinning</strong> since the V-Cache driver is not applicable to non-X3D hardware.</li>
+</ul>
+<h2>How to Switch</h2>
+<ol>
+<li>Open Settings --&gt; General</li>
+<li>Change "Optimization strategy" from "Affinity Pinning" to "Driver Preference" (or vice versa)</li>
+<li>Click Apply</li>
+<li>The change takes effect on next mode toggle or app restart</li>
+</ol>
+<h2>Power Plan Note</h2>
+<p>Driver Preference works best with the <strong>Balanced</strong> power plan. Windows' High Performance plan can interfere with the driver's core parking behavior, which is how the AMD driver steers workloads. If you're using Driver Preference and the app detects a non-Balanced power plan, it will show a warning in the status bar.</p>
+<h2>Technical Details</h2>
+<p>The AMD V-Cache driver stores its preference in the Windows registry. The specific key and values are based on the interface surfaced by <a href="https://github.com/cocafe/vcache-tray">cocafe/vcache-tray</a> (archived). Credit to cocafe for documenting this undocumented AMD interface.</p>
+<p>When Driver Preference is active:
+- The app writes the CCD preference to the driver's registry key
+- The AMD driver adjusts core parking and scheduling hints accordingly
+- The app restores the original registry value on exit or mode switch
+- Recovery.json includes the original registry value for dirty shutdown protection</p>
+<h1>Installation</h1>
+<h2>Requirements</h2>
+<ul>
+<li><strong>OS:</strong> Windows 10 or Windows 11 (64-bit)</li>
+<li><strong>Runtime:</strong> .NET 8 Desktop Runtime (<a href="https://dotnet.microsoft.com/en-us/download/dotnet/8.0">download from Microsoft</a>)</li>
+<li><strong>Processor:</strong> AMD Ryzen dual-CCD processor (7950X3D, 9950X3D, 7900X3D, 9900X3D, 7950X, 7900X, 5950X, 5900X, 9950X, 9900X)</li>
+<li><strong>Permissions:</strong> Administrator rights (required for setting CPU affinity)</li>
+</ul>
+<p>Non-dual-CCD processors and non-AMD systems are detected at startup and shown a friendly exit dialog explaining why the tool is not applicable.</p>
+<h2>Download</h2>
+<p>Download the latest release from the <a href="https://github.com/LordBlacksun/X3D-CCD-Optimizer/releases">GitHub Releases page</a>.</p>
+<p>Two download options are available on the releases page:
+- <strong>Installer:</strong> <code>X3DCcdOptimizer-Setup.exe</code> -- recommended for most users. Includes .NET 8 runtime, creates Start Menu shortcuts, and handles uninstallation cleanly.
+- <strong>Portable zip:</strong> Contains the application files for users who prefer not to install. Requires <a href="https://dotnet.microsoft.com/en-us/download/dotnet/8.0">.NET 8 Desktop Runtime</a> to be installed separately.</p>
+<h2>Installing</h2>
+<h3>Option 1: Installer (Recommended)</h3>
+<ol>
+<li>Run <code>X3DCcdOptimizer-Setup.exe</code></li>
+<li>Follow the setup wizard -- the installer bundles the .NET 8 runtime, so no separate runtime installation is needed</li>
+<li>The app is installed to <code>Program Files\X3DCcdOptimizer</code> and configured to run as administrator automatically</li>
+<li>Launch from the Start Menu or desktop shortcut</li>
+</ol>
+<h3>Option 2: Portable</h3>
+<p>X3D CCD Optimizer can also run as a portable application:</p>
+<ol>
+<li>Extract the zip to any folder (e.g. <code>C:\Tools\X3DCcdOptimizer\</code>)</li>
+<li>Double-click <code>X3DCcdOptimizer.exe</code></li>
+<li>That's it</li>
+</ol>
+<h2>First Launch</h2>
+<h3>UAC Prompt</h3>
+<p>The first thing you'll see is a Windows UAC (User Account Control) prompt asking for administrator rights. This is expected and required. The app needs admin privileges to set CPU affinity on running processes -- without it, Windows blocks affinity changes on most applications.</p>
+<p>Click <strong>Yes</strong> to continue.</p>
+<h3>Trust Dialog</h3>
+<p>On your very first launch, you'll see a dialog explaining why the app needs admin rights:</p>
+<blockquote>
+<p>X3D CCD Optimizer requires administrator privileges to set CPU affinity on running processes. Without elevation, Windows blocks affinity changes on most applications.</p>
+<p>This app is:
+- Fully open source -- audit every line at github.com/LordBlacksun/x3d-ccd-optimizer
+- Private by default -- no telemetry, no tracking, no network connections. Optional game artwork downloads connect only to Steam's public CDN -- no data is ever sent.
+- Minimal -- only reads process lists and sets CPU affinity, nothing else</p>
+</blockquote>
+<p>Click <strong>"I Understand, Continue"</strong> to proceed. You can also click <strong>"View Source on GitHub"</strong> to inspect the code before continuing.</p>
+<p>This dialog only appears once. It won't bother you on subsequent launches.</p>
+<h3>What You'll See</h3>
+<p>After the trust dialog, the main dashboard appears showing:
+- Your processor model and CCD topology
+- Per-core heatmaps for each CCD
+- Three tabs at the bottom: Process Router, Activity Log, and Game Library
+- Monitor/Optimize toggle in the top right</p>
+<p>The app starts in <strong>Monitor</strong> mode by default -- it observes but doesn't change anything.</p>
+<p>A background library scan (Steam, Epic Games, GOG Galaxy) runs automatically on first launch to populate the Game Library tab with your installed games.</p>
+<h2>Uninstalling</h2>
+<h3>Installer version</h3>
+<p>Use <strong>Add or Remove Programs</strong> in Windows Settings, or run the uninstaller from the Start Menu. The uninstaller will ask whether to remove your user data (config, logs) stored at <code>%AppData%\X3DCCDOptimizer\</code>.</p>
+<h3>Portable version</h3>
+<ol>
+<li>Close the application (make sure it's not minimized to tray)</li>
+<li>Delete the folder</li>
+<li>Optionally, delete the config folder at <code>%AppData%\X3DCCDOptimizer\</code></li>
+</ol>
+<p>If you enabled "Start with Windows," remove the registry entry at <code>HKCU\Software\Microsoft\Windows\CurrentVersion\Run\X3DCCDOptimizer</code> or disable it in Task Manager's Startup tab.</p>
+<h1>Troubleshooting</h1>
+<h2>The app says "already running" but I can't find it</h2>
+<p>This can happen if a previous instance didn't shut down cleanly. Check:
+1. <strong>System tray:</strong> Look for the app icon in the tray area (click the ^ arrow to see hidden icons)
+2. <strong>Task Manager:</strong> Press Ctrl+Shift+Esc, look for <code>X3DCcdOptimizer.exe</code> under processes. If found, right-click --&gt; End Task, then relaunch.</p>
+<h2>The UAC prompt doesn't appear / app won't start elevated</h2>
+<p>If Windows doesn't show the UAC prompt:
+1. Make sure UAC is enabled in Windows settings (Control Panel --&gt; User Accounts --&gt; Change UAC settings)
+2. Try right-clicking the exe --&gt; "Run as administrator"
+3. Check that the exe hasn't been marked as blocked by Windows: right-click --&gt; Properties --&gt; look for an "Unblock" checkbox at the bottom</p>
+<h2>The app doesn't detect my game</h2>
+<p>Check these in order:
+1. Is the game in the built-in database or your scanned libraries? Open the Game Library tab on the dashboard to check.
+2. Open Settings --&gt; Process Rules, search for the game name in the autocomplete field.
+3. If not found, trigger a library rescan from Settings --&gt; Detection --&gt; Rescan Game Libraries. This re-scans Steam, Epic, and GOG installations.
+4. If still not found, add it manually -- you need the exact exe filename (check Task Manager while the game is running).
+5. Is the GPU threshold set too high? Lower it in Settings --&gt; Detection.
+6. Is the game a UWP/Microsoft Store game? Some UWP games use different process names -- check Task Manager for the actual exe name.</p>
+<h2>Library scan not finding games</h2>
+<p>If games from Steam, Epic, or GOG are not appearing in the Game Library tab:
+1. <strong>Steam:</strong> Ensure Steam is installed and has been run at least once. The scanner reads ACF manifest files from Steam library folders. If you have multiple library folders, verify they are accessible.
+2. <strong>Epic Games Store:</strong> Ensure Epic is installed. The scanner reads JSON manifests from Epic's local data directory.
+3. <strong>GOG Galaxy:</strong> Ensure GOG Galaxy is installed and has been run at least once. The scanner reads GOG Galaxy's SQLite database. If games are missing, the database may not have been populated yet -- launch GOG Galaxy and let it sync your library, then rescan.
+4. Trigger a manual rescan from Settings --&gt; Detection --&gt; Rescan Game Libraries.</p>
+<h2>GOG Galaxy database locked</h2>
+<p>If the GOG Galaxy library scan fails or returns no results, the GOG Galaxy SQLite database may be locked by the running GOG Galaxy client. Try:
+1. Close GOG Galaxy completely (check the system tray).
+2. Trigger a rescan from Settings --&gt; Detection --&gt; Rescan Game Libraries.
+3. If the issue persists, check the log file for specific error messages related to the GOG database path.</p>
+<h2>Game artwork not downloading</h2>
+<p>If you enabled "Download Game Artwork" in Settings --&gt; Detection but images are not appearing:
+1. Verify the toggle is enabled in Settings --&gt; Detection.
+2. The app downloads artwork only from Steam's public CDN. Games not on Steam will not have artwork.
+3. Check your network connection -- this is the only feature that requires internet access.
+4. Check the log file for download errors. Artwork download failures are non-critical and do not affect app functionality.</p>
+<h2>Optimize mode doesn't seem to do anything</h2>
+<ol>
+<li>Check the Activity Log tab -- are there any entries after toggling Optimize?</li>
+<li>Is a game actually running and detected? The app needs to detect a game before it starts optimizing.</li>
+<li>Check the Process Router tab -- does it show your game under the V-Cache section?</li>
+<li>Open Task Manager, right-click your game process --&gt; "Set Affinity" -- do you see only CCD0 cores checked? If so, the app is working correctly.</li>
+</ol>
+<h2>Some processes can't be moved</h2>
+<p>This is expected for certain processes:
+- <strong>Anti-cheat protected processes</strong> (EasyAntiCheat, BattlEye) may block affinity changes
+- <strong>System protected processes</strong> like csrss.exe, lsass.exe are on the hardcoded skip list
+- <strong>Driver processes</strong> may not allow affinity modification</p>
+<p>The app handles these silently -- it logs a SKIP in the activity log and moves on. This is not an error.</p>
+<h2>High CPU usage from the app</h2>
+<p>Normal CPU usage is under 0.5%. If you see higher:
+1. Check the Polling Interval in Settings --&gt; General. If set very low (under 1000ms), increase it.
+2. Check the Dashboard Refresh rate -- lower values mean more frequent UI updates.
+3. If the Process Router has many processes, the UI rendering may increase slightly -- this is cosmetic and doesn't affect game performance.</p>
+<h2>The overlay doesn't appear</h2>
+<ol>
+<li>Press Ctrl+Shift+O to toggle it.</li>
+<li>Check Settings --&gt; Overlay -- is "Enable overlay" checked?</li>
+<li>Exclusive fullscreen games block overlay windows. Try running the game in borderless windowed mode. This is a Windows limitation, not a bug.</li>
+<li>Check if another overlay (Steam, Discord, GeForce Experience) is conflicting.</li>
+</ol>
+<h2>Settings aren't saved</h2>
+<p>The config file lives at <code>%AppData%\X3DCCDOptimizer\config.json</code>. Check:
+1. Does the folder exist? The app should create it on first launch.
+2. Does your antivirus block writes to AppData?
+3. Try clicking "Apply" in Settings before closing the settings window.</p>
+<h2>The app restored affinities I didn't expect on startup</h2>
+<p>This is the dirty shutdown recovery working correctly. If the app was terminated unexpectedly while in Optimize mode, it saves a recovery file. On next launch, it restores all processes to their original affinities before anything else happens.</p>
+<p>This is a safety feature -- not a bug.</p>
+<h2>Log Files</h2>
+<p>Detailed logs are saved at <code>%AppData%\X3DCCDOptimizer\logs\</code>. If reporting a bug on GitHub, include the relevant log file -- it contains timestamps and details of every action the app took.</p>
+<p>You can open the log folder directly from Settings --&gt; Advanced --&gt; Open Log folder.</p>
+<h2>Still Stuck?</h2>
+<p>Open an issue on <a href="https://github.com/LordBlacksun/X3D-CCD-Optimizer/issues">GitHub</a> with:
+- Your processor model
+- Windows version
+- The log file from <code>%AppData%\X3DCCDOptimizer\logs\</code>
+- A description of what you expected vs what happened</p>
+<h1>FAQ</h1>
+<h2>Is this safe?</h2>
+<p>Yes. The app only does two things: reads the process list and sets CPU affinity masks. It doesn't modify your BIOS, overclock anything, change registry keys (unless you use Driver Preference mode), or write to disk beyond its own config and local game database.</p>
+<p>All affinity changes are reversible -- they're restored when you switch to Monitor mode, close the app, or if the app crashes (via dirty shutdown recovery).</p>
+<p>The app is fully open source under GPL v2. You can audit every line of code on <a href="https://github.com/LordBlacksun/X3D-CCD-Optimizer">GitHub</a>.</p>
+<h2>Will this hurt my system performance?</h2>
+<p>No. The app itself uses under 0.5% CPU -- it's lighter than Task Manager. The affinity changes it makes are the same thing Process Lasso and power users do manually.</p>
+<p>Moving background apps to CCD1 doesn't slow them down. CCD1 uses the same architecture at the same clock speeds -- it just has less L3 cache, which background apps don't need.</p>
+<h2>Why does it need admin rights?</h2>
+<p>Windows requires administrator privileges to change the CPU affinity of other processes. Without admin, the app can monitor but can't actually optimize anything.</p>
+<p>The app makes no network connections by default, collects no telemetry, and uses admin rights exclusively for <code>SetProcessAffinityMask()</code> calls.</p>
+<h2>Does it work with anti-cheat?</h2>
+<p>The app sets CPU affinity -- a standard Windows feature -- not a code injection or memory modification. Based on community reports, most anti-cheat systems are not known to flag affinity changes, but behavior can vary by game and anti-cheat version.</p>
+<p>If an anti-cheat protected process blocks affinity changes, the app catches the error silently and skips that process. Your game continues normally.</p>
+<p>That said, anti-cheat policies can change. If you have concerns about a specific game, run the app in Monitor mode first to verify there are no conflicts.</p>
+<h2>Does it work on single-CCD processors?</h2>
+<p>No. Single-CCD processors don't have the scheduling problem this tool solves. The app detects these and shows a friendly message explaining why it's not needed.</p>
+<p>On single-CCD X3D chips like the 7800X3D, all cores already share the V-Cache. There is no wrong CCD for the scheduler to pick -- every core has access to the full cache. On single-CCD standard chips, there is only one CCD, so there is nothing to isolate.</p>
+<h2>Can I use this with Process Lasso?</h2>
+<p>You can, but it's not recommended. Both tools manage CPU affinity, and they'll fight over the same processes. Pick one or the other.</p>
+<p>If you want to transition, you can run X3D CCD Optimizer in Monitor mode alongside Process Lasso to compare behavior before switching.</p>
+<h2>What happens if the app crashes?</h2>
+<p>On every optimization action, the app saves a recovery file (<code>recovery.json</code>) containing the original affinity masks of all modified processes. If the app crashes or is force-killed, on next launch it reads this file and restores all affinities to their pre-optimization state.</p>
+<p>If both the app and your system crash (e.g., a BSOD), the recovery file on disk ensures cleanup happens on the next app launch. In the worst case, a system reboot clears all affinity changes because Windows resets process affinities on restart.</p>
+<h2>What happens if I close the app while in Optimize mode?</h2>
+<p>If "Minimize to tray on close" is off (default), the app performs a full shutdown: restores all affinities, cleans up the recovery file, and exits. Your processes return to normal Windows scheduling.</p>
+<p>If "Minimize to tray on close" is on, clicking X minimizes the app to the system tray. Optimization continues running. Right-click the tray icon and select "Exit" for a full shutdown.</p>
+<h2>How is this different from AMD's V-Cache driver preference?</h2>
+<p>AMD's V-Cache driver and Windows CPPC hints are valuable improvements that work behind the scenes. The driver's registry preference suggests which CCD to favor, and CPPC helps Windows make smarter core decisions. These work for many users without any manual intervention.</p>
+<p>X3D CCD Optimizer adds two things on top: <strong>visibility</strong> (you can see exactly where every process is running) and <strong>explicit control</strong> (you decide which processes go where, rather than relying on implicit hints). For users who want to guarantee their game stays on V-Cache and their background apps stay off it, the app provides that certainty.</p>
+<p>The app supports both direct Affinity Pinning and AMD's Driver Preference as optimization strategies. See AMD V-Cache Driver Preference for details.</p>
+<h2>Does the app make network connections?</h2>
+<p>Not by default. The app makes zero network connections out of the box. There is no telemetry, no crash reporting, no usage tracking.</p>
+<p>The only optional network feature is <strong>Download Game Artwork</strong> (Settings --&gt; Detection), which is off by default. When enabled, it connects only to Steam's public CDN to download box art images for the Game Library tab. No data is ever sent.</p>
+<h2>What game launchers are supported?</h2>
+<p>The app scans three game launchers for installed games:
+- <strong>Steam</strong> -- reads ACF manifest files from Steam library folders
+- <strong>Epic Games Store</strong> -- parses JSON manifest files from Epic's local data directory
+- <strong>GOG Galaxy</strong> -- reads GOG Galaxy's SQLite database combined with Windows registry data</p>
+<p>Library scanning runs automatically on first launch and can be re-triggered manually from Settings --&gt; Detection --&gt; Rescan Game Libraries. Scanned games appear in the Game Library tab and supplement the built-in database of 65 known games.</p>
+<h2>My game isn't in the database. Can I still use the app?</h2>
+<p>Yes. You have several options:</p>
+<ol>
+<li><strong>Library scan:</strong> If the game is installed via Steam, Epic, or GOG, it should be detected automatically by the library scanner. Check the Game Library tab or trigger a rescan from Settings --&gt; Detection.</li>
+<li><strong>Manual add:</strong> Go to Settings --&gt; Process Rules, type the game's exe name in the V-Cache column text field, and click Add.</li>
+<li><strong>GPU detection:</strong> The app monitors GPU usage. If a process exceeds the GPU threshold while in the foreground, it's flagged as a potential game even if it's not in any database.</li>
+</ol>
+<p>If you'd like to add a game to the official built-in database, open a GitHub issue with the game name and exe filename.</p>
+<h2>Is this AI-generated code?</h2>
+<p>This project is AI-assisted. The architecture, design decisions, testing, and quality assurance are done by the developer. Implementation is done in collaboration with AI coding tools. This is stated openly in the README and in the About dialog (accessible from the dashboard), which includes an AI disclosure.</p>
+<p>The code has undergone multiple security audits, defensive audits, and real-hardware testing on a 7950X3D system.</p>
+</body></html>
