@@ -244,7 +244,7 @@ public partial class App : System.Windows.Application
         _mainViewModel = new MainViewModel(
             _topology, _perfMon, _processWatcher, _gameDetector, _affinityManager, _config,
             powerPlanWarning);
-        _mainViewModel.InitGameLibrary(_gameDb);
+        _mainViewModel.InitGameLibrary(_gameDb, _config.ExcludedProcesses);
         _overlayViewModel = new OverlayViewModel(_topology, _config.Overlay);
 
         // Dashboard
