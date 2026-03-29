@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0-beta | **Status:** Beta | **Branch:** develop | **Last session:** 60
+**Version:** 1.0.0-beta | **Status:** Beta | **Branch:** develop | **Last session:** 61
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -73,6 +73,33 @@ Development session history for X3D Dual CCD Optimizer.
 
 ---
 
+## Session 61 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix release — self-contained only, no runtime dependency
+
+### Problem
+First tester (9800X3D) reported app "did nothing" — framework-dependent build requires .NET 8 Desktop Runtime which nobody has installed. App silently fails to start without it.
+
+### Fix
+Switched to self-contained-only releases. One ZIP, everything included, just extract and run. ~25 MB compressed is fine — "did nothing" on first launch is not.
+
+### Changes
+- **Release workflow** — single self-contained build replaces dual FD/SC builds. `PublishSingleFile=true`, `--self-contained true`, `EnableCompressionInSingleFile=true`, `IncludeNativeLibrariesForSelfExtract=true`. One ZIP output.
+- **Trimmed TraceEvent bloat** — post-publish MSBuild target removes `msdia140.dll` (2.2 MB PDB parser), x86/arm64 native dirs, PDBs. We only use `KernelTraceControl.dll` for ETW.
+- **Self-updater simplified** — only one ZIP to find, no standalone preference logic needed
+- **README** — removed runtime requirement, simplified to "extract and run"
+- **Release workflow permissions** — added `contents: write` for `softprops/action-gh-release`, widened tag filter `v*.*.*` → `v*`
+- **Retagged v1.0.1-beta** three times to get the workflow right (tag filter, permissions, 60 MB bloat, then self-contained only)
+
+### Files Changed
+- `.github/workflows/release.yml` — self-contained only, permissions, tag filter
+- `X3DCcdOptimizer.csproj` — post-publish cleanup target for TraceEvent natives
+- `Core/UpdateChecker.cs` — simplified asset selection
+- `README.md` — no runtime requirement
+
+---
+
 ## Session 60 — 2026-03-29
 
 **Agent:** Claude Opus 4.6 (1M context)
@@ -83,17 +110,17 @@ Development session history for X3D Dual CCD Optimizer.
 - **Installer updated** — removed stale `known_games.json` bundling and Data directory cleanup
 - **Release workflow updated** — removed `known_games.json` from ZIP staging
 - **Tagged `v1.0.0-beta`** — pushed to GitHub, triggers release workflow
-- **README install instructions** — three options: Installer, Portable ZIP, Build from source. Updated Quick Start with library scan consent step. Version badge updated.
+- **README install instructions** — Portable ZIP + Build from source. Updated Quick Start with library scan consent step. Version badge updated.
 - **Wiki updated** — 7 pages updated to remove "65 built-in games", "four-tier detection", `[database]` source references. Now reflects 3-tier pipeline.
 - **Per-core boost frequency** — PDH `Processor Frequency` counter reports base clock only (e.g. flat 4.2 GHz on 7950X3D). Added `% Processor Performance` counter and computes effective frequency: `base × (% perf / 100)`. Now shows actual boost clocks (5.5–5.7 GHz under load). Graceful fallback if counter unavailable.
 - **Self-updater** — "v1.x.x available" text in footer is now a clickable button. Downloads the latest release ZIP from GitHub, extracts the exe, writes a PowerShell script that waits for the app to exit, replaces the exe in-place, relaunches, and cleans up temp files. Progress shown in the button text (Checking → Downloading → Extracting → Applying → Restarting). Works for both installed and portable deployments.
 
 ### Files Changed
-- `X3DCcdOptimizer.csproj` — version 1.0.0-beta
+- `X3DCcdOptimizer.csproj` — version 1.0.0-beta, post-publish cleanup target
 - `App.xaml.cs` — version constant
 - `installer/setup.iss` — version, removed known_games.json
-- `.github/workflows/release.yml` — removed known_games.json from staging
-- `README.md` — install instructions, version badge
+- `.github/workflows/release.yml` — self-contained build, permissions, tag filter
+- `README.md` — install instructions, version badge, no runtime requirement
 - `Core/PerformanceMonitor.cs` — `% Processor Performance` counter for effective boost frequency
 - `Core/UpdateChecker.cs` — `DownloadAndApply()` method: download ZIP, extract, swap exe via PS1 script
 - `ViewModels/MainViewModel.cs` — `ApplyUpdateCommand`, `UpdateVisible` property
