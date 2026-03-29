@@ -38,8 +38,11 @@ public class GameDatabase : IDisposable
 
         foreach (var group in grouped)
         {
+            // Capture key — LiteDB can't translate group.Key in LINQ expressions
+            var source = group.Key;
+
             // Preserve artwork paths from old entries
-            var oldEntries = _games.Find(g => g.Source == group.Key).ToList();
+            var oldEntries = _games.Find(g => g.Source == source).ToList();
             var artworkMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var old in oldEntries)
             {
@@ -48,7 +51,7 @@ public class GameDatabase : IDisposable
             }
 
             // Wipe old entries for this source
-            _games.DeleteMany(g => g.Source == group.Key);
+            _games.DeleteMany(g => g.Source == source);
 
             // Insert fresh
             foreach (var game in group)
