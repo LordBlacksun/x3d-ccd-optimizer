@@ -192,6 +192,12 @@ public class AppConfig
     [JsonPropertyName("lastUpdateCheckUtc")]
     public string? LastUpdateCheckUtc { get; set; }
 
+    /// <summary>
+    /// Library scan consent: null = not asked yet, true = user opted in, false = user declined (Don't Ask Again).
+    /// </summary>
+    [JsonPropertyName("libraryScanConsent")]
+    public bool? LibraryScanConsent { get; set; }
+
     /// <summary>True if no config.json existed at load time (first launch).</summary>
     [JsonIgnore]
     public bool IsFirstRun { get; private set; }

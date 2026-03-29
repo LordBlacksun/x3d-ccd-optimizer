@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 54
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 55
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -66,6 +66,30 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 55 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Add library scan consent prompt — no more silent filesystem scanning
+
+### Changes
+- **Consent dialog** on first launch: "Would you like to scan your game libraries?" with Scan Now / Skip / Don't Ask Again
+- **Config:** `libraryScanConsent` — `null` (not asked), `true` (opted in), `false` (don't ask again)
+- **Skip** = ask again next launch. **Don't Ask Again** = never scan automatically. **Scan Now** = scan and remember consent.
+- Subsequent launches: only scan if `libraryScanConsent == true`
+- Settings "Rescan Game Libraries" button sets consent to `true` implicitly (explicit user action)
+- Dialog explains: "This only reads files on your computer. No network connections are made."
+
+### Files Changed
+- `Config/AppConfig.cs` — added `LibraryScanConsent` nullable bool property
+- `App.xaml.cs` — `ShowLibraryScanConsentDialog()`, `RunLibraryScan()`, consent-gated startup flow
+- `ViewModels/SettingsViewModel.cs` — Rescan button sets `LibraryScanConsent = true`
+
+### Build & Tests
+- `dotnet build` — 0 warnings, 0 errors
+- `dotnet test` — 177 passed, 0 failed
 
 ---
 

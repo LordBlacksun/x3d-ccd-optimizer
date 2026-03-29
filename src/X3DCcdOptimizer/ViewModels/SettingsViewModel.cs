@@ -249,6 +249,9 @@ public class SettingsViewModel : ViewModelBase
 
         RescanLibrariesCommand = new RelayCommand(() =>
         {
+            // Explicit user action = implicit consent for future scans
+            _config.LibraryScanConsent = true;
+
             ScanStatusText = "Scanning...";
             Task.Run(() =>
             {
