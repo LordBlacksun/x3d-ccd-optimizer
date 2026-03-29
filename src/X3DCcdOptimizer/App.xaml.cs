@@ -213,6 +213,7 @@ public partial class App : System.Windows.Application
         // Game library database (LiteDB)
         _gameDb = new GameDatabase();
         _gameDb.MigrateFromJsonCache();
+        _gameDb.Deduplicate();
         var launcherGames = _gameDb.ToDictionary();
 
         // Engine

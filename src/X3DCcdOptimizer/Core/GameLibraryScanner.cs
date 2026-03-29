@@ -13,16 +13,24 @@ namespace X3DCcdOptimizer.Core;
 /// </summary>
 public static class GameLibraryScanner
 {
-    // Exe names to skip when scanning game directories
-    private static readonly HashSet<string> SkipExePrefixes = new(StringComparer.OrdinalIgnoreCase)
-    {
+    // Exe name prefixes to skip — utilities, not games
+    private static readonly string[] SkipExePrefixes =
+    [
         "unins", "uninstall", "setup", "install", "redist", "vcredist",
         "dxsetup", "dxwebsetup", "dotnetfx", "ndp", "ue4prereq",
         "crashreport", "crashhandl", "unitycrashhndl",
-        "UnityCrashHandler", "UnityCrashHandler64", "UnityCrashHandler32",
-        "CrashReporter", "CrashSender", "BugSplat",
-        "7z", "winrar"
-    };
+        "UnityCrashHandler", "CrashReporter", "CrashSender", "BugSplat",
+        "EasyAntiCheat", "BEService", "BELauncher",
+        "CrashReportClient", "7z", "winrar"
+    ];
+
+    // Exe name suffixes to skip — editors, tools, launchers
+    private static readonly string[] SkipExeSuffixes =
+    [
+        "Editor", "Launcher", "Crash", "Report", "Config",
+        "Updater", "Helper", "Tool", "Server", "Benchmark",
+        "Redistributable", "Shipping"  // UE4 non-game binaries
+    ];
 
     /// <summary>
     /// Performs a full scan of all supported launchers. Safe to call from background thread.
@@ -182,7 +190,19 @@ public static class GameLibraryScanner
         var fullPath = Path.Combine(steamAppsDir, "common", installDir);
         if (!Directory.Exists(fullPath)) return;
 
-        ScanDirectoryForExes(fullPath, gameName, "steam", steamAppId, result);
+        // Select the single best exe for this game (not every exe in the directory)
+        var bestExe = SelectBestExe(fullPath, gameName);
+        if (bestExe != null)
+        {
+            result.Add(new ScannedGame
+            {
+                ProcessName = bestExe,
+                DisplayName = gameName,
+                Source = "steam",
+                InstallPath = fullPath,
+                SteamAppId = steamAppId
+            });
+        }
     }
 
     #endregion
@@ -370,44 +390,95 @@ public static class GameLibraryScanner
 
     #region Helpers
 
-    private static void ScanDirectoryForExes(string dir, string gameName, string source,
-        int? steamAppId, List<ScannedGame> result)
+    /// <summary>
+    /// Selects the single best executable from a game's install directory.
+    /// Prefers exe whose name matches the game/folder name, then falls back to largest exe.
+    /// Returns null if no suitable candidate found.
+    /// </summary>
+    private static string? SelectBestExe(string dir, string gameName)
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        List<(string Path, string Name, long Size)> candidates;
         try
         {
-            foreach (var exePath in Directory.EnumerateFiles(dir, "*.exe", SearchOption.AllDirectories))
-            {
-                var exeName = Path.GetFileName(exePath);
-                if (ShouldSkipExe(exeName)) continue;
-
-                if (seen.Add(exeName))
+            candidates = Directory.EnumerateFiles(dir, "*.exe", SearchOption.AllDirectories)
+                .Select(p =>
                 {
-                    result.Add(new ScannedGame
-                    {
-                        ProcessName = exeName,
-                        DisplayName = gameName,
-                        Source = source,
-                        InstallPath = dir,
-                        SteamAppId = steamAppId
-                    });
-                }
-            }
+                    try { return (Path: p, Name: System.IO.Path.GetFileName(p), Size: new FileInfo(p).Length); }
+                    catch { return (Path: p, Name: System.IO.Path.GetFileName(p), Size: 0L); }
+                })
+                .Where(c => !ShouldSkipExe(c.Name))
+                .ToList();
         }
-        catch (UnauthorizedAccessException) { }
+        catch (UnauthorizedAccessException) { return null; }
         catch (Exception ex)
         {
             Log.Debug("Failed to scan {Dir}: {Error}", dir, ex.Message);
+            return null;
         }
+
+        if (candidates.Count == 0) return null;
+        if (candidates.Count == 1) return candidates[0].Name;
+
+        // Normalize game name for matching: remove spaces, punctuation, lowercase
+        var normalizedGame = NormalizeForMatch(gameName);
+        var folderName = NormalizeForMatch(System.IO.Path.GetFileName(dir));
+
+        // Score each candidate — higher is better
+        var scored = candidates
+            .Select(c =>
+            {
+                var nameNoExt = NormalizeForMatch(System.IO.Path.GetFileNameWithoutExtension(c.Name));
+                int score = 0;
+
+                // Exact match with game name or folder name
+                if (nameNoExt == normalizedGame || nameNoExt == folderName)
+                    score += 1000;
+                // Contains game name or folder name
+                else if (nameNoExt.Contains(normalizedGame) || normalizedGame.Contains(nameNoExt))
+                    score += 500;
+                else if (nameNoExt.Contains(folderName) || folderName.Contains(nameNoExt))
+                    score += 400;
+
+                // Exe in root directory preferred over subdirectories
+                var relativePath = c.Path[dir.Length..].TrimStart('\\', '/');
+                if (!relativePath.Contains('\\') && !relativePath.Contains('/'))
+                    score += 100;
+
+                // Larger files are more likely to be the game binary
+                score += (int)(c.Size / (1024 * 1024)); // +1 per MB
+
+                return (c.Name, Score: score);
+            })
+            .OrderByDescending(s => s.Score)
+            .ToList();
+
+        return scored[0].Name;
+    }
+
+    private static string NormalizeForMatch(string name)
+    {
+        var sb = new System.Text.StringBuilder(name.Length);
+        foreach (var ch in name)
+        {
+            if (char.IsLetterOrDigit(ch))
+                sb.Append(char.ToLowerInvariant(ch));
+        }
+        return sb.ToString();
     }
 
     private static bool ShouldSkipExe(string exeName)
     {
-        var nameWithoutExt = Path.GetFileNameWithoutExtension(exeName);
+        var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(exeName);
 
         foreach (var prefix in SkipExePrefixes)
         {
             if (nameWithoutExt.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        foreach (var suffix in SkipExeSuffixes)
+        {
+            if (nameWithoutExt.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
                 return true;
         }
 

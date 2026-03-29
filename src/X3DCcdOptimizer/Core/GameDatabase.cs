@@ -83,6 +83,63 @@ public class GameDatabase : IDisposable
     }
 
     /// <summary>
+    /// Removes duplicate entries — keeps one entry per DisplayName+Source combination.
+    /// Prefers entries whose ProcessName best matches the DisplayName.
+    /// </summary>
+    public void Deduplicate()
+    {
+        var all = _games.FindAll().ToList();
+        var groups = all.GroupBy(g => (
+            Name: g.DisplayName.ToLowerInvariant(),
+            g.Source
+        )).Where(g => g.Count() > 1);
+
+        int removed = 0;
+        foreach (var group in groups)
+        {
+            // Keep the entry whose exe name best matches the display name, or largest SteamAppId (legitimately different apps)
+            var entries = group.ToList();
+
+            // If entries have different SteamAppIds, they're legitimately different apps — skip
+            var distinctAppIds = entries.Where(e => e.SteamAppId.HasValue).Select(e => e.SteamAppId!.Value).Distinct().Count();
+            if (distinctAppIds > 1) continue;
+
+            var normalizedName = NormalizeName(group.Key.Name);
+            var best = entries
+                .OrderByDescending(e => NameMatchScore(NormalizeName(Path.GetFileNameWithoutExtension(e.ProcessName)), normalizedName))
+                .ThenByDescending(e => e.SteamAppId.HasValue ? 1 : 0)
+                .First();
+
+            foreach (var entry in entries.Where(e => e.Id != best.Id))
+            {
+                _games.Delete(entry.Id);
+                removed++;
+            }
+        }
+
+        if (removed > 0)
+            Log.Information("Deduplicated game library: removed {Count} duplicate entries", removed);
+    }
+
+    private static string NormalizeName(string name)
+    {
+        var sb = new System.Text.StringBuilder(name.Length);
+        foreach (var ch in name)
+        {
+            if (char.IsLetterOrDigit(ch))
+                sb.Append(char.ToLowerInvariant(ch));
+        }
+        return sb.ToString();
+    }
+
+    private static int NameMatchScore(string exeNorm, string gameNorm)
+    {
+        if (exeNorm == gameNorm) return 100;
+        if (exeNorm.Contains(gameNorm) || gameNorm.Contains(exeNorm)) return 50;
+        return 0;
+    }
+
+    /// <summary>
     /// Migrates from the old JSON cache format if it exists.
     /// </summary>
     public void MigrateFromJsonCache()

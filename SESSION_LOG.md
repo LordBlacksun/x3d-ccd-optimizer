@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 51
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 52
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -66,6 +66,41 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 52 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix Game Library duplicate entries — one row per game, not per executable
+
+### Problem
+Steam game scanner was adding every .exe in each game's install directory. A game like "Amnesia: The Bunker" appeared 5 times (AmnesiaTheBunker.exe, AmnesiaTheBunker_NoEAC.exe, LangEditor.exe, LevelEditor.exe, MaterialEditor.exe). Inflated counts and made the list unusable.
+
+### Fix: Smarter Exe Selection (GameLibraryScanner.cs)
+- Replaced `ScanDirectoryForExes()` (add-every-exe) with `SelectBestExe()` (pick-one)
+- **Selection algorithm:** Score candidates by name match to game/folder name (+1000 exact, +500 contains), root directory preference (+100), file size (+1 per MB). Pick highest score.
+- **Expanded skip patterns:** Added suffix-based filtering (`*Editor`, `*Launcher`, `*Config`, `*Updater`, `*Helper`, `*Tool`, `*Server`, `*Benchmark`) alongside existing prefix-based skips. Also added `EasyAntiCheat*`, `BEService*`, `BELauncher*`, `CrashReportClient`.
+- Steam: one entry per ACF manifest (one game = one exe). Epic and GOG were already one-entry-per-game.
+
+### Fix: Database Deduplication (GameDatabase.cs)
+- Added `Deduplicate()` method: groups by DisplayName+Source, keeps best name-match candidate, removes rest.
+- Entries with different SteamAppIds are kept (legitimately different apps, e.g., 3DMark + 3DMark Demo).
+- Runs on startup after migration, before first use.
+
+### Fix: Display Deduplication (GameLibraryViewModel.cs)
+- Tracks seen exe names across built-in and scanned sources. Built-in entries win.
+- One row per unique exe, period. Count reflects unique games.
+
+### Files Changed
+- `Core/GameLibraryScanner.cs` — `SelectBestExe()`, expanded skip patterns, `NormalizeForMatch()`
+- `Core/GameDatabase.cs` — `Deduplicate()`, `NormalizeName()`, `NameMatchScore()`
+- `ViewModels/GameLibraryViewModel.cs` — Simplified `Refresh()` with exe-based dedup
+- `App.xaml.cs` — Call `_gameDb.Deduplicate()` on startup
+
+### Build & Tests
+- `dotnet build` — 0 warnings, 0 errors
+- `dotnet test` — 5 passed, 0 failed
 
 ---
 
