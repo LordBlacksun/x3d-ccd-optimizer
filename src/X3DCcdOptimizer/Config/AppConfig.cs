@@ -152,7 +152,13 @@ public class AppConfig
         "aftereffects.exe",
         "davinci resolve.exe",
         "blender.exe",
-        "code.exe"
+        "code.exe",
+        "wallpaper32.exe",
+        "wallpaper64.exe",
+        "wallpaperaudio.exe",
+        "webwallpaper32.exe",
+        "WallpaperAlive.exe",
+        "VoiceAttack.exe"
     ];
 
     [JsonPropertyName("backgroundApps")]
