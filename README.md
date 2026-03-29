@@ -1,6 +1,6 @@
 ![X3D CCD Optimizer](logo-512.png)
 
-![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white) ![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?logo=windows&logoColor=white) ![License](https://img.shields.io/badge/License-GPL%20v2-blue) ![Version](https://img.shields.io/badge/Version-1.0.0-green) ![AMD Ryzen](https://img.shields.io/badge/AMD-Ryzen%20X3D-ED1C24?logo=amd&logoColor=white) [![Build](https://github.com/LordBlacksun/X3D-CCD-Optimizer/actions/workflows/build.yml/badge.svg)](https://github.com/LordBlacksun/X3D-CCD-Optimizer/actions/workflows/build.yml)
+![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white) ![Windows](https://img.shields.io/badge/Windows-10%2F11-0078D6?logo=windows&logoColor=white) ![License](https://img.shields.io/badge/License-GPL%20v2-blue) ![Version](https://img.shields.io/badge/Version-1.0.0--beta-orange) ![AMD Ryzen](https://img.shields.io/badge/AMD-Ryzen%20X3D-ED1C24?logo=amd&logoColor=white) [![Build](https://github.com/LordBlacksun/X3D-CCD-Optimizer/actions/workflows/build.yml/badge.svg)](https://github.com/LordBlacksun/X3D-CCD-Optimizer/actions/workflows/build.yml)
 
 # X3D CCD Optimizer
 
@@ -38,10 +38,29 @@ For the full technical breakdown, see the Wiki: [AMD X3D Scheduling Explained](.
 <!-- ![Process Rules](screenshots/process-rules.png) -->
 <!-- ![Overlay](screenshots/overlay.png) -->
 
+## Download & Install
+
+### Option 1: Installer (recommended)
+Download `X3DCcdOptimizer-Setup-*.exe` from the latest [Release](../../releases). The installer sets up the app in Program Files, creates Start Menu shortcuts, and configures the "Run as administrator" compatibility flag automatically.
+
+### Option 2: Portable ZIP
+Download the `.zip` from [Releases](../../releases), extract anywhere, and run `X3DCcdOptimizer.exe`. No installation required. You'll need to right-click and "Run as administrator" manually, or set the compatibility flag yourself.
+
+### Option 3: Build from source
+```bash
+# Requires .NET 8 SDK
+git clone https://github.com/LordBlacksun/x3d-ccd-optimizer.git
+cd x3d-ccd-optimizer
+dotnet build
+dotnet run --project src/X3DCcdOptimizer
+```
+
+> **Note:** The app requires the [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) for the portable ZIP and installer builds. The self-contained build (~155 MB) bundles the runtime.
+
 ## Quick Start
 
-1. Download the latest release from [Releases](../../releases)
-2. Run the exe -- accept the UAC prompt (admin rights required for CPU affinity)
+1. Run the app -- accept the UAC prompt (admin rights required for CPU affinity)
+2. On first launch, you'll be asked whether to scan your game libraries (Steam, Epic, GOG)
 3. The app starts in **Monitor mode** -- it observes your CPU without changing anything
 4. Open **Settings > Process Rules** to configure which games go to V-Cache and which background apps go to Frequency CCD
 5. Toggle to **Optimize** when you're ready to actively manage CCD affinity
@@ -60,9 +79,9 @@ Non-AMD processors are also detected and shown a separate exit dialog.
 ## Requirements
 
 - **OS:** Windows 10/11 64-bit
-- **Runtime:** [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) (or use the self-contained build)
-- **CPU:** AMD Ryzen dual-CCD processor
-- **Elevation:** Administrator rights (required for process affinity and driver registry access)
+- **Runtime:** [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) (included in self-contained builds)
+- **CPU:** AMD Ryzen dual-CCD processor (7950X3D, 9950X3D, 5950X, etc.)
+- **Admin:** Required for process affinity and driver registry access
 
 ## Documentation
 
