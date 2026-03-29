@@ -51,10 +51,7 @@ public class CcdPanelViewModel : ViewModelBase
         CcdName = $"CCD{ccdIndex}";
         BadgeText = topology.Tier switch
         {
-            ProcessorTier.SingleCcdX3D => "V-Cache CCD",
-            ProcessorTier.SingleCcdStandard => "CCD 0",
             ProcessorTier.DualCcdX3D => ccdIndex == 0 ? "V-Cache" : "Frequency",
-            ProcessorTier.DualCcdStandard => $"CCD {ccdIndex}",
             _ => $"CCD {ccdIndex}"
         };
         L3SizeText = $"{l3Size} MB L3";

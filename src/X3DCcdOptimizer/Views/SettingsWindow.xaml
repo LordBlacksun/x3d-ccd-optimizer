@@ -110,25 +110,10 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- Tab 2: Process Rules (tier-aware) -->
+            <!-- Tab 2: Process Rules -->
             <TabItem Header="Process Rules" AutomationProperties.Name="Process rules settings tab">
                 <Grid Margin="8">
-
-                    <!-- SingleCcdStandard: no process rules available -->
-                    <StackPanel Visibility="{Binding SingleCcdStandardVisibility}"
-                                VerticalAlignment="Center" HorizontalAlignment="Center" Margin="24">
-                        <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="28"
-                                   Foreground="{StaticResource TextTertiaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-                        <TextBlock Text="Single-CCD processor detected"
-                                   Foreground="{StaticResource TextPrimaryBrush}" FontSize="14" FontWeight="SemiBold"
-                                   HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                        <TextBlock Text="Process rules require a dual-CCD processor to manage affinity between CCDs. Game detection is still active for monitoring."
-                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="12"
-                                   TextWrapping="Wrap" TextAlignment="Center" MaxWidth="360"/>
-                    </StackPanel>
-
-                    <!-- Dual-CCD and SingleCcdX3D: show game column + conditional bg column -->
-                    <Grid Visibility="{Binding GameColumnVisibility}">
+                    <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="12"/>
@@ -180,8 +165,8 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- Right: Background column (dual-CCD only) -->
-                        <Grid Grid.Column="2" Visibility="{Binding BgColumnVisibility}">
+                        <!-- Right: Background column -->
+                        <Grid Grid.Column="2">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
@@ -218,15 +203,6 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- SingleCcdX3D: info message in place of right column -->
-                        <StackPanel Grid.Column="2" Visibility="{Binding SingleCcdX3DVisibility}"
-                                    VerticalAlignment="Center" Margin="8">
-                            <TextBlock Text="&#xE946;" FontFamily="Segoe MDL2 Assets" FontSize="22"
-                                       Foreground="{StaticResource TextTertiaryBrush}" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                            <TextBlock Text="Single-CCD X3D processor detected. All cores share the V-Cache — no background migration needed. Game detection is active for monitoring."
-                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
-                                       TextWrapping="Wrap" TextAlignment="Center"/>
-                        </StackPanel>
                     </Grid>
                 </Grid>
             </TabItem>
@@ -239,6 +215,7 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
@@ -296,6 +273,29 @@
                         <Button Content="Remove" Command="{Binding RemoveExclusionCommand}" Style="{StaticResource SubtleButtonStyle}"
                                 Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Remove exclusion"/>
                     </StackPanel>
+
+                    <!-- Game Libraries section -->
+                    <Border Grid.Row="5" BorderThickness="0,1,0,0" BorderBrush="{StaticResource BorderDefaultBrush}"
+                            Margin="0,12,0,0" Padding="0,12,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Game Libraries" FontWeight="SemiBold" FontSize="12"
+                                       Foreground="{StaticResource TextSecondaryBrush}" Margin="0,0,0,6"/>
+                            <TextBlock Text="Scans Steam, Epic Games, and GOG Galaxy for installed games."
+                                       FontSize="11" Foreground="{StaticResource TextTertiaryBrush}" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,10">
+                                <Button Content="Rescan Game Libraries" Command="{Binding RescanLibrariesCommand}"
+                                        Style="{StaticResource SubtleButtonStyle}" Padding="10,4"
+                                        AutomationProperties.Name="Rescan game libraries"/>
+                                <TextBlock Text="{Binding ScanStatusText}" FontSize="11"
+                                           Foreground="{StaticResource TextTertiaryBrush}"
+                                           VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            </StackPanel>
+                            <CheckBox Content="Download game artwork" IsChecked="{Binding EnableArtworkDownload}"
+                                      Foreground="{StaticResource TextPrimaryBrush}" Margin="0,2"
+                                      ToolTip="When enabled, downloads game cover art from Steam's public CDN (store.steampowered.com). This is the only network connection this app makes. No data is sent &#x2014; only images are downloaded. Art is cached locally."
+                                      AutomationProperties.Name="Enable artwork download checkbox"/>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </TabItem>
 

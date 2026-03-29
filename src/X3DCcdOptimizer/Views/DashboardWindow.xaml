@@ -76,8 +76,7 @@
         <!-- Row 1: CCD Panels (compact, 8x1 cores) -->
         <UniformGrid Grid.Row="1" Rows="1" Columns="2" Margin="8,8">
             <views:CcdPanel DataContext="{Binding Ccd0Panel}" AutomationProperties.Name="Primary CCD panel"/>
-            <views:CcdPanel DataContext="{Binding Ccd1Panel}" AutomationProperties.Name="Secondary CCD panel"
-                            Visibility="{Binding ShowSecondPanel, Converter={StaticResource BoolToVis}}"/>
+            <views:CcdPanel DataContext="{Binding Ccd1Panel}" AutomationProperties.Name="Secondary CCD panel"/>
         </UniformGrid>
 
         <!-- Row 2: Tabbed lower section (Process Router + Activity Log) -->
@@ -208,6 +207,56 @@
                     </ListBox>
                 </Border>
             </TabItem>
+            <!-- Game Library tab -->
+            <TabItem Header="Game Library" AutomationProperties.Name="Game Library tab">
+                <Border Style="{StaticResource CardStyle}" Margin="0,4,0,0">
+                    <DockPanel>
+                        <TextBlock DockPanel.Dock="Top" Text="{Binding GameLibrary.TotalCountText}"
+                                   Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
+                                   Margin="8,6,8,4"/>
+                        <ListView ItemsSource="{Binding GameLibrary.Games}"
+                                  Background="Transparent" BorderThickness="0"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  AutomationProperties.Name="Game library list">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="2,1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" VerticalAlignment="Center"
+                                                   FontSize="11" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold"/>
+                                        </TextBlock>
+                                        <TextBlock Grid.Column="1" Text="{Binding ExeName, Mode=OneWay}"
+                                                   FontFamily="{StaticResource FontMono}" FontSize="10"
+                                                   Foreground="{StaticResource TextTertiaryBrush}"
+                                                   VerticalAlignment="Center" Margin="8,0"/>
+                                        <Border Grid.Column="2" Background="{Binding SourceColor}"
+                                                CornerRadius="3" Padding="6,1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding SourceBadge, Mode=OneWay}"
+                                                       FontSize="9" FontWeight="SemiBold"
+                                                       Foreground="White"/>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="4,2"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                        </ListView>
+                    </DockPanel>
+                </Border>
+            </TabItem>
         </TabControl>
 
         <!-- Row 3: Footer — separator + info + overlay toggle -->
@@ -217,8 +266,12 @@
             <DockPanel Margin="16,6,16,8">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
                     <Button Style="{StaticResource SubtleButtonStyle}"
+                            Command="{Binding OpenAboutCommand}"
+                            Content="About" FontSize="11" Padding="10,4"
+                            AutomationProperties.Name="Open about window"/>
+                    <Button Style="{StaticResource SubtleButtonStyle}"
                             Command="{Binding OpenSettingsCommand}"
-                            Content="Settings" FontSize="11" Padding="10,4"
+                            Content="Settings" FontSize="11" Padding="10,4" Margin="6,0,0,0"
                             AutomationProperties.Name="Open settings window"/>
                     <Button Style="{StaticResource SubtleButtonStyle}"
                             Command="{Binding ToggleOverlayCommand}"

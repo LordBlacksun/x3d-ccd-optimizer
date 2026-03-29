@@ -4,7 +4,7 @@
 
 # X3D CCD Optimizer
 
-A free, open-source Windows tool that gives you visibility and control over CCD scheduling on AMD Ryzen processors. Real-time dashboard, automatic game detection, background process management, and a compact gaming overlay. Supports all Ryzen processors from single-CCD standard to dual-CCD X3D.
+A free, open-source Windows tool that gives you visibility and control over CCD scheduling on AMD Ryzen dual-CCD processors. Real-time dashboard, automatic game detection with library scanning, background process management, and a compact gaming overlay.
 
 ## Why Does This Exist?
 
@@ -16,26 +16,27 @@ For the full technical breakdown, see the Wiki: [AMD X3D Scheduling Explained](.
 
 ## Features
 
-- **Real-time CCD dashboard** -- per-core load heatmaps, frequency display, grouped process router with game badges
-- **Automatic game detection** -- 500+ game database (known games + Steam/Epic launcher scan) + GPU heuristic fallback. Known games detected instantly by process name, no GPU threshold needed
+- **Real-time CCD dashboard** -- per-core load heatmaps, frequency display, process router with game badges, activity log
+- **Game Library tab** -- shows all known games with source badges (Built-in, Steam, Epic, GOG)
+- **Automatic game detection** -- 65 built-in known games, plus automatic scanning of installed Steam, Epic, and GOG libraries. On a typical gaming PC, this covers hundreds of titles out of the box. Anything not recognized falls back to GPU heuristic detection
+- **Four-tier detection pipeline** -- Manual rules, Built-in DB (65 games), Library scan (Steam/Epic/GOG), GPU heuristic
 - **Two optimization strategies** -- Driver Preference (AMD's V-Cache driver registry) or Affinity Pinning (direct CPU affinity masks). Driver Preference recommended for X3D processors
 - **Process Rules** -- pin games to V-Cache CCD, pin background apps (Discord, browsers, OBS) to Frequency CCD
-- **Live Process Picker** -- see what's running on your system, tick what to manage, add to rules
-- **Continuous monitoring** -- 3-second scan loop catches newly launched processes and migrates them automatically
-- **Background migration in both strategies** -- background apps get pinned regardless of whether the game uses Driver Preference or Affinity Pinning
-- **Compact gaming overlay** -- always-on-top CCD load display with OLED burn-in protection. Toggle with Ctrl+Shift+O
-- **4-tier processor support** -- DualCcdX3D, SingleCcdX3D, DualCcdStandard, SingleCcdStandard
+- **Compact gaming overlay** -- always-on-top CCD load display with OLED burn-in protection (pixel shift every 3 minutes). Toggle with Ctrl+Shift+O
+- **Opt-in box art** -- artwork from Steam's public CDN, off by default. Zero network activity unless you enable it
+- **About dialog** -- version, license, credits, AI disclosure
 - **Safe by default** -- Monitor mode observes without changing anything. Optimize is opt-in
 - **Dirty shutdown recovery** -- affinities restored automatically even after crashes
-- **Runs elevated with full transparency** -- open source, no telemetry, no network connections
+- **Adaptive polling** -- idle at 4s, active at 2s. Background re-migration every 5s during optimization
+- **No network connections by default** -- open source, no telemetry. Optional artwork downloads connect to Steam's public CDN only
 
 ## Screenshots
 
 <!-- TODO: Add screenshots -->
 <!-- ![Dashboard](screenshots/dashboard.png) -->
+<!-- ![Game Library](screenshots/game-library.png) -->
 <!-- ![Process Rules](screenshots/process-rules.png) -->
 <!-- ![Overlay](screenshots/overlay.png) -->
-<!-- ![Process Picker](screenshots/process-picker.png) -->
 
 ## Quick Start
 
@@ -47,18 +48,20 @@ For the full technical breakdown, see the Wiki: [AMD X3D Scheduling Explained](.
 
 ## Supported Processors
 
+This tool is built for dual-CCD AMD Ryzen processors only. Single-CCD processors (9800X3D, 7800X3D, 5800X3D, 7600X, 9700X, etc.) don't have the CCD scheduling problem this tool solves -- the app detects them and exits with a friendly explanation.
+
 | Tier | Examples | Features |
 |------|----------|----------|
 | Dual-CCD X3D | 7950X3D, 7900X3D, 9950X3D, 9900X3D | Full: Driver Preference + Affinity Pinning, CCD heatmaps, background migration, overlay |
-| Single-CCD X3D | 7800X3D, 9800X3D | Monitoring: per-core heatmap, game detection, overlay. No CCD steering needed (all cores share V-Cache) |
-| Dual-CCD Standard | 7950X, 7900X, 9950X, 9900X, 5950X, 5900X | Affinity Pinning to either CCD, CCD heatmaps, background migration |
-| Single-CCD Standard | 7600X, 7700X, 5600X, 5800X, etc. | Monitoring: per-core heatmap, overlay |
+| Dual-CCD Standard | 5950X, 5900X, 7950X, 7900X, 9950X, 9900X | Affinity Pinning, CCD heatmaps, background migration |
+
+Non-AMD processors are also detected and shown a separate exit dialog.
 
 ## Requirements
 
 - **OS:** Windows 10/11 64-bit
 - **Runtime:** [.NET 8 Desktop Runtime](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) (or use the self-contained build)
-- **CPU:** AMD Ryzen processor
+- **CPU:** AMD Ryzen dual-CCD processor
 - **Elevation:** Administrator rights (required for process affinity and driver registry access)
 
 ## Documentation
@@ -68,11 +71,16 @@ Full documentation is available on the [Wiki](../../wiki):
 - [AMD X3D Scheduling Explained](../../wiki/AMD-X3D-Scheduling-Explained) -- how CPPC, V-Cache driver, and core parking work together
 - [How It Works](../../wiki/How-It-Works) -- architecture and detection pipeline
 - [FAQ](../../wiki/FAQ) -- common questions and troubleshooting
-- [Process Rules Guide](../../wiki/Process-Rules-Guide) -- configuring game and background app rules
+- [Process Rules](../../wiki/Process-Rules) -- configuring game and background app rules
 
 ## How It Works
 
-On startup, the app detects your CPU's cache topology via `GetLogicalProcessorInformationEx` to identify CCDs, V-Cache presence, and processor tier. It then monitors running processes against the game database (manual list, 500+ known games, Steam/Epic launcher scan) and GPU usage heuristics.
+On startup, the app detects your CPU's cache topology via `GetLogicalProcessorInformationEx` to identify CCDs and V-Cache presence. It verifies the processor is dual-CCD -- single-CCD and non-AMD processors get a friendly exit dialog. It then monitors running processes against a four-tier detection pipeline:
+
+1. **Manual rules** (user-configured) -- highest priority, always wins
+2. **Built-in database** (65 known games) -- instant match by process name
+3. **Library scan** (Steam, Epic, GOG) -- automatic scanning of installed game libraries
+4. **GPU heuristic** (WMI per-process 3D utilization) -- debounce: 5s to detect, 10s to exit
 
 In **Monitor mode**, everything is observe-only -- the dashboard shows what the app *would* do. In **Optimize mode**, the selected strategy takes effect: Driver Preference sets AMD's registry key to prefer the V-Cache CCD, while Affinity Pinning directly sets CPU affinity masks. Background processes are migrated to the Frequency CCD in both strategies. When the game exits, all changes are restored. Every action is logged with timestamps and detection source.
 
@@ -85,10 +93,16 @@ Yes. Monitor mode changes nothing. Optimize mode uses standard Windows APIs (`Se
 Windows requires administrator privileges to set CPU affinity on other processes and to write to the AMD driver's HKLM registry key. The app is fully open source -- audit every line.
 
 **Does it work with anti-cheat?**
-Driver Preference (recommended) does not modify any game process -- it only sets a registry key that AMD's driver reads. Affinity Pinning modifies the game's CPU affinity mask, which is a standard Windows feature but may interact with aggressive anti-cheat systems. Use Driver Preference for competitive online games.
+Driver Preference (recommended) does not modify any game process -- it only sets a registry key that AMD's driver reads. Affinity Pinning modifies the game's CPU affinity mask, which is a standard Windows feature but based on community reports may interact with some aggressive anti-cheat systems. Use Driver Preference for competitive online games.
+
+**Does it support single-CCD processors like the 9800X3D or 7800X3D?**
+No -- the app detects single-CCD processors and shows a friendly message explaining they don't need this tool. On single-CCD X3D chips, all cores share the same V-Cache, so there is no CCD scheduling problem to solve.
+
+**Does it connect to the internet?**
+No network connections by default. Optional artwork downloads (off by default) connect to Steam's public CDN only. There is no telemetry, no update checks, and no analytics.
 
 **How is this different from Process Lasso?**
-Process Lasso is a general-purpose process manager with no awareness of X3D CCD topology, no automatic game detection, no V-Cache driver integration, and no visual CCD dashboard. This tool is purpose-built for the AMD Ryzen CCD scheduling problem.
+Process Lasso is a general-purpose process manager with no awareness of X3D CCD topology, no automatic game detection, no V-Cache driver integration, and no visual CCD dashboard. This tool is purpose-built for the AMD Ryzen dual-CCD scheduling problem.
 
 **Is this AI-generated?**
 The architecture and design decisions are by [LordBlacksun](https://github.com/LordBlacksun). Implementation is generated by [Claude Code](https://claude.ai/claude-code) under human supervision. Every change is reviewed, tested on real hardware, and approved before commit. See [How This Was Built](#how-this-was-built) for details.
@@ -118,6 +132,7 @@ AI-assisted development is a legitimate way to build software. The code works, t
 
 - [cocafe/vcache-tray](https://github.com/cocafe/vcache-tray) -- for discovering and documenting the AMD V-Cache driver registry interface. The Driver Preference strategy builds on their work.
 - AMD -- for CPPC, the 3D V-Cache driver, and the scheduling infrastructure this tool builds on.
+- JayzTwoCents -- for the BIOS research on setting CPPC Preferred Cores to "Driver" for optimal V-Cache scheduling.
 - Inspired by the Linux community's [x3d-toggle](https://github.com/pyrotiger/x3d-toggle) and the `amd_x3d_vcache` kernel driver.
 
 ## License

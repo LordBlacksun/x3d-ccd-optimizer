@@ -180,6 +180,9 @@ public class AppConfig
     [JsonPropertyName("hasDismissedAdminDialog")]
     public bool HasDismissedAdminDialog { get; set; }
 
+    [JsonPropertyName("enableArtworkDownload")]
+    public bool EnableArtworkDownload { get; set; }
+
     /// <summary>True if no config.json existed at load time (first launch).</summary>
     [JsonIgnore]
     public bool IsFirstRun { get; private set; }

@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
@@ -24,12 +25,14 @@ public class MainViewModel : ViewModelBase
     private string _currentGameDisplayName = "";
     private DateTime _sessionStart;
     private bool _isOverlayVisible;
+    private CoreSnapshot[]? _lastSnapshots;
 
     public CcdPanelViewModel Ccd0Panel { get; }
     public CcdPanelViewModel? Ccd1Panel { get; }
     public bool ShowSecondPanel { get; }
     public ActivityLogViewModel ActivityLog { get; } = new();
     public ProcessRouterViewModel ProcessRouter { get; }
+    public GameLibraryViewModel? GameLibrary { get; private set; }
 
     public OperationMode CurrentMode
     {
@@ -105,6 +108,7 @@ public class MainViewModel : ViewModelBase
     public RelayCommand ToggleModeCommand { get; }
     public RelayCommand ToggleOverlayCommand { get; }
     public RelayCommand OpenSettingsCommand { get; }
+    public RelayCommand OpenAboutCommand { get; }
 
     // Expose for settings window creation
     public CpuTopology Topology => _topology;
@@ -123,11 +127,11 @@ public class MainViewModel : ViewModelBase
         _currentMode = affinityManager.Mode;
         PowerPlanWarning = powerPlanWarning;
 
-        IsOptimizeEnabled = topology.IsDualCcd;
-        ShowSecondPanel = topology.IsDualCcd;
+        IsOptimizeEnabled = true;
+        ShowSecondPanel = true;
 
         Ccd0Panel = new CcdPanelViewModel(topology, 0);
-        Ccd1Panel = topology.IsDualCcd ? new CcdPanelViewModel(topology, 1) : null;
+        Ccd1Panel = new CcdPanelViewModel(topology, 1);
 
         // Process router with CCD group names
         var ccd0Name = Ccd0Panel.BadgeText;
@@ -135,7 +139,8 @@ public class MainViewModel : ViewModelBase
         ProcessRouter = new ProcessRouterViewModel(ccd0Name, ccd1Name);
 
         _statusColor = FindBrush("AccentBlueBrush");
-        FooterText = $"v1.0.0 | {topology.CpuModel} | {topology.TotalPhysicalCores} cores | {topology.TotalLogicalCores} threads | Polling: {config.PollingIntervalMs}ms";
+        var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
+        FooterText = $"v{version} | {topology.CpuModel} | {topology.TotalPhysicalCores} cores | {topology.TotalLogicalCores} threads | Polling: {config.PollingIntervalMs}ms";
 
         ToggleModeCommand = new RelayCommand(
             () => IsOptimizeMode = !IsOptimizeMode,
@@ -167,6 +172,21 @@ public class MainViewModel : ViewModelBase
             settingsWindow.Show();
         });
 
+        OpenAboutCommand = new RelayCommand(() =>
+        {
+            foreach (System.Windows.Window win in System.Windows.Application.Current.Windows)
+            {
+                if (win is Views.AboutWindow existing)
+                {
+                    existing.Activate();
+                    return;
+                }
+            }
+
+            var aboutWindow = new Views.AboutWindow();
+            aboutWindow.Show();
+        });
+
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _sessionTimer.Tick += (_, _) =>
         {
@@ -176,14 +196,37 @@ public class MainViewModel : ViewModelBase
                 : $"{elapsed.Minutes}m {elapsed.Seconds:D2}s";
         };
 
-        if (config.IsFirstRun && topology.IsDualCcd)
+        if (config.IsFirstRun)
             StatusText = "Monitor mode \u2014 observing your CPU without making changes. Switch to Optimize to pin games to V-Cache.";
         else
             UpdateStatus();
     }
 
+    public void InitGameLibrary(GameDatabase gameDb)
+    {
+        GameLibrary = new GameLibraryViewModel(gameDb);
+        OnPropertyChanged(nameof(GameLibrary));
+    }
+
     public void OnSnapshotReady(CoreSnapshot[] snapshots)
     {
+        // Debounce: skip UI update if no core changed by more than 1% load or 50 MHz frequency
+        if (_lastSnapshots != null && _lastSnapshots.Length == snapshots.Length)
+        {
+            bool changed = false;
+            for (int i = 0; i < snapshots.Length; i++)
+            {
+                if (Math.Abs(snapshots[i].LoadPercent - _lastSnapshots[i].LoadPercent) > 1.0 ||
+                    Math.Abs(snapshots[i].FrequencyMHz - _lastSnapshots[i].FrequencyMHz) > 50.0)
+                {
+                    changed = true;
+                    break;
+                }
+            }
+            if (!changed) return;
+        }
+        _lastSnapshots = snapshots;
+
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             Ccd0Panel.UpdateSnapshots(snapshots);
@@ -211,11 +254,7 @@ public class MainViewModel : ViewModelBase
             _sessionTimer.Start();
 
             var display = _currentGameDisplayName;
-            if (_topology.IsSingleCcd)
-            {
-                Ccd0Panel.RoleLabel = $"Gaming \u2014 {display}";
-            }
-            else if (_currentMode == OperationMode.Optimize)
+            if (_currentMode == OperationMode.Optimize)
             {
                 Ccd0Panel.RoleLabel = $"Gaming \u2014 {display}";
                 if (Ccd1Panel != null)
@@ -260,12 +299,7 @@ public class MainViewModel : ViewModelBase
 
         if (_isGameActive)
         {
-            if (_topology.IsSingleCcd)
-            {
-                StatusText = $"Monitor \u2014 {display} detected on {ccdLabel}";
-                StatusColor = FindBrush("AccentBlueBrush");
-            }
-            else if (_currentMode == OperationMode.Optimize)
+            if (_currentMode == OperationMode.Optimize)
             {
                 var suffix = strategy == OptimizeStrategy.AffinityPinning ? " (pinned)" : "";
                 StatusText = $"Optimize \u2014 {display} \u2192 {ccdLabel}{suffix}";
@@ -279,12 +313,7 @@ public class MainViewModel : ViewModelBase
         }
         else
         {
-            if (_topology.IsSingleCcd)
-            {
-                StatusText = "Monitor \u2014 watching for games";
-                StatusColor = FindBrush("AccentBlueBrush");
-            }
-            else if (_currentMode == OperationMode.Optimize)
+            if (_currentMode == OperationMode.Optimize)
             {
                 StatusText = PowerPlanWarning != null
                     ? $"Optimize \u2014 waiting for game | \u26A0 {PowerPlanWarning}"

@@ -65,7 +65,7 @@ public class OverlayViewModel : ViewModelBase
 
     // CCD load bars
     public bool ShowLoadBars => _overlayConfig.ShowLoadBars;
-    public bool ShowSecondBar => _overlayConfig.ShowLoadBars && _topology.IsDualCcd;
+    public bool ShowSecondBar => _overlayConfig.ShowLoadBars;
 
     public double Ccd0Load
     {
