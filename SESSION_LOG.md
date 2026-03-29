@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 56
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 57
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -66,6 +66,33 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 57 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Bug fixes from live testing — Game Library data integrity, scan errors, artwork wiring, log confusion
+
+### Fixes
+- **Game Library count mismatch:** `seenNames` display-name dedup was filtering 166 of 169 Steam games. Removed — now deduplicates by exe name only.
+- **LiteDB LINQ error:** `group.Key` can't be translated by LiteDB's expression visitor. Captured to local `var source` before the lambda.
+- **Stale scan data:** `UpsertGames()` → `ReplaceGames()` — wipes old entries per source before inserting fresh. Eliminates ghost multi-exe entries from before `SelectBestExe` fix. Preserves artwork paths.
+- **Tighter skip filters:** Added `crashpad_handler`, `launch_*`, `*_handler`, `*_setup`, `*_service` to catch Dark and Darker's crashpad, HLL's launch exe, etc.
+- **Excluded processes hidden from Game Library:** VoiceAttack, Wallpaper Engine, browsers no longer show in the game list.
+- **Artwork thumbnails wired up:** 28x36px thumbnails in Game Library rows with colored first-letter placeholder when no artwork.
+- **Game Library visual redesign:** Fixed 40px row height, name+exe stacked vertically, source badge right-aligned, consistent layout.
+- **Fresh log per launch:** Replaced Serilog daily rolling append with clean file each launch. Previous session saved as `.prev`.
+
+### Files Changed
+- `Core/GameDatabase.cs` — `ReplaceGames()` replaces `UpsertGames()`, LiteDB LINQ fix
+- `Core/GameLibraryScanner.cs` — tighter skip prefixes/suffixes/exact matches
+- `ViewModels/GameLibraryViewModel.cs` — excluded process filter, removed seenNames, InitialLetter property, empty state message
+- `ViewModels/MainViewModel.cs` — passes excluded list + gameDb to child VMs
+- `Views/DashboardWindow.xaml` — visual redesign with artwork placeholders
+- `App.xaml.cs` — passes excluded processes to InitGameLibrary, ReplaceGames caller
+- `ViewModels/SettingsViewModel.cs` — ReplaceGames caller
+- `Logging/AppLogger.cs` — fresh log per launch with .prev backup
 
 ---
 
