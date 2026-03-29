@@ -13,7 +13,7 @@
 #endif
 
 #define MyAppName "X3D CCD Optimizer"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.0-beta"
 #define MyAppPublisher "LordBlacksun"
 #define MyAppURL "https://github.com/LordBlacksun/x3d-ccd-optimizer"
 #define MyAppExeName "X3DCcdOptimizer.exe"
@@ -53,9 +53,6 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 ; Main executable (from publish output)
 Source: "{#SourceRoot}\publish\X3DCcdOptimizer.exe"; DestDir: "{app}"; Flags: ignoreversion
 
-; Data files
-Source: "{#SourceRoot}\src\X3DCcdOptimizer\Data\known_games.json"; DestDir: "{app}\Data"; Flags: ignoreversion
-
 ; Resources
 Source: "{#SourceRoot}\src\X3DCcdOptimizer\Resources\app.ico"; DestDir: "{app}"; Flags: ignoreversion
 
@@ -80,7 +77,6 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags
 
 [UninstallDelete]
 ; Clean up any files created at runtime in the install directory
-Type: filesandordirs; Name: "{app}\Data"
 Type: files; Name: "{app}\app.ico"
 
 [Code]

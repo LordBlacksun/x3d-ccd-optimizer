@@ -20,7 +20,7 @@ namespace X3DCcdOptimizer;
 
 public partial class App : System.Windows.Application
 {
-    private const string Version = "1.0.0";
+    private const string Version = "1.0.0-beta";
     private const int HotkeyId = 9001;
 
     private AppConfig _config = null!;

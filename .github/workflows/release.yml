@@ -61,7 +61,6 @@ jobs:
 
           New-Item -ItemType Directory -Path ./release-staging -Force
           Copy-Item ./publish/X3DCcdOptimizer.exe ./release-staging/
-          Copy-Item ./src/X3DCcdOptimizer/Data/known_games.json ./release-staging/
           Copy-Item ./src/X3DCcdOptimizer/Resources/app.ico ./release-staging/ -ErrorAction SilentlyContinue
           Copy-Item ./LICENSE ./release-staging/ -ErrorAction SilentlyContinue
           Copy-Item ./README.md ./release-staging/
