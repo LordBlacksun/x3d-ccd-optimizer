@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 59
+**Version:** 1.0.0-beta | **Status:** Beta | **Branch:** develop | **Last session:** 60
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -70,6 +70,34 @@ Development session history for X3D Dual CCD Optimizer.
 - `Directory.EnumerateFiles` with `SearchOption.AllDirectories` throws on first restricted subdirectory — use `EnumerationOptions { IgnoreInaccessible = true }` for game directories with EasyAntiCheat/BattlEye folders
 - LiteDB `ReplaceGames()` only wipes entries matching the scanned sources — legacy entries with different source values persist forever. Always purge stale source types explicitly.
 - `FirstOrDefault()` on value tuple list returns default struct, not null — accessing `.DisplayName` on default struct gives null, not an exception (unlike reference types)
+
+---
+
+## Session 60 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** v1.0.0-beta release prep, installer update, per-core boost frequency fix
+
+### Changes
+- **Version bump to 1.0.0-beta** — csproj, App.xaml.cs, setup.iss
+- **Installer updated** — removed stale `known_games.json` bundling and Data directory cleanup
+- **Release workflow updated** — removed `known_games.json` from ZIP staging
+- **Tagged `v1.0.0-beta`** — pushed to GitHub, triggers release workflow
+- **README install instructions** — three options: Installer, Portable ZIP, Build from source. Updated Quick Start with library scan consent step. Version badge updated.
+- **Wiki updated** — 7 pages updated to remove "65 built-in games", "four-tier detection", `[database]` source references. Now reflects 3-tier pipeline.
+- **Per-core boost frequency** — PDH `Processor Frequency` counter reports base clock only (e.g. flat 4.2 GHz on 7950X3D). Added `% Processor Performance` counter and computes effective frequency: `base × (% perf / 100)`. Now shows actual boost clocks (5.5–5.7 GHz under load). Graceful fallback if counter unavailable.
+
+### Files Changed
+- `X3DCcdOptimizer.csproj` — version 1.0.0-beta
+- `App.xaml.cs` — version constant
+- `installer/setup.iss` — version, removed known_games.json
+- `.github/workflows/release.yml` — removed known_games.json from staging
+- `README.md` — install instructions, version badge
+- `Core/PerformanceMonitor.cs` — `% Processor Performance` counter for effective boost frequency
+
+### Verification
+- Build: 0 warnings, 0 errors
+- Tests: 177/177 passing
 
 ---
 
