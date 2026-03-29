@@ -86,6 +86,7 @@ Development session history for X3D Dual CCD Optimizer.
 - **README install instructions** — three options: Installer, Portable ZIP, Build from source. Updated Quick Start with library scan consent step. Version badge updated.
 - **Wiki updated** — 7 pages updated to remove "65 built-in games", "four-tier detection", `[database]` source references. Now reflects 3-tier pipeline.
 - **Per-core boost frequency** — PDH `Processor Frequency` counter reports base clock only (e.g. flat 4.2 GHz on 7950X3D). Added `% Processor Performance` counter and computes effective frequency: `base × (% perf / 100)`. Now shows actual boost clocks (5.5–5.7 GHz under load). Graceful fallback if counter unavailable.
+- **Self-updater** — "v1.x.x available" text in footer is now a clickable button. Downloads the latest release ZIP from GitHub, extracts the exe, writes a PowerShell script that waits for the app to exit, replaces the exe in-place, relaunches, and cleans up temp files. Progress shown in the button text (Checking → Downloading → Extracting → Applying → Restarting). Works for both installed and portable deployments.
 
 ### Files Changed
 - `X3DCcdOptimizer.csproj` — version 1.0.0-beta
@@ -94,6 +95,9 @@ Development session history for X3D Dual CCD Optimizer.
 - `.github/workflows/release.yml` — removed known_games.json from staging
 - `README.md` — install instructions, version badge
 - `Core/PerformanceMonitor.cs` — `% Processor Performance` counter for effective boost frequency
+- `Core/UpdateChecker.cs` — `DownloadAndApply()` method: download ZIP, extract, swap exe via PS1 script
+- `ViewModels/MainViewModel.cs` — `ApplyUpdateCommand`, `UpdateVisible` property
+- `Views/DashboardWindow.xaml` — update text → clickable button with BoolToVis
 
 ### Verification
 - Build: 0 warnings, 0 errors
