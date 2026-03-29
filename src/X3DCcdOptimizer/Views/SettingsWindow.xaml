@@ -39,6 +39,10 @@
                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
                                   ToolTip="When enabled, closing the window minimizes to the system tray instead of exiting. Use the tray icon to fully exit."
                                   AutomationProperties.Name="Minimize to tray on close checkbox"/>
+                        <CheckBox Content="Check for updates on startup" IsChecked="{Binding CheckForUpdates}"
+                                  Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
+                                  ToolTip="Checks the GitHub Releases API for new versions on startup (no more than once per 24 hours). No data is sent."
+                                  AutomationProperties.Name="Check for updates checkbox"/>
                         <CheckBox Content="Show notifications" IsChecked="{Binding Notifications}"
                                   Foreground="{StaticResource TextPrimaryBrush}" Margin="0,4"
                                   ToolTip="Show system notifications when games are detected or affinities change."

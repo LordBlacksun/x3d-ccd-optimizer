@@ -183,6 +183,21 @@ public class AppConfig
     [JsonPropertyName("enableArtworkDownload")]
     public bool EnableArtworkDownload { get; set; }
 
+    [JsonPropertyName("checkForUpdates")]
+    public bool CheckForUpdates { get; set; }
+
+    [JsonPropertyName("gameProfiles")]
+    public List<GameProfile> GameProfiles { get; set; } = [];
+
+    [JsonPropertyName("lastUpdateCheckUtc")]
+    public string? LastUpdateCheckUtc { get; set; }
+
+    /// <summary>
+    /// Library scan consent: null = not asked yet, true = user opted in, false = user declined (Don't Ask Again).
+    /// </summary>
+    [JsonPropertyName("libraryScanConsent")]
+    public bool? LibraryScanConsent { get; set; }
+
     /// <summary>True if no config.json existed at load time (first launch).</summary>
     [JsonIgnore]
     public bool IsFirstRun { get; private set; }

@@ -15,6 +15,7 @@ public class MainViewModel : ViewModelBase
     private readonly AffinityManager _affinityManager;
     private readonly AppConfig _config;
     private readonly DispatcherTimer _sessionTimer;
+    private GameDatabase? _gameDb;
 
     private OperationMode _currentMode;
     private string _statusText = "";
@@ -103,6 +104,13 @@ public class MainViewModel : ViewModelBase
 
     public string OverlayButtonText => _isOverlayVisible ? "Hide Overlay" : "Show Overlay";
 
+    private string _updateText = "";
+    public string UpdateText
+    {
+        get => _updateText;
+        set => SetProperty(ref _updateText, value);
+    }
+
     public string FooterText { get; }
 
     public RelayCommand ToggleModeCommand { get; }
@@ -164,7 +172,7 @@ public class MainViewModel : ViewModelBase
                 }
             }
 
-            var settingsVm = new SettingsViewModel(config, topology);
+            var settingsVm = new SettingsViewModel(config, topology, _gameDb);
             var settingsWindow = new Views.SettingsWindow
             {
                 DataContext = settingsVm
@@ -204,6 +212,7 @@ public class MainViewModel : ViewModelBase
 
     public void InitGameLibrary(GameDatabase gameDb)
     {
+        _gameDb = gameDb;
         GameLibrary = new GameLibraryViewModel(gameDb);
         OnPropertyChanged(nameof(GameLibrary));
     }

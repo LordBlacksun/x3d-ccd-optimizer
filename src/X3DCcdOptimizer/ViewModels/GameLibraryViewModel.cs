@@ -41,7 +41,6 @@ public class GameLibraryItemViewModel : ViewModelBase
             "steam" => "Steam",
             "epic" => "Epic",
             "gog" => "GOG",
-            "builtin" => "Built-in",
             _ => source
         };
 
@@ -50,7 +49,6 @@ public class GameLibraryItemViewModel : ViewModelBase
             "steam" => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x17, 0x1A, 0x21)),
             "epic" => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x2A, 0x2A, 0x2A)),
             "gog" => new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x43, 0x1D, 0x6B)),
-            "builtin" => FindBrush("AccentPurpleBrush"),
             _ => new SolidColorBrush(Colors.Gray)
         };
 
@@ -101,50 +99,17 @@ public class GameLibraryViewModel : ViewModelBase
     {
         Games.Clear();
 
-        // Track seen exe names AND display names to prevent duplicates
         var seenExes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var builtInCount = 0;
         var steamCount = 0;
         var epicCount = 0;
         var gogCount = 0;
 
-        // Load built-in games from known_games.json (highest priority)
-        try
-        {
-            var path = Path.Combine(AppContext.BaseDirectory, "Data", "known_games.json");
-            if (File.Exists(path))
-            {
-                using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
-                if (doc.RootElement.TryGetProperty("games", out var arr))
-                {
-                    foreach (var g in arr.EnumerateArray())
-                    {
-                        var exe = g.TryGetProperty("exe", out var e) ? e.GetString() : null;
-                        var name = g.TryGetProperty("name", out var n) ? n.GetString() : null;
-                        if (exe != null && name != null && seenExes.Add(exe))
-                        {
-                            seenNames.Add(name);
-                            Games.Add(new GameLibraryItemViewModel(name, exe, "builtin"));
-                            builtInCount++;
-                        }
-                    }
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Debug("Failed to load built-in games for library view: {Error}", ex.Message);
-        }
-
-        // Load scanned games from LiteDB — skip duplicates by exe name or display name
+        // Load scanned games from LiteDB — deduplicate by exe name and display name
         foreach (var game in _gameDb.GetAllGames().OrderBy(g => g.DisplayName))
         {
-            // Skip if same exe already shown
             if (!seenExes.Add(game.ProcessName))
                 continue;
-
-            // Skip if same display name already shown (different exe, same game)
             if (!seenNames.Add(game.DisplayName))
                 continue;
 
@@ -160,17 +125,8 @@ public class GameLibraryViewModel : ViewModelBase
             }
         }
 
-        // Sort: alphabetically by name
-        var sorted = Games
-            .OrderBy(g => g.DisplayName, StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        Games.Clear();
-        foreach (var g in sorted)
-            Games.Add(g);
-
         var total = Games.Count;
         var parts = new List<string>();
-        if (builtInCount > 0) parts.Add($"{builtInCount} built-in");
         if (steamCount > 0) parts.Add($"{steamCount} Steam");
         if (epicCount > 0) parts.Add($"{epicCount} Epic");
         if (gogCount > 0) parts.Add($"{gogCount} GOG");

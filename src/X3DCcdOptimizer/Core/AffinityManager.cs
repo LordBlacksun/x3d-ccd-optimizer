@@ -11,11 +11,12 @@ public class AffinityManager : IDisposable
 {
     private readonly CpuTopology _topology;
     private readonly HashSet<string> _protectedProcesses;
-    private readonly Dictionary<int, IntPtr> _originalMasks = new();
+    private readonly Dictionary<int, (IntPtr Mask, string Name)> _originalMasks = new();
     private readonly HashSet<string> _loggedMigrateExes = new(StringComparer.OrdinalIgnoreCase);
     private readonly object _syncLock = new();
     private readonly List<AffinityEvent> _pendingEvents = [];
     private readonly OptimizeStrategy _strategy;
+    private List<GameProfile> _gameProfiles = [];
     private readonly System.Timers.Timer? _reMigrationTimer;
     private bool _engaged;
 #if DEBUG
@@ -103,12 +104,14 @@ public class AffinityManager : IDisposable
             _originalMasks.Clear();
             _loggedMigrateExes.Clear();
 
+            var effectiveStrategy = GetEffectiveStrategy(game.Name);
+
             if (Mode == OperationMode.Optimize)
             {
-                RecoveryManager.OnEngage(game.Name, game.Pid, _strategy);
+                RecoveryManager.OnEngage(game.Name, game.Pid, effectiveStrategy);
 
-                // Game handling depends on strategy
-                if (_strategy == OptimizeStrategy.DriverPreference)
+                // Game handling depends on strategy (per-game profile or global)
+                if (effectiveStrategy == OptimizeStrategy.DriverPreference)
                     EngageGameViaDriver(game);
                 else
                     EngageGame(game);
@@ -120,7 +123,7 @@ public class AffinityManager : IDisposable
             else
             {
                 // Monitor mode simulation
-                if (_strategy == OptimizeStrategy.DriverPreference)
+                if (effectiveStrategy == OptimizeStrategy.DriverPreference)
                     SimulateEngageViaDriver(game);
                 else
                     SimulateEngage(game);
@@ -242,7 +245,7 @@ public class AffinityManager : IDisposable
         {
             if (Kernel32.GetProcessAffinityMask(handle, out var originalMask, out _))
             {
-                _originalMasks[game.Pid] = originalMask;
+                _originalMasks[game.Pid] = (originalMask, game.Name);
             }
             else
             {
@@ -253,7 +256,7 @@ public class AffinityManager : IDisposable
             if (Kernel32.SetProcessAffinityMask(handle, _topology.VCacheMask))
             {
                 RecoveryManager.AddModifiedProcess(game.Name, game.Pid,
-                    _originalMasks.GetValueOrDefault(game.Pid, new IntPtr(-1)));
+                    _originalMasks.TryGetValue(game.Pid, out var saved) ? saved.Mask : new IntPtr(-1));
                 Emit(AffinityAction.Engaged, game.Name, game.Pid,
                     $"→ CCD0 (V-Cache, mask {_topology.VCacheMaskHex})", game.DisplayName);
             }
@@ -308,13 +311,13 @@ public class AffinityManager : IDisposable
 
                 try
                 {
-                    if (Kernel32.GetProcessAffinityMask(handle, out var originalMask, out _))
+                    if (Kernel32.GetProcessAffinityMask(handle, out var origMask, out _))
                     {
-                        _originalMasks[proc.Id] = originalMask;
+                        _originalMasks[proc.Id] = (origMask, name + ".exe");
 
                         if (Kernel32.SetProcessAffinityMask(handle, _topology.FrequencyMask))
                         {
-                            RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, originalMask);
+                            RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, origMask);
 
                             // Only log first migration per exe name
                             if (_loggedMigrateExes.Add(name))
@@ -443,25 +446,9 @@ public class AffinityManager : IDisposable
         int exited = 0;
         int errors = 0;
 
-        foreach (var (pid, originalMask) in _originalMasks)
+        foreach (var (pid, (mask, cachedName)) in _originalMasks)
         {
-            string processName = "unknown";
-            try
-            {
-                using var proc = Process.GetProcessById(pid);
-                processName = proc.ProcessName + ".exe";
-            }
-            catch (ArgumentException)
-            {
-                // Process already exited — benign
-                exited++;
-                continue;
-            }
-            catch
-            {
-                exited++;
-                continue;
-            }
+            string processName = cachedName ?? "unknown";
 
             try
             {
@@ -471,6 +458,11 @@ public class AffinityManager : IDisposable
                 if (handle == IntPtr.Zero)
                 {
                     var err = Marshal.GetLastWin32Error();
+                    if (err == 87) // Invalid parameter — process exited
+                    {
+                        exited++;
+                        continue;
+                    }
                     Emit(AffinityAction.Error, processName, pid,
                         $"restore failed — {FormatWin32Error(err)}");
                     errors++;
@@ -479,7 +471,7 @@ public class AffinityManager : IDisposable
 
                 try
                 {
-                    if (Kernel32.SetProcessAffinityMask(handle, originalMask))
+                    if (Kernel32.SetProcessAffinityMask(handle, mask))
                     {
                         restored++;
                     }
@@ -513,6 +505,38 @@ public class AffinityManager : IDisposable
 
         _originalMasks.Clear();
         _loggedMigrateExes.Clear();
+    }
+
+    public void UpdateGameProfiles(List<GameProfile> profiles)
+    {
+        lock (_syncLock)
+        {
+            _gameProfiles = profiles;
+        }
+    }
+
+    private OptimizeStrategy GetEffectiveStrategy(string processName)
+    {
+        var clean = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? processName[..^4] : processName;
+
+        foreach (var profile in _gameProfiles)
+        {
+            var profileName = profile.ProcessName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                ? profile.ProcessName[..^4] : profile.ProcessName;
+
+            if (string.Equals(clean, profileName, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(profile.Strategy, "global", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Enum.TryParse<OptimizeStrategy>(profile.Strategy, true, out var strategy))
+                {
+                    Log.Information("Using per-game profile for {Name}: {Strategy}", processName, strategy);
+                    return strategy;
+                }
+            }
+        }
+
+        return _strategy;
     }
 
     public void UpdateBackgroundApps(IEnumerable<string> apps)
@@ -622,13 +646,13 @@ public class AffinityManager : IDisposable
 
                     try
                     {
-                        if (Kernel32.GetProcessAffinityMask(handle, out var originalMask, out _))
+                        if (Kernel32.GetProcessAffinityMask(handle, out var origMask2, out _))
                         {
-                            _originalMasks[proc.Id] = originalMask;
+                            _originalMasks[proc.Id] = (origMask2, name + ".exe");
 
                             if (Kernel32.SetProcessAffinityMask(handle, _topology.FrequencyMask))
                             {
-                                RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, originalMask);
+                                RecoveryManager.AddModifiedProcess(name + ".exe", proc.Id, origMask2);
 
                                 // Only log first migration per exe name — subsequent child PIDs migrate silently
                                 if (_loggedMigrateExes.Add(name))

@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 52
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 55
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -66,6 +66,125 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 55 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Add library scan consent prompt — no more silent filesystem scanning
+
+### Changes
+- **Consent dialog** on first launch: "Would you like to scan your game libraries?" with Scan Now / Skip / Don't Ask Again
+- **Config:** `libraryScanConsent` — `null` (not asked), `true` (opted in), `false` (don't ask again)
+- **Skip** = ask again next launch. **Don't Ask Again** = never scan automatically. **Scan Now** = scan and remember consent.
+- Subsequent launches: only scan if `libraryScanConsent == true`
+- Settings "Rescan Game Libraries" button sets consent to `true` implicitly (explicit user action)
+- Dialog explains: "This only reads files on your computer. No network connections are made."
+
+### Files Changed
+- `Config/AppConfig.cs` — added `LibraryScanConsent` nullable bool property
+- `App.xaml.cs` — `ShowLibraryScanConsentDialog()`, `RunLibraryScan()`, consent-gated startup flow
+- `ViewModels/SettingsViewModel.cs` — Rescan button sets `LibraryScanConsent = true`
+
+### Build & Tests
+- `dotnet build` — 0 warnings, 0 errors
+- `dotnet test` — 177 passed, 0 failed
+
+---
+
+## Session 54 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Remove built-in games list, simplify detection pipeline to 3-tier
+
+### Rationale
+The built-in `known_games.json` (81 hardcoded games) was redundant now that library scanning (Steam/Epic/GOG) and GPU heuristic detection exist. The list only caught a narrow edge case not worth maintaining.
+
+### Changes
+- **Deleted** `Data/known_games.json` and all code that loads/parses it
+- **Simplified DetectionMethod enum:** removed `Database`, renamed `LauncherScan` → `LibraryScan`. Now: `Manual`, `LibraryScan`, `Auto`
+- **Detection pipeline now 3-tier:** Manual rules → Library scan (LiteDB) → GPU heuristic
+- **GameDetector:** removed `_knownGames` dictionary, `LoadKnownGames()` method, and Database priority check
+- **GameLibraryViewModel:** removed built-in loading section, removed "Built-in" source badge/color
+- **SettingsViewModel:** autocomplete now loads from LiteDB (`GameDatabase`) instead of known_games.json. Constructor accepts optional `GameDatabase` parameter.
+- **MainViewModel:** stores `_gameDb` reference, passes it to SettingsViewModel
+- **.csproj:** removed `known_games.json` CopyToOutputDirectory
+- **Tests:** updated all `DetectionMethod.LauncherScan` → `DetectionMethod.LibraryScan`
+
+### Build & Tests
+- `dotnet build` — 0 warnings, 0 errors
+- `dotnet test` — 177 passed, 0 failed
+
+---
+
+## Session 53 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Full improvement roadmap implementation — ETW, GPU optimization, tests, auto-update, per-game profiles, DB expansion, code signing prep
+
+### Phase 1: ETW Process Notifications
+- New `Core/ProcessEventWatcher.cs`: subscribes to `Microsoft-Windows-Kernel-Process` ETW provider for near-instant game detection (<100ms vs old 2-4s polling)
+- ProcessWatcher now tries ETW first; if successful, polling becomes a 15s safety net
+- On ETW failure: falls back to original polling behavior, logs the failure
+- Added NuGet: `Microsoft.Diagnostics.Tracing.TraceEvent` 3.1.30
+- AffinityManager `_originalMasks` upgraded from `Dictionary<int, IntPtr>` to `Dictionary<int, (IntPtr Mask, string Name)>` — eliminates Process.GetProcessById calls during RestoreAll
+
+### Phase 2: WMI GPU Query Optimization
+- Idle skip ratio changed from 1-of-2 to 3-of-4 (GPU polled every ~16s when idle instead of ~8s)
+
+### Phase 3: Test Coverage — 177 Tests
+- 7 test files, 5 test data files, 177 passing tests
+- ProcessorTierTests (28): IsSupported, CpuTopology properties
+- GameDetectorTests (34): CheckGame priority chain, case-insensitive matching, exclusions, background apps
+- VdfParserTests (14): key-value, nested blocks, escapes, comments, real ACF/VDF content
+- GameLibraryScannerTests (4): ScanAll behavior, skip patterns verified on real results
+- GameDatabaseTests (14): CRUD, upsert, dedup, migration, indexing
+- AppConfigTests (48): all defaults, Validate clamping for 12 fields, mode/strategy parsing
+- SelectBestExeTests (35): ShouldSkipExe patterns, SelectBestExe scoring, reflection-based testing of private methods
+
+### Phase 4: Auto-Update Check
+- New `Core/UpdateChecker.cs`: single GET to GitHub Releases API, compares tag_name to assembly version
+- Config: `checkForUpdates` (off by default), `lastUpdateCheckUtc` (no more than once per 24h)
+- UI: "v1.1.0 available" text in dashboard footer when update found
+- Settings: "Check for updates on startup" checkbox in General tab
+
+### Phase 5: Per-Game Profiles
+- New `Models/GameProfile.cs`: ProcessName + Strategy (global/affinityPinning/driverPreference)
+- Config: `gameProfiles` list (empty by default)
+- AffinityManager: `GetEffectiveStrategy(processName)` checks profiles before falling back to global strategy
+- Wired on startup via `_affinityManager.UpdateGameProfiles(_config.GameProfiles)`
+
+### Phase 6: Known Games DB Expansion
+- Added 16 new titles: Path of Exile 2, Marvel Rivals, The Finals, Wuthering Waves, Zenless Zone Zero, Black Myth: Wukong, Indiana Jones, Dragon Age: The Veilguard, S.T.A.L.K.E.R. 2, Enshrouded, Lethal Company, Hades II, Space Marine 2, Silent Hill 2, Metaphor: ReFantazio
+- Total: 81 entries (was 65)
+
+### Phase 7: Code Signing Preparation
+- Added commented SignPath workflow step to `.github/workflows/release.yml`
+- Upload artifact → sign → download signed exe, ready to uncomment after SignPath approval
+
+### Files Created (9)
+- `Core/ProcessEventWatcher.cs`, `Core/UpdateChecker.cs`, `Models/GameProfile.cs`
+- Tests: `GameDetectorTests.cs`, `VdfParserTests.cs`, `GameLibraryScannerTests.cs`, `GameDatabaseTests.cs`, `AppConfigTests.cs`, `SelectBestExeTests.cs`
+- Test data: `TestData/appmanifest_570.acf`, `libraryfolders.vdf`, `epic_manifest.item`, `known_games_test.json`, `config_v1.json`
+
+### Files Modified (12)
+- `Core/ProcessWatcher.cs` — ETW integration, fallback polling
+- `Core/AffinityManager.cs` — named tuples in _originalMasks, per-game profiles
+- `Core/GpuMonitor.cs` — idle skip 3-of-4
+- `Config/AppConfig.cs` — checkForUpdates, lastUpdateCheckUtc, gameProfiles
+- `ViewModels/MainViewModel.cs` — UpdateText property
+- `ViewModels/SettingsViewModel.cs` — CheckForUpdates binding
+- `Views/DashboardWindow.xaml` — update text in footer
+- `Views/SettingsWindow.xaml` — update check checkbox
+- `Data/known_games.json` — 81 entries (was 65)
+- `.github/workflows/release.yml` — SignPath placeholder
+- `App.xaml.cs` — update check, game profiles wiring
+- `X3DCcdOptimizer.csproj` — TraceEvent package
+
+### Build & Tests
+- `dotnet build` — 0 warnings, 0 errors
+- `dotnet test` — 177 passed, 0 failed
 
 ---
 

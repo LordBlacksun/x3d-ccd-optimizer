@@ -221,6 +221,7 @@ public partial class App : System.Windows.Application
         _gpuMonitor = new GpuMonitor();
         _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses, launcherGames, _config.BackgroundApps);
         _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode, strategy, _config.BackgroundApps);
+        _affinityManager.UpdateGameProfiles(_config.GameProfiles);
         _processWatcher = new ProcessWatcher(
             _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground,
             _config.AutoDetection.Enabled, _config.AutoDetection.GpuThresholdPercent,
@@ -289,32 +290,50 @@ public partial class App : System.Windows.Application
         Log.Information("Monitoring started. Mode: {Mode}. Strategy: {Strategy}. Polling: {Interval}ms. Manual games: {Count}.",
             mode, strategy, _config.PollingIntervalMs, _gameDetector.GameCount);
 
-        // Background library rescan on every startup (non-blocking)
-        Task.Run(async () =>
+        // Library scan — consent-gated
+        if (_config.LibraryScanConsent == null)
         {
-            try
+            // First time — ask user
+            var consent = ShowLibraryScanConsentDialog();
+            if (consent.HasValue)
             {
-                var scanned = GameLibraryScanner.ScanAll();
-                _gameDb?.UpsertGames(scanned);
-                _gameDetector?.UpdateLauncherGames(_gameDb?.ToDictionary() ?? new());
+                _config.LibraryScanConsent = consent.Value;
+                _config.Save();
+            }
+            // consent == null means "Skip" (ask again next time)
+        }
 
-                // Refresh Game Library UI after scan
-                Application.Current?.Dispatcher.BeginInvoke(() =>
-                    _mainViewModel?.GameLibrary?.Refresh());
+        if (_config.LibraryScanConsent == true)
+        {
+            RunLibraryScan();
+        }
 
-                // Download artwork if enabled
-                if (_config.EnableArtworkDownload && _gameDb != null)
+        // Optional update check (off by default, no more than once per 24h)
+        if (_config.CheckForUpdates)
+        {
+            var shouldCheck = true;
+            if (DateTime.TryParse(_config.LastUpdateCheckUtc, out var lastCheck))
+                shouldCheck = (DateTime.UtcNow - lastCheck).TotalHours >= 24;
+
+            if (shouldCheck)
+            {
+                Task.Run(async () =>
                 {
-                    await ArtworkDownloader.DownloadAllMissing(_gameDb);
-                    Application.Current?.Dispatcher.BeginInvoke(() =>
-                        _mainViewModel?.GameLibrary?.Refresh());
-                }
+                    var newVersion = await UpdateChecker.CheckForUpdate();
+                    _config.LastUpdateCheckUtc = DateTime.UtcNow.ToString("o");
+                    _config.Save();
+
+                    if (newVersion != null)
+                    {
+                        Application.Current?.Dispatcher.BeginInvoke(() =>
+                        {
+                            if (_mainViewModel != null)
+                                _mainViewModel.UpdateText = $"v{newVersion} available";
+                        });
+                    }
+                });
             }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Background library rescan failed");
-            }
-        });
+        }
 
         // Register hotkey (after window is created so we have an HWND)
         _dashboardWindow.SourceInitialized += (_, _) => RegisterOverlayHotkey();
@@ -449,6 +468,112 @@ public partial class App : System.Windows.Application
         using var identity = WindowsIdentity.GetCurrent();
         var principal = new WindowsPrincipal(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    /// <summary>
+    /// Shows a consent dialog for library scanning. Returns true (Scan Now), false (Don't Ask Again), or null (Skip).
+    /// </summary>
+    private bool? ShowLibraryScanConsentDialog()
+    {
+        var dialog = new Window
+        {
+            Title = "X3D CCD Optimizer \u2014 Game Library Scan",
+            Width = 460,
+            Height = 260,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Background = TryFindResource("BgPrimaryBrush") as System.Windows.Media.Brush
+                ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1A, 0x1A, 0x1E))
+        };
+
+        bool? result = null;
+        var panel = new StackPanel { Margin = new Thickness(24) };
+        var primaryBrush = TryFindResource("TextPrimaryBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.White;
+        var secondaryBrush = TryFindResource("TextSecondaryBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.LightGray;
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "Would you like to scan your game libraries?",
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = primaryBrush,
+            Margin = new Thickness(0, 0, 0, 12)
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "This scans your local Steam, Epic Games, and GOG Galaxy install directories to automatically recognize your games. No network connections are made \u2014 this only reads files on your computer.\n\nYou can always trigger a scan later from Settings \u2192 Detection.",
+            FontSize = 12,
+            Foreground = secondaryBrush,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 20)
+        });
+
+        var buttonPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Right
+        };
+
+        var dontAskButton = new Button
+        {
+            Content = "Don\u2019t Ask Again",
+            Padding = new Thickness(12, 6, 12, 6),
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        dontAskButton.Click += (_, _) => { result = false; dialog.Close(); };
+
+        var skipButton = new Button
+        {
+            Content = "Skip",
+            Padding = new Thickness(12, 6, 12, 6),
+            Margin = new Thickness(0, 0, 8, 0)
+        };
+        skipButton.Click += (_, _) => { result = null; dialog.Close(); };
+
+        var scanButton = new Button
+        {
+            Content = "Scan Now",
+            Padding = new Thickness(12, 6, 12, 6),
+            IsDefault = true
+        };
+        scanButton.Click += (_, _) => { result = true; dialog.Close(); };
+
+        buttonPanel.Children.Add(dontAskButton);
+        buttonPanel.Children.Add(skipButton);
+        buttonPanel.Children.Add(scanButton);
+        panel.Children.Add(buttonPanel);
+
+        dialog.Content = panel;
+        dialog.ShowDialog();
+        return result;
+    }
+
+    private void RunLibraryScan()
+    {
+        Task.Run(async () =>
+        {
+            try
+            {
+                var scanned = GameLibraryScanner.ScanAll();
+                _gameDb?.UpsertGames(scanned);
+                _gameDetector?.UpdateLauncherGames(_gameDb?.ToDictionary() ?? new());
+
+                Application.Current?.Dispatcher.BeginInvoke(() =>
+                    _mainViewModel?.GameLibrary?.Refresh());
+
+                if (_config.EnableArtworkDownload && _gameDb != null)
+                {
+                    await ArtworkDownloader.DownloadAllMissing(_gameDb);
+                    Application.Current?.Dispatcher.BeginInvoke(() =>
+                        _mainViewModel?.GameLibrary?.Refresh());
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Background library scan failed");
+            }
+        });
     }
 
     private void ShowUnsupportedProcessorDialog(CpuTopology topology)
