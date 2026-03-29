@@ -101,8 +101,9 @@ public class GameLibraryViewModel : ViewModelBase
     {
         Games.Clear();
 
-        // Track seen exe names to prevent duplicates (built-in wins over scanned)
+        // Track seen exe names AND display names to prevent duplicates
         var seenExes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var builtInCount = 0;
         var steamCount = 0;
         var epicCount = 0;
@@ -123,6 +124,7 @@ public class GameLibraryViewModel : ViewModelBase
                         var name = g.TryGetProperty("name", out var n) ? n.GetString() : null;
                         if (exe != null && name != null && seenExes.Add(exe))
                         {
+                            seenNames.Add(name);
                             Games.Add(new GameLibraryItemViewModel(name, exe, "builtin"));
                             builtInCount++;
                         }
@@ -135,11 +137,16 @@ public class GameLibraryViewModel : ViewModelBase
             Log.Debug("Failed to load built-in games for library view: {Error}", ex.Message);
         }
 
-        // Load scanned games from LiteDB — skip any exe already covered by built-in
+        // Load scanned games from LiteDB — skip duplicates by exe name or display name
         foreach (var game in _gameDb.GetAllGames().OrderBy(g => g.DisplayName))
         {
+            // Skip if same exe already shown
             if (!seenExes.Add(game.ProcessName))
-                continue; // Already shown (built-in or earlier scanned entry)
+                continue;
+
+            // Skip if same display name already shown (different exe, same game)
+            if (!seenNames.Add(game.DisplayName))
+                continue;
 
             Games.Add(new GameLibraryItemViewModel(
                 game.DisplayName, game.ProcessName, game.Source,
