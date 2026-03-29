@@ -220,20 +220,12 @@ public class AppConfig
                 var config = JsonSerializer.Deserialize<AppConfig>(json, JsonOptions);
                 if (config != null)
                 {
-                    bool dirty = false;
-
                     if (config.Version < 3)
                     {
                         try { Serilog.Log.Information("Migrating config from v{Old} to v3", config.Version); } catch { }
                         config.Version = 3;
-                        dirty = true;
-                    }
-
-                    // Merge new default exclusions into existing configs
-                    dirty |= MergeDefaultExclusions(config);
-
-                    if (dirty)
                         config.Save();
+                    }
 
                     return config;
                 }
@@ -252,30 +244,13 @@ public class AppConfig
     }
 
     /// <summary>
-    /// Adds any default exclusions missing from the user's list.
-    /// Returns true if entries were added.
+    /// Returns default exclusions that are missing from the user's current list.
     /// </summary>
-    private static bool MergeDefaultExclusions(AppConfig config)
+    public List<string> GetNewDefaultExclusions()
     {
         var defaults = new AppConfig();
-        var existing = new HashSet<string>(config.ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
-        int added = 0;
-
-        foreach (var exe in defaults.ExcludedProcesses)
-        {
-            if (existing.Add(exe))
-            {
-                config.ExcludedProcesses.Add(exe);
-                added++;
-            }
-        }
-
-        if (added > 0)
-        {
-            try { Serilog.Log.Information("Added {Count} new default exclusions to config", added); } catch { }
-        }
-
-        return added > 0;
+        var existing = new HashSet<string>(ExcludedProcesses, StringComparer.OrdinalIgnoreCase);
+        return defaults.ExcludedProcesses.Where(exe => !existing.Contains(exe)).ToList();
     }
 
     public void Save()
