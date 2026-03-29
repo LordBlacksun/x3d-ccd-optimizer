@@ -153,7 +153,6 @@ public class SettingsViewModel : ViewModelBase
     public ObservableCollection<GameDisplayItem> BackgroundApps { get; } = [];
     public Visibility BgEmptyHintVisibility => BackgroundApps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public ObservableCollection<string> ExcludedProcesses { get; } = [];
-    public ObservableCollection<string> KnownGames { get; } = [];
 
     public string? NewGameText
     {
@@ -207,10 +206,10 @@ public class SettingsViewModel : ViewModelBase
     public string? SelectedExclusion { get; set; }
     public string? NewExclusionText { get; set; }
 
-    // Known games database for autocomplete (display → exe)
-    private readonly List<(string DisplayName, string Exe)> _knownGamesList = [];
+    // Game database for autocomplete (display → exe)
+    private readonly List<(string DisplayName, string Exe)> _scannedGamesList = [];
 
-    public SettingsViewModel(AppConfig config, CpuTopology topology)
+    public SettingsViewModel(AppConfig config, CpuTopology topology, GameDatabase? gameDb = null)
     {
         _config = config;
         _topology = topology;
@@ -275,36 +274,23 @@ public class SettingsViewModel : ViewModelBase
             });
         });
 
-        // Load known games DB for autocomplete + display name resolution
-        try
+        // Load scanned games from LiteDB for autocomplete + display name resolution
+        if (gameDb != null)
         {
-            var dir = AppContext.BaseDirectory;
-            var path = Path.Combine(dir, "Data", "known_games.json");
-            if (File.Exists(path))
+            try
             {
-                using var doc = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
-                if (doc.RootElement.TryGetProperty("games", out var arr))
-                    foreach (var g in arr.EnumerateArray())
-                    {
-                        if (g.TryGetProperty("name", out var nameEl) && g.TryGetProperty("exe", out var exeEl))
-                        {
-                            var name = nameEl.GetString();
-                            var exe = exeEl.GetString();
-                            if (name != null && exe != null)
-                            {
-                                _knownGamesList.Add((name, exe));
-                                KnownGames.Add($"{name} ({exe})");
-                            }
-                        }
-                    }
+                foreach (var game in gameDb.GetAllGames())
+                {
+                    _scannedGamesList.Add((game.DisplayName, game.ProcessName));
+                }
             }
+            catch { }
         }
-        catch { }
 
-        // Populate game list with display names resolved from known DB
+        // Populate game list with display names resolved from scanned games
         foreach (var g in config.ManualGames)
         {
-            var displayName = _knownGamesList
+            var displayName = _scannedGamesList
                 .FirstOrDefault(k => string.Equals(k.Exe, g, StringComparison.OrdinalIgnoreCase))
                 .DisplayName;
             ManualGames.Add(new GameDisplayItem(g, displayName));
@@ -323,7 +309,7 @@ public class SettingsViewModel : ViewModelBase
                     game += ".exe";
                 if (!ManualGames.Any(g => string.Equals(g.Exe, game, StringComparison.OrdinalIgnoreCase)))
                 {
-                    var displayName = _knownGamesList
+                    var displayName = _scannedGamesList
                         .FirstOrDefault(k => string.Equals(k.Exe, game, StringComparison.OrdinalIgnoreCase))
                         .DisplayName;
                     ManualGames.Add(new GameDisplayItem(game, displayName));
@@ -434,7 +420,7 @@ public class SettingsViewModel : ViewModelBase
             return;
         }
 
-        var matches = _knownGamesList
+        var matches = _scannedGamesList
             .Where(g => g.DisplayName.Contains(text, StringComparison.OrdinalIgnoreCase) ||
                         g.Exe.Contains(text, StringComparison.OrdinalIgnoreCase))
             .Take(8)

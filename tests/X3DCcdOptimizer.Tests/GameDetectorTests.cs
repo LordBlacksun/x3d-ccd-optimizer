@@ -51,7 +51,7 @@ public class GameDetectorTests
             ["launchergame.exe"] = "Launcher Game"
         };
         var detector = CreateDetector(launcherGames: launcher);
-        Assert.Equal(DetectionMethod.LauncherScan, detector.CheckGame("launchergame.exe"));
+        Assert.Equal(DetectionMethod.LibraryScan, detector.CheckGame("launchergame.exe"));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class GameDetectorTests
             ["launchergame.exe"] = "Launcher Game"
         };
         var detector = CreateDetector(launcherGames: launcher);
-        Assert.Equal(DetectionMethod.LauncherScan, detector.CheckGame("launchergame"));
+        Assert.Equal(DetectionMethod.LibraryScan, detector.CheckGame("launchergame"));
     }
 
     // --- CheckGame: null for unknown ---
@@ -74,7 +74,7 @@ public class GameDetectorTests
         Assert.Null(detector.CheckGame("notepad.exe"));
     }
 
-    // --- Priority: Manual > Database > LauncherScan ---
+    // --- Priority: Manual > LibraryScan ---
 
     [Fact]
     public void CheckGame_ManualTakesPriority_OverLauncherScan()
@@ -240,7 +240,7 @@ public class GameDetectorTests
             ["old.exe"] = "Old Game"
         };
         var detector = CreateDetector(launcherGames: initial);
-        Assert.Equal(DetectionMethod.LauncherScan, detector.CheckGame("old.exe"));
+        Assert.Equal(DetectionMethod.LibraryScan, detector.CheckGame("old.exe"));
 
         var updated = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -249,7 +249,7 @@ public class GameDetectorTests
         detector.UpdateLauncherGames(updated);
 
         Assert.Null(detector.CheckGame("old.exe"));
-        Assert.Equal(DetectionMethod.LauncherScan, detector.CheckGame("new.exe"));
+        Assert.Equal(DetectionMethod.LibraryScan, detector.CheckGame("new.exe"));
     }
 
     // --- GameCount ---

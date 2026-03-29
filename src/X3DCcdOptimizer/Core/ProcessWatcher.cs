@@ -173,8 +173,7 @@ public class ProcessWatcher : IDisposable
                                 var source = method switch
                                 {
                                     DetectionMethod.Manual => "manual",
-                                    DetectionMethod.Database => "database",
-                                    DetectionMethod.LauncherScan => "launcher",
+                                    DetectionMethod.LibraryScan => "library",
                                     _ => "unknown"
                                 };
 
@@ -226,8 +225,7 @@ public class ProcessWatcher : IDisposable
                         var source = method switch
                         {
                             DetectionMethod.Manual => "manual",
-                            DetectionMethod.Database => "database",
-                            DetectionMethod.LauncherScan => "launcher",
+                            DetectionMethod.LibraryScan => "library",
                             _ => "unknown"
                         };
 
@@ -404,8 +402,7 @@ public class ProcessWatcher : IDisposable
             var source = method switch
             {
                 DetectionMethod.Manual => "manual",
-                DetectionMethod.Database => "database",
-                DetectionMethod.LauncherScan => "launcher",
+                DetectionMethod.LibraryScan => "library",
                 _ => "unknown"
             };
 

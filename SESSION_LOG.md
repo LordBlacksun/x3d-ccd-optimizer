@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 53
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 54
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -66,6 +66,31 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 54 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Remove built-in games list, simplify detection pipeline to 3-tier
+
+### Rationale
+The built-in `known_games.json` (81 hardcoded games) was redundant now that library scanning (Steam/Epic/GOG) and GPU heuristic detection exist. The list only caught a narrow edge case not worth maintaining.
+
+### Changes
+- **Deleted** `Data/known_games.json` and all code that loads/parses it
+- **Simplified DetectionMethod enum:** removed `Database`, renamed `LauncherScan` → `LibraryScan`. Now: `Manual`, `LibraryScan`, `Auto`
+- **Detection pipeline now 3-tier:** Manual rules → Library scan (LiteDB) → GPU heuristic
+- **GameDetector:** removed `_knownGames` dictionary, `LoadKnownGames()` method, and Database priority check
+- **GameLibraryViewModel:** removed built-in loading section, removed "Built-in" source badge/color
+- **SettingsViewModel:** autocomplete now loads from LiteDB (`GameDatabase`) instead of known_games.json. Constructor accepts optional `GameDatabase` parameter.
+- **MainViewModel:** stores `_gameDb` reference, passes it to SettingsViewModel
+- **.csproj:** removed `known_games.json` CopyToOutputDirectory
+- **Tests:** updated all `DetectionMethod.LauncherScan` → `DetectionMethod.LibraryScan`
+
+### Build & Tests
+- `dotnet build` — 0 warnings, 0 errors
+- `dotnet test` — 177 passed, 0 failed
 
 ---
 
