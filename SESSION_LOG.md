@@ -6,7 +6,7 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 55
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 56
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -66,6 +66,30 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 56 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** False-positive game detection fixes + opt-in default exclusion updates
+
+### False Positives
+- Wallpaper Engine (`wallpaper32.exe`, `wallpaper64.exe`, `wallpaperaudio.exe`, `webwallpaper32.exe`), Wallpaper Alive (`WallpaperAlive.exe`), and VoiceAttack (`VoiceAttack.exe`) were triggering the GPU heuristic and being detected as games. Added all to default excluded processes list.
+
+### Opt-In Default Exclusion Updates
+- Initially auto-merged new defaults into existing configs on startup — reverted because it overrides user intent if they deliberately removed an entry.
+- Final approach: `AppConfig.GetNewDefaultExclusions()` diffs user's list against current defaults. If new entries exist (and not first run), `ShowNewExclusionsPrompt()` shows a one-time dialog listing the new exclusions and asking Yes/No.
+- First-run users get the full defaults without prompting.
+- "No" = entries stay absent, won't be asked again (defaults haven't changed).
+
+### Files Changed
+- `Config/AppConfig.cs` — added `GetNewDefaultExclusions()`, 6 new default exclusions, removed auto-merge
+- `App.xaml.cs` — `ShowNewExclusionsPrompt()`, wired before engine init
+
+### Build & Tests
+- `dotnet build` — 0 warnings, 0 errors
+- `dotnet test` — 177 passed, 0 failed
 
 ---
 
