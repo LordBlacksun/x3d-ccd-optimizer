@@ -578,15 +578,13 @@ public class AffinityManager : IDisposable
 
     private void MigrateNewProcesses()
     {
-        if (_disposed) return;
-
 #if DEBUG
         _migrateStopwatch.Restart();
 #endif
 
         lock (_syncLock)
         {
-            if (!_engaged || Mode != OperationMode.Optimize || _currentGame == null)
+            if (_disposed || !_engaged || Mode != OperationMode.Optimize || _currentGame == null)
                 return;
 
             var gamePid = _currentGame.Pid;

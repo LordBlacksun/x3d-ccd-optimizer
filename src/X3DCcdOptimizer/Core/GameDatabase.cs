@@ -153,6 +153,17 @@ public class GameDatabase : IDisposable
     }
 
     /// <summary>
+    /// Removes legacy entries with source="launcher" from the old JSON cache migration.
+    /// These are stale data — replaced by per-source scanning (steam/epic/gog).
+    /// </summary>
+    public void PurgeLegacyEntries()
+    {
+        var removed = _games.DeleteMany(g => g.Source == "launcher");
+        if (removed > 0)
+            Log.Information("Purged {Count} legacy 'launcher' entries from game database", removed);
+    }
+
+    /// <summary>
     /// Migrates from the old JSON cache format if it exists.
     /// </summary>
     public void MigrateFromJsonCache()

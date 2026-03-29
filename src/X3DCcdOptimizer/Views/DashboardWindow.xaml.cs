@@ -62,6 +62,18 @@ public partial class DashboardWindow : Window
         }
     }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        // Unsubscribe to prevent memory leak
+        if (_logScrollHandler != null && DataContext is MainViewModel vm)
+        {
+            ((INotifyCollectionChanged)vm.ActivityLog.Entries).CollectionChanged -= _logScrollHandler;
+            _logScrollHandler = null;
+        }
+
+        base.OnClosed(e);
+    }
+
     private void SaveWindowState()
     {
         if (WindowState == WindowState.Normal)

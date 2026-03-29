@@ -17,9 +17,9 @@ For the full technical breakdown, see the Wiki: [AMD X3D Scheduling Explained](.
 ## Features
 
 - **Real-time CCD dashboard** -- per-core load heatmaps, frequency display, process router with game badges, activity log
-- **Game Library tab** -- shows all known games with source badges (Built-in, Steam, Epic, GOG)
-- **Automatic game detection** -- 65 built-in known games, plus automatic scanning of installed Steam, Epic, and GOG libraries. On a typical gaming PC, this covers hundreds of titles out of the box. Anything not recognized falls back to GPU heuristic detection
-- **Four-tier detection pipeline** -- Manual rules, Built-in DB (65 games), Library scan (Steam/Epic/GOG), GPU heuristic
+- **Game Library tab** -- shows all scanned games with source badges (Steam, Epic, GOG) and opt-in box art
+- **Automatic game detection** -- scans installed Steam, Epic, and GOG libraries. On a typical gaming PC, this covers hundreds of titles out of the box. Anything not recognized falls back to GPU heuristic detection
+- **Three-tier detection pipeline** -- Manual rules, Library scan (Steam/Epic/GOG), GPU heuristic
 - **Two optimization strategies** -- Driver Preference (AMD's V-Cache driver registry) or Affinity Pinning (direct CPU affinity masks). Driver Preference recommended for X3D processors
 - **Process Rules** -- pin games to V-Cache CCD, pin background apps (Discord, browsers, OBS) to Frequency CCD
 - **Compact gaming overlay** -- always-on-top CCD load display with OLED burn-in protection (pixel shift every 3 minutes). Toggle with Ctrl+Shift+O
@@ -75,12 +75,11 @@ Full documentation is available on the [Wiki](../../wiki):
 
 ## How It Works
 
-On startup, the app detects your CPU's cache topology via `GetLogicalProcessorInformationEx` to identify CCDs and V-Cache presence. It verifies the processor is dual-CCD -- single-CCD and non-AMD processors get a friendly exit dialog. It then monitors running processes against a four-tier detection pipeline:
+On startup, the app detects your CPU's cache topology via `GetLogicalProcessorInformationEx` to identify CCDs and V-Cache presence. It verifies the processor is dual-CCD -- single-CCD and non-AMD processors get a friendly exit dialog. It then monitors running processes using ETW kernel events (with polling fallback) against a three-tier detection pipeline:
 
 1. **Manual rules** (user-configured) -- highest priority, always wins
-2. **Built-in database** (65 known games) -- instant match by process name
-3. **Library scan** (Steam, Epic, GOG) -- automatic scanning of installed game libraries
-4. **GPU heuristic** (WMI per-process 3D utilization) -- debounce: 5s to detect, 10s to exit
+2. **Library scan** (Steam, Epic, GOG) -- automatic scanning of installed game libraries
+3. **GPU heuristic** (WMI per-process 3D utilization) -- debounce: 5s to detect, 10s to exit
 
 In **Monitor mode**, everything is observe-only -- the dashboard shows what the app *would* do. In **Optimize mode**, the selected strategy takes effect: Driver Preference sets AMD's registry key to prefer the V-Cache CCD, while Affinity Pinning directly sets CPU affinity masks. Background processes are migrated to the Frequency CCD in both strategies. When the game exits, all changes are restored. Every action is logged with timestamps and detection source.
 
@@ -115,7 +114,7 @@ X3D CCD Optimizer modifies CPU affinity and/or AMD driver registry preferences t
 
 Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
-The known games database (`src/X3DCcdOptimizer/Data/known_games.json`) is a great place to start -- adding game executables helps everyone.
+Bug reports, feature requests, and code contributions are all welcome.
 
 ## How This Was Built
 

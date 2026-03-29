@@ -6,36 +6,37 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 57
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 59
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
 - **Dual-CCD only architecture:** DualCcdX3D (full: affinity pinning + driver preference), DualCcdStandard (affinity pinning, no driver preference). Single-CCD and non-AMD processors show a friendly exit dialog. ProcessorTier enum kept for compat but `IsSupported()` extension gates behavior.
-- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher (idle 4s / active 2s polling), GameDetector (4-tier: manual → 65-game DB → launcher scan → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy-aware, lock-based, IDisposable, 5s re-migration timer), VCacheDriverManager (amd3dvcache registry), GameLibraryScanner (Steam + Epic + GOG), GameDatabase (LiteDB)
-- **Game launcher scanning:** GameLibraryScanner scans Steam (registry → VDF/ACF parsing → exe directory scan, extracts SteamAppId), Epic (JSON manifests), and GOG Galaxy (SQLite DB + registry hybrid). Results stored in LiteDB at `user_games.db` in %APPDATA%. Background rescan on every startup. "Rescan Game Libraries" button in Settings → Detection. VDF parser handles Valve KeyValues format. Filters non-game exes (UnityCrashHandler, redist, setup, etc.).
-- **Display name resolution:** ProcessInfo.DisplayName populated at detection time from known_games.json or launcher scan. Propagated through AffinityEvent.DisplayName. All UI surfaces (status bar, CCD role labels, activity log, process router, overlay) show resolved game names. Fallback: strip .exe extension.
+- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher (ETW-first with polling fallback), ProcessEventWatcher (ETW kernel events), GameDetector (3-tier: manual → library scan → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy-aware, lock-based, IDisposable, 5s re-migration timer), VCacheDriverManager (amd3dvcache registry), GameLibraryScanner (Steam + Epic + GOG), GameDatabase (LiteDB), ArtworkDownloader (Steam CDN, opt-in), UpdateChecker (GitHub Releases API, opt-in)
+- **Game launcher scanning:** GameLibraryScanner scans Steam (registry → VDF/ACF parsing → SelectBestExe per game directory, extracts SteamAppId), Epic (JSON manifests), and GOG Galaxy (SQLite DB + registry hybrid). Results stored in LiteDB at `user_games.db` in %APPDATA%. Background rescan on every startup. "Rescan Game Libraries" button in Settings → Detection. VDF parser handles Valve KeyValues format. Filters non-game exes via prefix/suffix/exact-match skip lists. Uses `IgnoreInaccessible` to skip protected anti-cheat folders.
+- **Display name resolution:** ProcessInfo.DisplayName populated at detection time from launcher scan or manual rules. Propagated through AffinityEvent.DisplayName. All UI surfaces (status bar, CCD role labels, activity log, process router, overlay) show resolved game names. Fallback: strip .exe extension.
 - **Optimization strategies:** AffinityPinning (default, SetProcessAffinityMask) or DriverPreference (AMD amd3dvcache registry interface, discovered by cocafe/vcache-tray). Strategy stored in config, selectable in Settings, gated by driver availability and tier.
 - **WPF dashboard:** MVVM, dark theme, CCD panels (1 or 2 based on tier) with 4x2 core tile heatmaps, grouped process router (by CCD with game badges), activity log, animated pill toggle (Monitor/Optimize), polished UI
 - **Compact overlay:** Discord-style toast/pill (auto-width 200-400px), slide-in/out animation (300ms cubic ease), semi-transparent dark (#1A1A1A at 85%), single/two-line contextual messages, opt-in CCD load bars (8px, green V-Cache + blue Freq, toggle in Settings > Overlay), OLED-safe (auto-hide, pixel shift), Ctrl+Shift+O hotkey, draggable, position persisted
 - **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
 - **Monitor/Optimize dual-mode:** Monitor (default, observe-only), Optimize (active affinity or driver preference, continuous re-migration every 5s for new processes)
-- **Settings window:** 5-tab modal dialog (General, Process Rules, Detection, Overlay, Advanced) with live-apply. Process Rules tab: left column "V-Cache CCD (Games)" with known-game autocomplete, right column "Frequency CCD (Background)" with live process picker dialog + background app suggestions autocomplete. Strategy selector in General tab. Detection tab includes "Rescan Game Libraries" button and "Download Game Artwork" toggle. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
-- **Game Library tab:** Third tab in dashboard showing all known games from all sources (built-in, Steam, Epic, GOG) with source badges and total counts. Virtualized ListView.
-- **Box art (opt-in):** OFF by default — zero network activity. When enabled, downloads cover art from Steam's public CDN. Cached locally at `%APPDATA%\X3DCCDOptimizer\artwork\`.
+- **Settings window:** 5-tab modal dialog (General, Process Rules, Detection, Overlay, Advanced) with live-apply. Process Rules tab: left column "V-Cache CCD (Games)" with scanned-game autocomplete, right column "Frequency CCD (Background)" with live process picker dialog + background app suggestions autocomplete. Strategy selector in General tab. Detection tab includes "Rescan Game Libraries" button and "Download Game Artwork" toggle. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
+- **Game Library tab:** Third tab in dashboard showing all scanned games from Steam, Epic, GOG with source badges, total counts, and opt-in box art thumbnails. Virtualized ListView. Excluded processes filtered out.
+- **Box art (opt-in):** OFF by default — zero network activity. When enabled, downloads cover art from Steam's public CDN for games with SteamAppId. Cached locally at `%APPDATA%\X3DCCDOptimizer\artwork\`.
 - **About dialog:** Version from assembly, GPL v2 license, source link, author, AI disclosure, credits (cocafe, JayzTwoCents), clickable links.
 - **Background app pinning:** `backgroundApps` config list. AffinityManager distinguishes rule-based vs auto migration in log entries ("rule" vs "auto"). Live process picker filters out C:\Windows\, CriticalSystemProcesses, already-assigned; shows FileDescription from FileVersionInfo; deduplicates by process name.
 - **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
 - **Admin elevation:** app.manifest requires administrator (explicitly referenced via `<ApplicationManifest>` in .csproj for single-file publish). Startup check with relaunch dialog if not elevated (releases singleton mutex before relaunch, hard-exits via `Environment.Exit(0)`). First-launch trust dialog explaining admin usage (persisted via `hasDismissedAdminDialog` config flag). UAC shield indicator in dashboard footer. DPI settings moved from manifest to `<ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>` in .csproj.
 - **X button behavior:** Configurable via `minimizeToTray` (default: false = close app). When true: minimizes to tray with one-time balloon notification. Setting exposed in Settings > General.
-- **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Session 17 defensive coding audit (0 critical, 0 high, 2 medium, 6 low, 22 info — all 8 actionable findings fixed in session 18). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
-- **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
+- **Security audits:** Session 6 (2 critical, 3 high, 7 medium). Session 11 (3 high, 6 medium, 4 low — all fixed). Session 17 defensive coding (all 8 findings fixed). Session 58 comprehensive audit (3 high, 3 medium, 6 low — all high/medium fixed in sessions 58-59).
+- **Tests:** 177 tests (AppConfig 31, GameDetector 20, VdfParser 13, SelectBestExe 14, GameDatabase 12, ProcessorTier 14, GameLibraryScanner 3)
+- **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled). Framework-dependent: 861 KB.
 
-**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (4-tier), `Core/GameLibraryScanner.cs` (Steam+Epic+GOG scanner), `Core/GameDatabase.cs` (LiteDB), `Core/ArtworkDownloader.cs` (Steam CDN), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `Models/ScannedGame.cs` (LiteDB model), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/GameLibraryViewModel.cs` (game library tab), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/AboutWindow.xaml` (about dialog), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings), `Views/ProcessPickerWindow.xaml` (live process picker)
+**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (3-tier), `Core/GameLibraryScanner.cs` (Steam+Epic+GOG scanner), `Core/GameDatabase.cs` (LiteDB), `Core/ProcessEventWatcher.cs` (ETW), `Core/ArtworkDownloader.cs` (Steam CDN), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `Models/ScannedGame.cs` (LiteDB model), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/GameLibraryViewModel.cs` (game library tab), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/AboutWindow.xaml` (about dialog), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings), `Views/ProcessPickerWindow.xaml` (live process picker)
 
-**What's next:** Phase 3 remaining (per-game profiles), Phase 4 (CI/CD, trimmed build, installer, release)
+**What's next:** Per-game profile UI, CI/CD, code signing, release polish
 
-**NuGet dependencies:** Serilog (4.2.0), Serilog.Sinks.Console (6.0.0), Serilog.Sinks.File (6.0.0), System.Management (8.0.0), LiteDB (5.0.21), Microsoft.Data.Sqlite (8.0.0)
+**NuGet dependencies:** Serilog (4.2.0), Serilog.Sinks.Console (6.0.0), Serilog.Sinks.File (6.0.0), System.Management (8.0.0), LiteDB (5.0.21), Microsoft.Data.Sqlite (8.0.0), Microsoft.Diagnostics.Tracing.TraceEvent (3.1.30)
 
 **Known gotchas:**
 - CACHE_RELATIONSHIP struct needs 18-byte `Reserved` field (not 2-byte) — was a real bug
@@ -66,6 +67,72 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+- `Directory.EnumerateFiles` with `SearchOption.AllDirectories` throws on first restricted subdirectory — use `EnumerationOptions { IgnoreInaccessible = true }` for game directories with EasyAntiCheat/BattlEye folders
+- LiteDB `ReplaceGames()` only wipes entries matching the scanned sources — legacy entries with different source values persist forever. Always purge stale source types explicitly.
+- `FirstOrDefault()` on value tuple list returns default struct, not null — accessing `.DisplayName` on default struct gives null, not an exception (unlike reference types)
+
+---
+
+## Session 59 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Fix Game Library inflated count, broken Steam scanning, missing artwork
+
+### Root Causes Found
+1. **189 games (inflated count):** Legacy entries with `source="launcher"` from old JSON cache migration persisted in LiteDB. `ReplaceGames()` only wipes per-source ("steam", "epic", "gog") — never touches "launcher". The 156 ghost entries from the old system were polluting the library.
+2. **Only 12 Steam games (was 169):** `SelectBestExe` used `Directory.EnumerateFiles(dir, "*.exe", SearchOption.AllDirectories)` which throws `UnauthorizedAccessException` on the first restricted subdirectory (EasyAntiCheat, BattlEye, etc.) — the entire game was silently skipped. Most Steam games have protected anti-cheat folders.
+3. **Artwork mostly empty:** Artwork only works for Steam games with SteamAppId. With Steam scanning broken (12 vs 169), only 12 games could have art at most.
+
+### Fixes
+- **Legacy data purge:** Added `GameDatabase.PurgeLegacyEntries()` — deletes all `source="launcher"` entries. Called at startup after migration.
+- **Steam scanning fix:** Changed `SelectBestExe` to use `EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true }` — .NET 8 feature that gracefully skips inaccessible folders instead of throwing. Steam games with EasyAntiCheat/BattlEye folders are no longer silently dropped.
+- **Documentation update:** Updated CLAUDE.md and README.md to reflect current 3-tier detection pipeline (removed stale references to 65-game built-in DB and four-tier detection). Added ETW/ProcessEventWatcher docs, TraceEvent dependency, SelectBestExe details, IgnoreInaccessible note.
+
+### Files Changed
+- `Core/GameLibraryScanner.cs` — `EnumerationOptions` with `IgnoreInaccessible` in `SelectBestExe`
+- `Core/GameDatabase.cs` — new `PurgeLegacyEntries()` method
+- `App.xaml.cs` — calls `PurgeLegacyEntries()` at startup
+- `CLAUDE.md` — 3-tier detection, ETW, ProcessEventWatcher, TraceEvent dep, project structure, scanning details
+- `README.md` — 3-tier detection, ETW mention, removed known_games.json references
+
+### Verification
+- Build: 0 warnings, 0 errors
+- Tests: 177/177 passing
+
+---
+
+## Session 58 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Comprehensive codebase audit + fix all findings
+
+### Audit
+Full 3-layer audit of the entire codebase (Core Engine, UI Layer, Config/Models/Native/Tests/App.xaml.cs). Covered thread safety, error handling, resource management, P/Invoke correctness, WPF performance, accessibility, test coverage, and security.
+
+**Metrics:** 50 source files, ~6,482 lines, 177 tests, 7 NuGet deps, 861 KB binary.
+
+**Findings by severity:**
+- **HIGH (3):** Event subscription leaks in DashboardWindow and OverlayWindow; null reference in SettingsViewModel tuple FirstOrDefault
+- **MEDIUM (3):** AffinityManager `_disposed` race outside lock; GameDatabase corruption not caught at startup; OverlayViewModel timer cleanup
+- **LOW (6):** Brush lookup performance, broad exception handlers, string truncation safety, dead code in ProcessWatcher, inconsistent .exe suffix handling, missing GameDatabase finalizer
+
+### Fixes Applied
+1. **DashboardWindow event leak:** Added `OnClosed` override that unsubscribes `_logScrollHandler` from `ActivityLog.Entries.CollectionChanged`.
+2. **OverlayWindow event leak:** Added unsubscription of `PropertyChanged` and `PixelShiftRequested` in `OnClosing` handler, resets `_eventsSubscribed` flag so `OnLoaded` can resubscribe.
+3. **SettingsViewModel null reference:** `FirstOrDefault()` on value tuple returns default struct — `.DisplayName` was accessed without null check. Now checks `string.IsNullOrEmpty()` before using. Fixed in both constructor and `AddGameCommand`.
+4. **GameDatabase startup guard:** Wrapped `new GameDatabase()` + migrate + dedup in try/catch. On failure, continues with empty launcher dictionary and logs warning. Downstream `_gameDb` references already null-safe.
+5. **AffinityManager disposed race:** Moved `_disposed` check inside `lock(_syncLock)` in `MigrateNewProcesses()`. Eliminates race between timer callback and Dispose.
+
+### Files Changed
+- `Views/DashboardWindow.xaml.cs` — OnClosed event unsubscription
+- `Views/OverlayWindow.xaml.cs` — OnClosing event unsubscription
+- `ViewModels/SettingsViewModel.cs` — null-safe FirstOrDefault on tuple (2 locations)
+- `App.xaml.cs` — try/catch around GameDatabase init, null guard on InitGameLibrary
+- `Core/AffinityManager.cs` — _disposed check moved inside lock
+
+### Verification
+- Build: 0 warnings, 0 errors
+- Tests: 177/177 passing
 
 ---
 

@@ -7,7 +7,7 @@ X3D Dual CCD Optimizer is a lightweight open-source Windows application with two
 - **Monitor Mode (default):** Real-time CCD dashboard showing per-core load, frequency, process-to-CCD mapping, and game detection -- without touching any process affinity. Works on any dual-CCD Ryzen.
 - **Optimize Mode (opt-in):** Everything Monitor does, plus active CPU affinity management -- pins games to the V-Cache CCD and migrates background processes to the frequency CCD. Requires confirmed V-Cache detection (X3D processors only).
 
-The app also includes a compact always-on-top overlay for single-monitor gaming, GPU-based automatic game detection, a 65-game built-in known games database, Game Library scanning (Steam/Epic/GOG) with opt-in box art downloads, a Settings window, start-with-Windows support, and an About dialog.
+The app also includes a compact always-on-top overlay for single-monitor gaming, GPU-based automatic game detection, Game Library scanning (Steam/Epic/GOG) with opt-in box art downloads, ETW-based near-instant process detection, a Settings window, start-with-Windows support, and an About dialog.
 
 **Dual-CCD only.** The application requires a dual-CCD AMD Ryzen processor. Single-CCD and non-AMD processors receive a friendly exit dialog explaining the requirement. There is no degraded single-CCD mode.
 
@@ -43,8 +43,9 @@ The application operates in Monitor or Optimize mode at all times. Mode is store
 **Mode-independent modules** (run identically in both modes):
 - `CcdMapper` -- topology detection, `HasVCache` output, `ProcessorTier` classification
 - `PerformanceMonitor` -- per-core load/frequency collection via PDH
-- `ProcessWatcher` -- process polling, game detection events, GPU heuristic integration
-- `GameDetector` -- four-tier game identification (manual -> built-in DB -> library scan -> GPU heuristic)
+- `ProcessWatcher` -- ETW-first process detection with polling fallback, game detection events, GPU heuristic integration
+- `ProcessEventWatcher` -- ETW kernel process start/stop subscription for near-instant detection
+- `GameDetector` -- three-tier game identification (manual -> library scan -> GPU heuristic)
 - `GpuMonitor` -- per-process GPU 3D engine utilization via WMI
 - `GameLibraryScanner` -- Steam/Epic/GOG library scanning
 - `GameDatabase` -- LiteDB persistent storage for scanned games
@@ -66,17 +67,16 @@ The event stream structure is identical in both modes -- only the `AffinityActio
 
 ### Game Detection Pipeline
 
-Four-tier priority:
+Three-tier priority:
 1. **Manual list** (config `manualGames`) -- highest priority, instant match
-2. **Built-in database** (`Data/known_games.json`, 65 entries) -- case-insensitive exe match
-3. **Library scan** (Steam/Epic/GOG via `GameLibraryScanner` + `GameDatabase`) -- scanned games stored in LiteDB
-4. **GPU heuristic** (via `GpuMonitor`) -- lowest priority, requires foreground + GPU > threshold for 5s
+2. **Library scan** (Steam/Epic/GOG via `GameLibraryScanner` + `GameDatabase`) -- scanned games stored in LiteDB
+3. **GPU heuristic** (via `GpuMonitor`) -- lowest priority, requires foreground + GPU > threshold for 5s
 
-Detection source shown in activity log: `[manual]`, `[database]`, `[library]`, `[auto-detected, GPU: XX%]`
+Detection source shown in activity log: `[manual]`, `[library]`, `[auto-detected, GPU: XX%]`
 
 ### Polling Intervals
 
-- `ProcessWatcher`: 4s idle, 2s active (configurable; default `pollingIntervalMs=2000`, idle multiplier = 2x)
+- `ProcessWatcher`: ETW-first (near-instant), polling fallback at 15s; without ETW: 4s idle, 2s active (configurable; default `pollingIntervalMs=2000`, idle multiplier = 2x)
 - `PerformanceMonitor`: 1s (configurable via `dashboardRefreshMs`)
 - `AffinityManager` re-migration: 5s
 - UI debouncing: skip dispatch if no core changed by >1% load or >50 MHz
@@ -100,6 +100,7 @@ Detection source shown in activity log: `[manual]`, `[database]`, `[library]`, `
 
 - `LiteDB` 5.0.21 -- game library persistent storage
 - `Microsoft.Data.Sqlite` 8.0.0 -- GOG Galaxy database reading
+- `Microsoft.Diagnostics.Tracing.TraceEvent` 3.1.30 -- ETW kernel process events
 - `Serilog` 4.2.0 -- structured logging
 - `Serilog.Sinks.Console` 6.0.0 -- console log output
 - `Serilog.Sinks.File` 6.0.0 -- rolling file log output
@@ -117,7 +118,7 @@ x3d-ccd-optimizer/
 │   │   ├── CcdMapper.cs              # CCD topology detection (HasVCache, ProcessorTier)
 │   │   ├── PerformanceMonitor.cs     # Per-core load/freq via PDH (thread-safe disposal)
 │   │   ├── ProcessWatcher.cs         # Process polling + game detection + GPU debounce
-│   │   ├── GameDetector.cs           # Four-tier: manual → built-in DB → library → GPU
+│   │   ├── GameDetector.cs           # Three-tier: manual → library scan → GPU heuristic
 │   │   ├── GpuMonitor.cs            # Per-process GPU 3D utilization via WMI
 │   │   ├── AffinityManager.cs       # Mode-aware affinity management (lock-based thread safety)
 │   │   ├── VCacheDriverManager.cs   # AMD amd3dvcache driver registry interface
@@ -125,6 +126,7 @@ x3d-ccd-optimizer/
 │   │   ├── GameDatabase.cs          # LiteDB storage wrapper for scanned games
 │   │   ├── ArtworkDownloader.cs     # Steam CDN box art download (opt-in)
 │   │   ├── StartupManager.cs        # Start-with-Windows registry management
+│   │   ├── ProcessEventWatcher.cs   # ETW kernel process start/stop events
 │   │   └── RecoveryManager.cs       # Crash recovery for affinity state
 │   ├── ViewModels/                    # MVVM ViewModels
 │   │   ├── ViewModelBase.cs          # INotifyPropertyChanged base
@@ -174,8 +176,9 @@ x3d-ccd-optimizer/
 │   │   ├── OptimizeStrategy.cs       # AffinityPinning/DriverPreference enum
 │   │   ├── RecoveryState.cs          # Crash recovery serialization model
 │   │   ├── ProtectedProcesses.cs     # System processes excluded from affinity changes
-│   │   └── ScannedGame.cs            # LiteDB model for scanned games
-│   ├── Data/known_games.json         # 65 game executables (built-in database)
+│   │   ├── ScannedGame.cs            # LiteDB model for scanned games
+│   │   └── GameProfile.cs            # Per-game strategy override
+│   ├── Data/BackgroundAppSuggestions.cs # Curated background app display names
 │   └── Resources/app.ico             # Application icon
 ├── tests/X3DCcdOptimizer.Tests/
 ├── X3DCcdOptimizer.sln
@@ -250,9 +253,8 @@ PDH counters for per-core load and frequency. Timer-driven at 1s default (config
 
 ### Game Detection Priority
 1. Manual list (config) -- highest priority, always wins
-2. Built-in database (known_games.json, 65 entries) -- case-insensitive exe match
-3. Library scan (GameDatabase/LiteDB) -- Steam/Epic/GOG scanned games
-4. GPU heuristic (WMI per-process 3D utilization) -- debounce: 5s to detect, 10s to exit
+2. Library scan (GameDatabase/LiteDB) -- Steam/Epic/GOG scanned games
+3. GPU heuristic (WMI per-process 3D utilization) -- debounce: 5s to detect, 10s to exit
 
 ### Game Library Scanning
 `GameLibraryScanner` discovers installed games from three launchers:
@@ -260,7 +262,7 @@ PDH counters for per-core load and frequency. Timer-driven at 1s default (config
 - **Epic Games:** Reads JSON manifest files from the Epic launcher's manifests directory
 - **GOG Galaxy:** Queries GOG's SQLite database and Windows registry for installed games
 
-Scanned results are stored as `ScannedGame` records in LiteDB. The scanner filters out known non-game executables (installers, crash reporters, redistributables) via prefix matching. Scanning runs on a background thread and is safe to invoke repeatedly -- results are merged by process name.
+Scanned results are stored as `ScannedGame` records in LiteDB. The scanner uses `SelectBestExe` to pick one executable per game directory, scoring by name match, root directory preference, and file size. Non-game executables (installers, crash reporters, redistributables, anti-cheat launchers) are filtered via prefix/suffix/exact-match skip lists. Directory enumeration uses `IgnoreInaccessible` to gracefully skip protected anti-cheat folders (EasyAntiCheat, BattlEye). Scanning runs on a background thread and is safe to invoke repeatedly -- results replace previous entries per source.
 
 ### Game Database (LiteDB)
 Persistent storage at `%APPDATA%\X3DCCDOptimizer\user_games.db`. Stores `ScannedGame` records with fields: ProcessName, DisplayName, Source (steam/epic/gog), InstallPath, SteamAppId, ArtworkPath, FirstSeen, LastSeen. Indexed on ProcessName and Source. Thread-safe for concurrent reads via LiteDB's shared connection mode.

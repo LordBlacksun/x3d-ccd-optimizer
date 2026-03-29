@@ -408,7 +408,14 @@ public static class GameLibraryScanner
         List<(string Path, string Name, long Size)> candidates;
         try
         {
-            candidates = Directory.EnumerateFiles(dir, "*.exe", SearchOption.AllDirectories)
+            // IgnoreInaccessible prevents UnauthorizedAccessException on anti-cheat folders
+            // (EasyAntiCheat, BattlEye, etc.) from skipping the entire game
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true
+            };
+            candidates = Directory.EnumerateFiles(dir, "*.exe", options)
                 .Select(p =>
                 {
                     try { return (Path: p, Name: System.IO.Path.GetFileName(p), Size: new FileInfo(p).Length); }
@@ -417,7 +424,6 @@ public static class GameLibraryScanner
                 .Where(c => !ShouldSkipExe(c.Name))
                 .ToList();
         }
-        catch (UnauthorizedAccessException) { return null; }
         catch (Exception ex)
         {
             Log.Debug("Failed to scan {Dir}: {Error}", dir, ex.Message);

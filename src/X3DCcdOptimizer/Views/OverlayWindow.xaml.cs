@@ -184,6 +184,14 @@ public partial class OverlayWindow : Window
         e.Cancel = true;
         SavePosition();
         Hide();
+
+        // Unsubscribe to prevent memory leak when overlay is closed
+        if (_eventsSubscribed && _viewModel != null)
+        {
+            _viewModel.PropertyChanged -= OnViewModelPropertyChanged;
+            _viewModel.PixelShiftRequested -= OnPixelShift;
+            _eventsSubscribed = false;
+        }
     }
 
     public void SavePosition()
