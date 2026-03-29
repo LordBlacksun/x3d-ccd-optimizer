@@ -79,6 +79,7 @@ public class GameLibraryItemViewModel : ViewModelBase
 public class GameLibraryViewModel : ViewModelBase
 {
     private readonly GameDatabase _gameDb;
+    private readonly HashSet<string> _excludedProcesses;
     private string _totalCountText = "";
 
     public ObservableCollection<GameLibraryItemViewModel> Games { get; } = [];
@@ -89,9 +90,10 @@ public class GameLibraryViewModel : ViewModelBase
         set => SetProperty(ref _totalCountText, value);
     }
 
-    public GameLibraryViewModel(GameDatabase gameDb)
+    public GameLibraryViewModel(GameDatabase gameDb, IEnumerable<string>? excludedProcesses = null)
     {
         _gameDb = gameDb;
+        _excludedProcesses = new HashSet<string>(excludedProcesses ?? [], StringComparer.OrdinalIgnoreCase);
         Refresh();
     }
 
@@ -105,9 +107,12 @@ public class GameLibraryViewModel : ViewModelBase
         var epicCount = 0;
         var gogCount = 0;
 
-        // Load scanned games from LiteDB — deduplicate by exe name and display name
         foreach (var game in _gameDb.GetAllGames().OrderBy(g => g.DisplayName))
         {
+            // Skip excluded processes — these aren't games
+            if (_excludedProcesses.Contains(game.ProcessName))
+                continue;
+
             if (!seenExes.Add(game.ProcessName))
                 continue;
             if (!seenNames.Add(game.DisplayName))
@@ -131,6 +136,8 @@ public class GameLibraryViewModel : ViewModelBase
         if (epicCount > 0) parts.Add($"{epicCount} Epic");
         if (gogCount > 0) parts.Add($"{gogCount} GOG");
 
-        TotalCountText = $"{total} games ({string.Join(", ", parts)})";
+        TotalCountText = total > 0
+            ? $"{total} games ({string.Join(", ", parts)})"
+            : "No games found yet. Scan your libraries from Settings \u2192 Detection.";
     }
 }

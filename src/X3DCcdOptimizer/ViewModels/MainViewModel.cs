@@ -210,10 +210,10 @@ public class MainViewModel : ViewModelBase
             UpdateStatus();
     }
 
-    public void InitGameLibrary(GameDatabase gameDb)
+    public void InitGameLibrary(GameDatabase gameDb, IEnumerable<string>? excludedProcesses = null)
     {
         _gameDb = gameDb;
-        GameLibrary = new GameLibraryViewModel(gameDb);
+        GameLibrary = new GameLibraryViewModel(gameDb, excludedProcesses);
         OnPropertyChanged(nameof(GameLibrary));
     }
 
