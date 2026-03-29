@@ -583,7 +583,7 @@ public partial class App : System.Windows.Application
             try
             {
                 var scanned = GameLibraryScanner.ScanAll();
-                _gameDb?.UpsertGames(scanned);
+                _gameDb?.ReplaceGames(scanned);
                 _gameDetector?.UpdateLauncherGames(_gameDb?.ToDictionary() ?? new());
 
                 Application.Current?.Dispatcher.BeginInvoke(() =>

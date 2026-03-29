@@ -259,7 +259,7 @@ public class SettingsViewModel : ViewModelBase
                 {
                     var scanned = GameLibraryScanner.ScanAll();
                     using var db = new GameDatabase();
-                    db.UpsertGames(scanned);
+                    db.ReplaceGames(scanned);
 
                     var steamCount = scanned.Count(g => g.Source == "steam");
                     var epicCount = scanned.Count(g => g.Source == "epic");

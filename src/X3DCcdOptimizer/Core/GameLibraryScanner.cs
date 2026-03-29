@@ -18,10 +18,11 @@ public static class GameLibraryScanner
     [
         "unins", "uninstall", "setup", "install", "redist", "vcredist",
         "dxsetup", "dxwebsetup", "dotnetfx", "ndp", "ue4prereq",
-        "crashreport", "crashhandl", "unitycrashhndl",
+        "crashreport", "crashhandl", "crashpad", "unitycrashhndl",
         "UnityCrashHandler", "CrashReporter", "CrashSender", "BugSplat",
         "EasyAntiCheat", "BEService", "BELauncher",
-        "CrashReportClient", "7z", "winrar"
+        "CrashReportClient", "7z", "winrar",
+        "launch_", "launch-"
     ];
 
     // Exe name suffixes to skip — editors, tools, launchers
@@ -29,8 +30,15 @@ public static class GameLibraryScanner
     [
         "Editor", "Launcher", "Crash", "Report", "Config",
         "Updater", "Helper", "Tool", "Server", "Benchmark",
-        "Redistributable", "Shipping"  // UE4 non-game binaries
+        "Redistributable", "Shipping",  // UE4 non-game binaries
+        "_handler", "-handler", "_service", "_setup"
     ];
+
+    // Exact exe names to skip
+    private static readonly HashSet<string> SkipExeExact = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "crashpad_handler.exe", "launch_game.exe"
+    };
 
     /// <summary>
     /// Performs a full scan of all supported launchers. Safe to call from background thread.
@@ -468,6 +476,9 @@ public static class GameLibraryScanner
 
     private static bool ShouldSkipExe(string exeName)
     {
+        if (SkipExeExact.Contains(exeName))
+            return true;
+
         var nameWithoutExt = System.IO.Path.GetFileNameWithoutExtension(exeName);
 
         foreach (var prefix in SkipExePrefixes)
