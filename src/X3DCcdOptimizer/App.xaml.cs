@@ -210,6 +210,18 @@ public partial class App : System.Windows.Application
             }
         }
 
+        // Offer new default exclusions if any are missing from user's config
+        var newExclusions = _config.GetNewDefaultExclusions();
+        if (newExclusions.Count > 0 && !_config.IsFirstRun)
+        {
+            if (ShowNewExclusionsPrompt(newExclusions))
+            {
+                _config.ExcludedProcesses.AddRange(newExclusions);
+                _config.Save();
+                Log.Information("User accepted {Count} new default exclusions", newExclusions.Count);
+            }
+        }
+
         // Game library database (LiteDB)
         _gameDb = new GameDatabase();
         _gameDb.MigrateFromJsonCache();
@@ -468,6 +480,21 @@ public partial class App : System.Windows.Application
         using var identity = WindowsIdentity.GetCurrent();
         var principal = new WindowsPrincipal(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+
+    /// <summary>
+    /// Shows a prompt offering new default exclusions. Returns true if user accepts.
+    /// </summary>
+    private bool ShowNewExclusionsPrompt(List<string> newExclusions)
+    {
+        var list = string.Join("\n", newExclusions.Select(e => $"  \u2022  {e}"));
+        var result = MessageBox.Show(
+            $"New default exclusions are available. These processes use GPU but aren't games, " +
+            $"and would cause false detections:\n\n{list}\n\n" +
+            $"Add them to your exclusion list?",
+            "X3D CCD Optimizer \u2014 Updated Exclusions",
+            MessageBoxButton.YesNo, MessageBoxImage.Information);
+        return result == MessageBoxResult.Yes;
     }
 
     /// <summary>
