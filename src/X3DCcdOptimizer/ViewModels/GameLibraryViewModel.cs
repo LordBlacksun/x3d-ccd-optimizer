@@ -19,6 +19,7 @@ public class GameLibraryItemViewModel : ViewModelBase
     public string SourceBadge { get; }
     public SolidColorBrush SourceColor { get; }
     public int? SteamAppId { get; }
+    public string InitialLetter { get; }
 
     public ImageSource? ArtworkImage
     {
@@ -35,6 +36,7 @@ public class GameLibraryItemViewModel : ViewModelBase
         ExeName = exeName;
         Source = source;
         SteamAppId = steamAppId;
+        InitialLetter = displayName.Length > 0 ? char.ToUpperInvariant(displayName[0]).ToString() : "?";
 
         SourceBadge = source switch
         {

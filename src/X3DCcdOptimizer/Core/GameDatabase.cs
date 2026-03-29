@@ -28,29 +28,39 @@ public class GameDatabase : IDisposable
     }
 
     /// <summary>
-    /// Upserts scanned games. Matches on ProcessName — updates LastSeen and metadata,
-    /// preserves FirstSeen and ArtworkPath from existing records.
+    /// Replaces all games for the given sources with fresh scan results.
+    /// Preserves ArtworkPath from previous entries where the exe matches.
     /// </summary>
-    public void UpsertGames(IEnumerable<ScannedGame> games)
+    public void ReplaceGames(IEnumerable<ScannedGame> games)
     {
         var now = DateTime.UtcNow;
-        foreach (var game in games)
+        var grouped = games.GroupBy(g => g.Source).ToList();
+
+        foreach (var group in grouped)
         {
-            var existing = _games.FindOne(g => g.ProcessName == game.ProcessName && g.Source == game.Source);
-            if (existing != null)
+            // Preserve artwork paths from old entries
+            var oldEntries = _games.Find(g => g.Source == group.Key).ToList();
+            var artworkMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var old in oldEntries)
             {
-                existing.DisplayName = game.DisplayName;
-                existing.InstallPath = game.InstallPath;
-                existing.SteamAppId = game.SteamAppId ?? existing.SteamAppId;
-                existing.LastSeen = now;
-                _games.Update(existing);
+                if (!string.IsNullOrEmpty(old.ArtworkPath))
+                    artworkMap.TryAdd(old.ProcessName, old.ArtworkPath);
             }
-            else
+
+            // Wipe old entries for this source
+            _games.DeleteMany(g => g.Source == group.Key);
+
+            // Insert fresh
+            foreach (var game in group)
             {
                 game.FirstSeen = now;
                 game.LastSeen = now;
+                if (artworkMap.TryGetValue(game.ProcessName, out var art))
+                    game.ArtworkPath = art;
                 _games.Insert(game);
             }
+
+            Log.Information("Replaced {Count} {Source} entries in game database", group.Count(), group.Key);
         }
     }
 
