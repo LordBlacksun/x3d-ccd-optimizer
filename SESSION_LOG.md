@@ -89,14 +89,19 @@ Steam game scanner was adding every .exe in each game's install directory. A gam
 - Runs on startup after migration, before first use.
 
 ### Fix: Display Deduplication (GameLibraryViewModel.cs)
-- Tracks seen exe names across built-in and scanned sources. Built-in entries win.
-- One row per unique exe, period. Count reflects unique games.
+- Tracks seen exe names AND display names across built-in and scanned sources. Built-in entries win.
+- One row per unique game, period. Count reflects unique games.
+
+### Fix: Variant Exe Display Names (known_games.json)
+- Root cause of remaining duplicates (e.g., "Path of Exile" / "Path of Exile (Steam)"): variant exe entries in known_games.json had distinct display names, bypassing the seenNames dedup.
+- Unified display names: `PathOfExileSteam.exe` → "Path of Exile", `ffxiv.exe` → "Final Fantasy XIV", `bg3_dx11.exe` → "Baldur's Gate 3". All exe variants still detected by GameDetector — only the display is deduplicated.
 
 ### Files Changed
 - `Core/GameLibraryScanner.cs` — `SelectBestExe()`, expanded skip patterns, `NormalizeForMatch()`
 - `Core/GameDatabase.cs` — `Deduplicate()`, `NormalizeName()`, `NameMatchScore()`
-- `ViewModels/GameLibraryViewModel.cs` — Simplified `Refresh()` with exe-based dedup
+- `ViewModels/GameLibraryViewModel.cs` — `Refresh()` with exe + display name dedup
 - `App.xaml.cs` — Call `_gameDb.Deduplicate()` on startup
+- `Data/known_games.json` — Unified variant exe display names
 
 ### Build & Tests
 - `dotnet build` — 0 warnings, 0 errors
