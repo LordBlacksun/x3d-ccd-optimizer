@@ -28,13 +28,22 @@ jobs:
       - name: Run tests
         run: dotnet test -c Release --no-build --verbosity normal
 
-      - name: Publish (framework-dependent single-file)
+      - name: Publish (framework-dependent)
         run: >
           dotnet publish src/X3DCcdOptimizer/X3DCcdOptimizer.csproj
           -c Release -r win-x64 --self-contained false
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=false
-          -o ./publish
+          -o ./publish-fd
+
+      - name: Publish (self-contained)
+        run: >
+          dotnet publish src/X3DCcdOptimizer/X3DCcdOptimizer.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -o ./publish-sc
 
       # Code signing via SignPath — uncomment after SignPath approval
       # See: https://about.signpath.io/documentation/github-actions
@@ -58,26 +67,37 @@ jobs:
       #     wait-for-completion: true
       #     output-artifact-directory: ./publish
 
-      - name: Prepare release zip
+      - name: Prepare release zips
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $zipName = "X3DCcdOptimizer-${tag}-win-x64.zip"
 
-          New-Item -ItemType Directory -Path ./release-staging -Force
-          New-Item -ItemType Directory -Path ./release-staging/amd64 -Force
-          Copy-Item ./publish/X3DCcdOptimizer.exe ./release-staging/
-          Copy-Item ./publish/e_sqlite3.dll ./release-staging/ -ErrorAction SilentlyContinue
-          Copy-Item ./publish/amd64/KernelTraceControl.dll ./release-staging/amd64/ -ErrorAction SilentlyContinue
-          Copy-Item ./src/X3DCcdOptimizer/Resources/app.ico ./release-staging/ -ErrorAction SilentlyContinue
-          Copy-Item ./LICENSE ./release-staging/ -ErrorAction SilentlyContinue
-          Copy-Item ./README.md ./release-staging/
+          # Framework-dependent ZIP (small, requires .NET 8 Desktop Runtime)
+          $fdZip = "X3DCcdOptimizer-${tag}-win-x64.zip"
+          New-Item -ItemType Directory -Path ./staging-fd -Force
+          New-Item -ItemType Directory -Path ./staging-fd/amd64 -Force
+          Copy-Item ./publish-fd/X3DCcdOptimizer.exe ./staging-fd/
+          Copy-Item ./publish-fd/e_sqlite3.dll ./staging-fd/ -ErrorAction SilentlyContinue
+          Copy-Item ./publish-fd/amd64/KernelTraceControl.dll ./staging-fd/amd64/ -ErrorAction SilentlyContinue
+          Copy-Item ./LICENSE ./staging-fd/ -ErrorAction SilentlyContinue
+          Copy-Item ./README.md ./staging-fd/
+          Compress-Archive -Path ./staging-fd/* -DestinationPath ./$fdZip
 
-          Compress-Archive -Path ./release-staging/* -DestinationPath ./$zipName
-          echo "ZIP_NAME=$zipName" >> $env:GITHUB_ENV
+          # Self-contained ZIP (larger, no runtime needed)
+          $scZip = "X3DCcdOptimizer-${tag}-win-x64-standalone.zip"
+          New-Item -ItemType Directory -Path ./staging-sc -Force
+          Copy-Item ./publish-sc/X3DCcdOptimizer.exe ./staging-sc/
+          Copy-Item ./LICENSE ./staging-sc/ -ErrorAction SilentlyContinue
+          Copy-Item ./README.md ./staging-sc/
+          Compress-Archive -Path ./staging-sc/* -DestinationPath ./$scZip
+
+          echo "FD_ZIP=$fdZip" >> $env:GITHUB_ENV
+          echo "SC_ZIP=$scZip" >> $env:GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: ./${{ env.ZIP_NAME }}
+          files: |
+            ./${{ env.FD_ZIP }}
+            ./${{ env.SC_ZIP }}
