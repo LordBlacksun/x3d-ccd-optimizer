@@ -1,23 +1,18 @@
 using System.IO;
 using System.Text.Json;
+using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
 using Serilog;
+using X3DCcdOptimizer.Models;
 
 namespace X3DCcdOptimizer.Core;
 
 /// <summary>
-/// Scans installed game launchers (Steam, Epic) to build an exe → display name dictionary.
-/// Results are cached to installed_games.json in %APPDATA%\X3DCCDOptimizer.
-/// GOG Galaxy is not supported (requires SQLite dependency).
+/// Scans installed game launchers (Steam, Epic, GOG Galaxy) to discover installed games.
+/// Returns ScannedGame models for LiteDB storage.
 /// </summary>
 public static class GameLibraryScanner
 {
-    private static readonly string CachePath = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "X3DCCDOptimizer", "installed_games.json");
-
-    private static readonly TimeSpan CacheMaxAge = TimeSpan.FromDays(7);
-
     // Exe names to skip when scanning game directories
     private static readonly HashSet<string> SkipExePrefixes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -30,98 +25,54 @@ public static class GameLibraryScanner
     };
 
     /// <summary>
-    /// Loads cached results if fresh enough, otherwise scans synchronously.
-    /// Returns exe name (with .exe) → display name dictionary.
+    /// Performs a full scan of all supported launchers. Safe to call from background thread.
+    /// Returns ScannedGame models with source, SteamAppId, and install path metadata.
     /// </summary>
-    public static Dictionary<string, string> LoadOrScan()
+    public static List<ScannedGame> ScanAll()
     {
-        var cached = LoadCache();
-        if (cached != null)
-        {
-            Log.Information("Loaded {Count} launcher-scanned games from cache", cached.Count);
-            return cached;
-        }
+        var result = new List<ScannedGame>();
+        int steamCount = 0, epicCount = 0, gogCount = 0;
 
-        var games = ScanAll();
-        SaveCache(games);
-        return games;
-    }
-
-    /// <summary>
-    /// Returns true if cache exists but is older than 7 days.
-    /// </summary>
-    public static bool IsCacheStale()
-    {
         try
         {
-            if (!File.Exists(CachePath)) return true;
-            var json = File.ReadAllText(CachePath);
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("lastScanUtc", out var ts))
-            {
-                if (DateTime.TryParse(ts.GetString(), out var lastScan))
-                    return (DateTime.UtcNow - lastScan) > CacheMaxAge;
-            }
+            var steamGames = ScanSteam();
+            steamCount = steamGames.Count;
+            result.AddRange(steamGames);
         }
-        catch { }
-        return true;
-    }
-
-    /// <summary>
-    /// Performs a full scan of all supported launchers. Safe to call from background thread.
-    /// </summary>
-    public static Dictionary<string, string> ScanAll()
-    {
-        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        try { ScanSteam(result); }
         catch (Exception ex) { Log.Warning(ex, "Steam library scan failed"); }
 
-        try { ScanEpic(result); }
-        catch (Exception ex) { Log.Warning(ex, "Epic library scan failed"); }
-
-        Log.Information("Launcher scan complete: {Count} games found (Steam + Epic)", result.Count);
-        return result;
-    }
-
-    /// <summary>
-    /// Saves scan results and updates cache file.
-    /// </summary>
-    public static void SaveCache(Dictionary<string, string> games)
-    {
         try
         {
-            var dir = Path.GetDirectoryName(CachePath)!;
-            Directory.CreateDirectory(dir);
-
-            var entries = games.Select(kv => new { exe = kv.Key, name = kv.Value }).ToArray();
-            var cache = new { lastScanUtc = DateTime.UtcNow.ToString("o"), games = entries };
-            var json = JsonSerializer.Serialize(cache, new JsonSerializerOptions { WriteIndented = true });
-
-            var tempPath = CachePath + ".tmp";
-            try
-            {
-                File.WriteAllText(tempPath, json);
-                File.Move(tempPath, CachePath, overwrite: true);
-            }
-            catch
-            {
-                try { File.Delete(tempPath); } catch { }
-                throw;
-            }
+            var epicGames = ScanEpic();
+            epicCount = epicGames.Count;
+            result.AddRange(epicGames);
         }
-        catch (Exception ex)
+        catch (Exception ex) { Log.Warning(ex, "Epic library scan failed"); }
+
+        try
         {
-            Log.Warning(ex, "Failed to save launcher scan cache");
+            var gogGames = ScanGog();
+            gogCount = gogGames.Count;
+            result.AddRange(gogGames);
         }
+        catch (Exception ex) { Log.Warning(ex, "GOG library scan failed"); }
+
+        Log.Information("Library scan complete: {Steam} Steam, {Epic} Epic, {Gog} GOG ({Total} total)",
+            steamCount, epicCount, gogCount, result.Count);
+        return result;
     }
 
     #region Steam
 
-    private static void ScanSteam(Dictionary<string, string> result)
+    private static List<ScannedGame> ScanSteam()
     {
+        var games = new List<ScannedGame>();
         var steamPath = GetSteamPath();
-        if (steamPath == null) return;
+        if (steamPath == null)
+        {
+            Log.Debug("Steam not found");
+            return games;
+        }
 
         var libraryFolders = GetSteamLibraryFolders(steamPath);
         Log.Debug("Found {Count} Steam library folders", libraryFolders.Count);
@@ -137,7 +88,7 @@ public static class GameLibraryScanner
                 {
                     try
                     {
-                        ParseAcfAndScanExes(acfFile, steamApps, result);
+                        ParseAcfAndScanExes(acfFile, steamApps, games);
                     }
                     catch (Exception ex)
                     {
@@ -150,6 +101,8 @@ public static class GameLibraryScanner
                 Log.Debug("Failed to enumerate Steam library {Path}: {Error}", libFolder, ex.Message);
             }
         }
+
+        return games;
     }
 
     private static string? GetSteamPath()
@@ -204,7 +157,7 @@ public static class GameLibraryScanner
         return folders;
     }
 
-    private static void ParseAcfAndScanExes(string acfFile, string steamAppsDir, Dictionary<string, string> result)
+    private static void ParseAcfAndScanExes(string acfFile, string steamAppsDir, List<ScannedGame> result)
     {
         var content = File.ReadAllText(acfFile);
         var parsed = VdfParser.Parse(content);
@@ -220,21 +173,33 @@ public static class GameLibraryScanner
         if (string.IsNullOrWhiteSpace(gameName) || string.IsNullOrWhiteSpace(installDir))
             return;
 
+        // Extract SteamAppId from ACF filename: appmanifest_{appid}.acf
+        int? steamAppId = null;
+        var fileName = Path.GetFileNameWithoutExtension(acfFile);
+        if (fileName.StartsWith("appmanifest_") && int.TryParse(fileName[12..], out var appId))
+            steamAppId = appId;
+
         var fullPath = Path.Combine(steamAppsDir, "common", installDir);
         if (!Directory.Exists(fullPath)) return;
 
-        ScanDirectoryForExes(fullPath, gameName, result);
+        ScanDirectoryForExes(fullPath, gameName, "steam", steamAppId, result);
     }
 
     #endregion
 
     #region Epic
 
-    private static void ScanEpic(Dictionary<string, string> result)
+    private static List<ScannedGame> ScanEpic()
     {
+        var games = new List<ScannedGame>();
         var manifestDir = @"C:\ProgramData\Epic\EpicGamesLauncher\Data\Manifests";
-        if (!Directory.Exists(manifestDir)) return;
+        if (!Directory.Exists(manifestDir))
+        {
+            Log.Debug("Epic Games not found");
+            return games;
+        }
 
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var itemFile in Directory.EnumerateFiles(manifestDir, "*.item"))
         {
             try
@@ -248,27 +213,167 @@ public static class GameLibraryScanner
 
                 var displayName = nameEl.GetString();
                 var launchExe = exeEl.GetString();
+                var installLoc = root.TryGetProperty("InstallLocation", out var locEl) ? locEl.GetString() : null;
 
                 if (string.IsNullOrWhiteSpace(displayName) || string.IsNullOrWhiteSpace(launchExe))
                     continue;
 
                 var exeName = Path.GetFileName(launchExe);
-                if (!string.IsNullOrEmpty(exeName) && !result.ContainsKey(exeName))
-                    result[exeName] = displayName;
+                if (!string.IsNullOrEmpty(exeName) && seen.Add(exeName))
+                {
+                    games.Add(new ScannedGame
+                    {
+                        ProcessName = exeName,
+                        DisplayName = displayName,
+                        Source = "epic",
+                        InstallPath = installLoc
+                    });
+                }
             }
             catch (Exception ex)
             {
                 Log.Debug("Failed to parse Epic manifest {File}: {Error}", Path.GetFileName(itemFile), ex.Message);
             }
         }
+
+        return games;
+    }
+
+    #endregion
+
+    #region GOG Galaxy
+
+    private static List<ScannedGame> ScanGog()
+    {
+        var games = new List<ScannedGame>();
+        var dbPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+            "GOG.com", "Galaxy", "storage", "galaxy-2.0.db");
+
+        if (!File.Exists(dbPath))
+        {
+            Log.Debug("GOG Galaxy not found");
+            return games;
+        }
+
+        // Copy DB to temp file to avoid locking conflicts with running Galaxy client
+        var tempDb = Path.Combine(Path.GetTempPath(), $"x3d_gog_{Guid.NewGuid():N}.db");
+        try
+        {
+            File.Copy(dbPath, tempDb, overwrite: true);
+
+            using var conn = new SqliteConnection($"Data Source={tempDb};Mode=ReadOnly");
+            conn.Open();
+
+            // GOG Galaxy 2.0 schema: GamePieces contains game metadata as JSON
+            // We look for installed GOG games with their titles
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT DISTINCT gp.releaseKey, gp.value
+                FROM GamePieces gp
+                INNER JOIN GamePieceTypes gpt ON gp.gamePieceTypeId = gpt.id
+                WHERE gpt.type = 'originalTitle'
+                AND gp.releaseKey LIKE 'gog_%'";
+
+            var gogTitles = new Dictionary<string, string>();
+            using (var reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    var releaseKey = reader.GetString(0);
+                    var titleJson = reader.GetString(1);
+                    // Value is JSON like {"title":"Game Name"}
+                    try
+                    {
+                        using var titleDoc = JsonDocument.Parse(titleJson);
+                        if (titleDoc.RootElement.TryGetProperty("title", out var t))
+                        {
+                            var title = t.GetString();
+                            if (!string.IsNullOrEmpty(title))
+                                gogTitles[releaseKey] = title;
+                        }
+                    }
+                    catch { }
+                }
+            }
+
+            // Get install paths from registry
+            try
+            {
+                using var gogKey = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\GOG.com\Games");
+                if (gogKey != null)
+                {
+                    foreach (var subKeyName in gogKey.GetSubKeyNames())
+                    {
+                        try
+                        {
+                            using var gameKey = gogKey.OpenSubKey(subKeyName);
+                            if (gameKey == null) continue;
+
+                            var gameName = gameKey.GetValue("GAMENAME") as string;
+                            var gamePath = gameKey.GetValue("PATH") as string;
+                            var gameExe = gameKey.GetValue("EXE") as string;
+
+                            if (string.IsNullOrEmpty(gameExe)) continue;
+                            var exeName = Path.GetFileName(gameExe);
+                            if (string.IsNullOrEmpty(exeName) || ShouldSkipExe(exeName)) continue;
+
+                            // Try to get a nicer name from Galaxy DB
+                            var displayName = gameName ?? exeName;
+                            foreach (var kv in gogTitles)
+                            {
+                                if (kv.Key.Contains(subKeyName))
+                                {
+                                    displayName = kv.Value;
+                                    break;
+                                }
+                            }
+
+                            if (seen.Add(exeName))
+                            {
+                                games.Add(new ScannedGame
+                                {
+                                    ProcessName = exeName,
+                                    DisplayName = displayName,
+                                    Source = "gog",
+                                    InstallPath = gamePath
+                                });
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Debug("Failed to read GOG registry entry {Key}: {Error}", subKeyName, ex.Message);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Debug("Failed to read GOG registry: {Error}", ex.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning("GOG Galaxy database scan failed: {Error}", ex.Message);
+        }
+        finally
+        {
+            try { File.Delete(tempDb); } catch { }
+        }
+
+        return games;
     }
 
     #endregion
 
     #region Helpers
 
-    private static void ScanDirectoryForExes(string dir, string gameName, Dictionary<string, string> result)
+    private static void ScanDirectoryForExes(string dir, string gameName, string source,
+        int? steamAppId, List<ScannedGame> result)
     {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         try
         {
             foreach (var exePath in Directory.EnumerateFiles(dir, "*.exe", SearchOption.AllDirectories))
@@ -276,8 +381,17 @@ public static class GameLibraryScanner
                 var exeName = Path.GetFileName(exePath);
                 if (ShouldSkipExe(exeName)) continue;
 
-                if (!result.ContainsKey(exeName))
-                    result[exeName] = gameName;
+                if (seen.Add(exeName))
+                {
+                    result.Add(new ScannedGame
+                    {
+                        ProcessName = exeName,
+                        DisplayName = gameName,
+                        Source = source,
+                        InstallPath = dir,
+                        SteamAppId = steamAppId
+                    });
+                }
             }
         }
         catch (UnauthorizedAccessException) { }
@@ -298,50 +412,6 @@ public static class GameLibraryScanner
         }
 
         return false;
-    }
-
-    private static Dictionary<string, string>? LoadCache()
-    {
-        try
-        {
-            if (!File.Exists(CachePath)) return null;
-
-            var json = File.ReadAllText(CachePath);
-            using var doc = JsonDocument.Parse(json);
-
-            // Check freshness
-            if (doc.RootElement.TryGetProperty("lastScanUtc", out var ts))
-            {
-                if (DateTime.TryParse(ts.GetString(), out var lastScan))
-                {
-                    if ((DateTime.UtcNow - lastScan) > CacheMaxAge)
-                        return null; // Stale cache — caller will rescan
-                }
-            }
-
-            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            if (doc.RootElement.TryGetProperty("games", out var gamesArr))
-            {
-                foreach (var entry in gamesArr.EnumerateArray())
-                {
-                    if (entry.TryGetProperty("exe", out var exeEl) &&
-                        entry.TryGetProperty("name", out var nameEl))
-                    {
-                        var exe = exeEl.GetString();
-                        var name = nameEl.GetString();
-                        if (exe != null && name != null)
-                            result[exe] = name;
-                    }
-                }
-            }
-
-            return result;
-        }
-        catch (Exception ex)
-        {
-            Log.Debug("Failed to load launcher scan cache: {Error}", ex.Message);
-            return null;
-        }
     }
 
     #endregion

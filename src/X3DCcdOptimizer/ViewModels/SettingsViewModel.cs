@@ -83,9 +83,9 @@ public class SettingsViewModel : ViewModelBase
     public bool IsStrategyAvailable => _topology.IsDualCcd &&
         _topology.Tier is ProcessorTier.DualCcdX3D or ProcessorTier.DualCcdStandard;
     public bool IsDriverAvailable => VCacheDriverManager.IsDriverAvailable &&
-        _topology.Tier is ProcessorTier.DualCcdX3D or ProcessorTier.SingleCcdX3D;
+        _topology.Tier is ProcessorTier.DualCcdX3D;
     public Visibility DriverWarningVisibility =>
-        (_topology.Tier is ProcessorTier.DualCcdX3D or ProcessorTier.SingleCcdX3D) && !VCacheDriverManager.IsDriverAvailable
+        _topology.Tier is ProcessorTier.DualCcdX3D && !VCacheDriverManager.IsDriverAvailable
             ? Visibility.Visible : Visibility.Collapsed;
     public Visibility StrategyVisibility => IsStrategyAvailable ? Visibility.Visible : Visibility.Collapsed;
     public Visibility AffinityPinningWarningVisibility =>
@@ -96,10 +96,8 @@ public class SettingsViewModel : ViewModelBase
             ? Visibility.Visible : Visibility.Collapsed;
     public string TierDescription => _topology.Tier switch
     {
-        ProcessorTier.SingleCcdX3D => "Single-CCD X3D — monitoring only, no CCD steering needed",
-        ProcessorTier.SingleCcdStandard => "Single-CCD — monitoring only",
-        ProcessorTier.DualCcdStandard => "Dual-CCD (no V-Cache) — affinity pinning available",
-        ProcessorTier.DualCcdX3D => "Dual-CCD X3D — full optimization available",
+        ProcessorTier.DualCcdX3D => "Dual-CCD X3D \u2014 full optimization available",
+        ProcessorTier.DualCcdStandard => "Dual-CCD (no V-Cache) \u2014 affinity pinning available",
         _ => ""
     };
     public bool StartMinimized { get => _startMinimized; set => SetProperty(ref _startMinimized, value); }
@@ -126,24 +124,13 @@ public class SettingsViewModel : ViewModelBase
     // Advanced
     public string LogLevel { get => _logLevel; set => SetProperty(ref _logLevel, value); }
 
-    // Process Rules — tier awareness
+    // Process Rules — tier awareness (app only runs on dual-CCD processors)
     public ProcessorTier Tier => _topology.Tier;
-    public bool IsDualCcd => _topology.IsDualCcd;
-    public bool IsSingleCcd => _topology.IsSingleCcd;
-    public Visibility DualCcdVisibility => IsDualCcd ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility SingleCcdStandardVisibility =>
-        Tier == ProcessorTier.SingleCcdStandard ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility SingleCcdX3DVisibility =>
-        Tier == ProcessorTier.SingleCcdX3D ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility GameColumnVisibility =>
-        Tier != ProcessorTier.SingleCcdStandard ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility BgColumnVisibility => DualCcdVisibility;
 
     public string GameColumnHeader => Tier switch
     {
         ProcessorTier.DualCcdX3D => "V-Cache CCD (Games)",
-        ProcessorTier.DualCcdStandard => "CCD0 \u2014 Primary (Games)",
-        _ => "Games (Detection)"
+        _ => "CCD0 \u2014 Primary (Games)"
     };
     public string BgColumnHeader => Tier switch
     {
@@ -153,13 +140,12 @@ public class SettingsViewModel : ViewModelBase
     public string GameColumnTooltip => Tier switch
     {
         ProcessorTier.DualCcdX3D => "Games pinned to V-Cache CCD in Optimize mode.",
-        ProcessorTier.DualCcdStandard => "Games pinned to CCD0 in Optimize mode. Your processor has two symmetric CCDs — pinning games to one CCD improves cache isolation.",
-        _ => "Games detected for monitoring."
+        _ => "Games pinned to CCD0 in Optimize mode. Your processor has two symmetric CCDs \u2014 pinning games to one CCD improves cache isolation."
     };
     public string BgColumnTooltip => Tier switch
     {
         ProcessorTier.DualCcdX3D => "Apps explicitly pinned to Frequency CCD in Optimize mode.",
-        _ => "Apps pinned to CCD1 in Optimize mode. Your processor has two symmetric CCDs — pinning background apps to the other CCD improves cache isolation."
+        _ => "Apps pinned to CCD1 in Optimize mode. Your processor has two symmetric CCDs \u2014 pinning background apps to the other CCD improves cache isolation."
     };
 
     // Process Rules
@@ -183,6 +169,21 @@ public class SettingsViewModel : ViewModelBase
         get => _gameSuggestions;
         set => SetProperty(ref _gameSuggestions, value);
     }
+
+    // Library rescan & artwork
+    private string _scanStatusText = "";
+    private bool _enableArtworkDownload;
+    public bool EnableArtworkDownload
+    {
+        get => _enableArtworkDownload;
+        set => SetProperty(ref _enableArtworkDownload, value);
+    }
+    public string ScanStatusText
+    {
+        get => _scanStatusText;
+        set => SetProperty(ref _scanStatusText, value);
+    }
+    public RelayCommand RescanLibrariesCommand { get; }
 
     // Commands
     public RelayCommand AddGameCommand { get; }
@@ -232,12 +233,40 @@ public class SettingsViewModel : ViewModelBase
         _overlayPosition = config.Overlay.OverlayPosition;
 
         _logLevel = config.Logging.Level;
+        _enableArtworkDownload = config.EnableArtworkDownload;
 
         foreach (var b in config.BackgroundApps)
             BackgroundApps.Add(new GameDisplayItem(b, ResolveBackgroundAppDisplayName(b)));
         foreach (var e in config.ExcludedProcesses) ExcludedProcesses.Add(e);
 
         BackgroundApps.CollectionChanged += (_, _) => OnPropertyChanged(nameof(BgEmptyHintVisibility));
+
+        RescanLibrariesCommand = new RelayCommand(() =>
+        {
+            ScanStatusText = "Scanning...";
+            Task.Run(() =>
+            {
+                try
+                {
+                    var scanned = GameLibraryScanner.ScanAll();
+                    using var db = new GameDatabase();
+                    db.UpsertGames(scanned);
+
+                    var steamCount = scanned.Count(g => g.Source == "steam");
+                    var epicCount = scanned.Count(g => g.Source == "epic");
+                    var gogCount = scanned.Count(g => g.Source == "gog");
+
+                    Application.Current?.Dispatcher.BeginInvoke(() =>
+                        ScanStatusText = $"Found {scanned.Count} games ({steamCount} Steam, {epicCount} Epic, {gogCount} GOG)");
+                }
+                catch (Exception ex)
+                {
+                    Log.Warning(ex, "Manual library rescan failed");
+                    Application.Current?.Dispatcher.BeginInvoke(() =>
+                        ScanStatusText = "Scan failed — see log for details");
+                }
+            });
+        });
 
         // Load known games DB for autocomplete + display name resolution
         try
@@ -474,6 +503,7 @@ public class SettingsViewModel : ViewModelBase
 
         // Advanced
         _config.Logging.Level = _logLevel;
+        _config.EnableArtworkDownload = _enableArtworkDownload;
 
         // Process rules
         _config.ManualGames = ManualGames.Select(g => g.Exe).ToList();

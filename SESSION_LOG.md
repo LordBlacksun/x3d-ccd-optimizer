@@ -6,20 +6,23 @@ Development session history for X3D Dual CCD Optimizer.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 48
+**Version:** 1.0.0 | **Status:** Release | **Branch:** develop | **Last session:** 50
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
-- **Three-tier processor support:** DualCcdX3D (full: affinity pinning + driver preference), SingleCcdX3D (monitoring + dashboard, no CCD steering), DualCcdStandard (affinity pinning, no driver preference). ProcessorTier enum, tier auto-detected from L3 cache topology.
-- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher, GameDetector (4-tier: manual → 65-game DB → launcher scan → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy+tier-aware, lock-based, IDisposable, continuous re-migration timer), VCacheDriverManager (amd3dvcache registry), GameLibraryScanner (Steam + Epic)
-- **Game launcher scanning:** GameLibraryScanner scans Steam (registry → VDF/ACF parsing → exe directory scan) and Epic (JSON manifests in ProgramData). Results cached to `installed_games.json` in %APPDATA%, background rescan if >7 days stale. VDF parser handles Valve KeyValues format. Filters non-game exes (UnityCrashHandler, redist, setup, etc.). GOG skipped (requires SQLite dependency). Found 532 games on dev machine.
+- **Dual-CCD only architecture:** DualCcdX3D (full: affinity pinning + driver preference), DualCcdStandard (affinity pinning, no driver preference). Single-CCD and non-AMD processors show a friendly exit dialog. ProcessorTier enum kept for compat but `IsSupported()` extension gates behavior.
+- **Core engine:** CcdMapper (P/Invoke topology, 1-or-2 CCD detection), PerformanceMonitor (PDH), ProcessWatcher (idle 4s / active 2s polling), GameDetector (4-tier: manual → 65-game DB → launcher scan → GPU heuristic), GpuMonitor (WMI), AffinityManager (mode+strategy-aware, lock-based, IDisposable, 5s re-migration timer), VCacheDriverManager (amd3dvcache registry), GameLibraryScanner (Steam + Epic + GOG), GameDatabase (LiteDB)
+- **Game launcher scanning:** GameLibraryScanner scans Steam (registry → VDF/ACF parsing → exe directory scan, extracts SteamAppId), Epic (JSON manifests), and GOG Galaxy (SQLite DB + registry hybrid). Results stored in LiteDB at `user_games.db` in %APPDATA%. Background rescan on every startup. "Rescan Game Libraries" button in Settings → Detection. VDF parser handles Valve KeyValues format. Filters non-game exes (UnityCrashHandler, redist, setup, etc.).
 - **Display name resolution:** ProcessInfo.DisplayName populated at detection time from known_games.json or launcher scan. Propagated through AffinityEvent.DisplayName. All UI surfaces (status bar, CCD role labels, activity log, process router, overlay) show resolved game names. Fallback: strip .exe extension.
 - **Optimization strategies:** AffinityPinning (default, SetProcessAffinityMask) or DriverPreference (AMD amd3dvcache registry interface, discovered by cocafe/vcache-tray). Strategy stored in config, selectable in Settings, gated by driver availability and tier.
 - **WPF dashboard:** MVVM, dark theme, CCD panels (1 or 2 based on tier) with 4x2 core tile heatmaps, grouped process router (by CCD with game badges), activity log, animated pill toggle (Monitor/Optimize), polished UI
 - **Compact overlay:** Discord-style toast/pill (auto-width 200-400px), slide-in/out animation (300ms cubic ease), semi-transparent dark (#1A1A1A at 85%), single/two-line contextual messages, opt-in CCD load bars (8px, green V-Cache + blue Freq, toggle in Settings > Overlay), OLED-safe (auto-hide, pixel shift), Ctrl+Shift+O hotkey, draggable, position persisted
 - **System tray:** WinForms NotifyIcon, colored circle icons (blue/purple/green), context menu with mode + overlay + settings
-- **Monitor/Optimize dual-mode:** Monitor (default, observe-only, all tiers), Optimize (active affinity or driver preference, dual-CCD only, tier-gated, continuous re-migration every 3s for new processes)
-- **Settings window:** 5-tab modal dialog (General, Process Rules, Detection, Overlay, Advanced) with live-apply. Process Rules tab: left column "V-Cache CCD (Games)" with known-game autocomplete, right column "Frequency CCD (Background)" with live process picker dialog + background app suggestions autocomplete. Strategy selector in General tab. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
+- **Monitor/Optimize dual-mode:** Monitor (default, observe-only), Optimize (active affinity or driver preference, continuous re-migration every 5s for new processes)
+- **Settings window:** 5-tab modal dialog (General, Process Rules, Detection, Overlay, Advanced) with live-apply. Process Rules tab: left column "V-Cache CCD (Games)" with known-game autocomplete, right column "Frequency CCD (Background)" with live process picker dialog + background app suggestions autocomplete. Strategy selector in General tab. Detection tab includes "Rescan Game Libraries" button and "Download Game Artwork" toggle. Start-with-Windows via registry HKCU Run key + `--minimized` flag.
+- **Game Library tab:** Third tab in dashboard showing all known games from all sources (built-in, Steam, Epic, GOG) with source badges and total counts. Virtualized ListView.
+- **Box art (opt-in):** OFF by default — zero network activity. When enabled, downloads cover art from Steam's public CDN. Cached locally at `%APPDATA%\X3DCCDOptimizer\artwork\`.
+- **About dialog:** Version from assembly, GPL v2 license, source link, author, AI disclosure, credits (cocafe, JayzTwoCents), clickable links.
 - **Background app pinning:** `backgroundApps` config list. AffinityManager distinguishes rule-based vs auto migration in log entries ("rule" vs "auto"). Live process picker filters out C:\Windows\, CriticalSystemProcesses, already-assigned; shows FileDescription from FileVersionInfo; deduplicates by process name.
 - **Dirty shutdown recovery:** RecoveryManager writes recovery.json while optimizing. Strategy-aware: AffinityPinning restores process affinities, DriverPreference restores registry default. Handles corrupted files, exited/restarted processes.
 - **Config:** JSON at %APPDATA%\X3DCCDOptimizer\config.json, version 3, overlay + autoDetection + debounce + optimizeStrategy settings
@@ -28,9 +31,11 @@ Development session history for X3D Dual CCD Optimizer.
 - **Security audits:** Session 6 audit (2 critical, 3 high, 7 medium). Session 11 audit (3 high, 6 medium, 4 low — all 12 actionable findings fixed). Session 17 defensive coding audit (0 critical, 0 high, 2 medium, 6 low, 22 info — all 8 actionable findings fixed in session 18). Single-instance mutex, atomic file writes, config validation, protected process recovery filter, admin elevation manifest, thread safety across GameDetector/VCacheDriverManager/ProcessWatcher, WMI timeouts, registry value validation, debug logging in catch blocks, core index bounds checks.
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled)
 
-**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (4-tier), `Core/GameLibraryScanner.cs` (Steam+Epic scanner), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `Data/BackgroundAppSuggestions.cs` (autocomplete hints), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings), `Views/ProcessPickerWindow.xaml` (live process picker)
+**Key files:** `App.xaml.cs` (entry point), `Core/AffinityManager.cs` (mode+strategy-aware), `Core/VCacheDriverManager.cs` (amd3dvcache registry), `Core/GameDetector.cs` (4-tier), `Core/GameLibraryScanner.cs` (Steam+Epic+GOG scanner), `Core/GameDatabase.cs` (LiteDB), `Core/ArtworkDownloader.cs` (Steam CDN), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `Models/ScannedGame.cs` (LiteDB model), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/GameLibraryViewModel.cs` (game library tab), `ViewModels/SettingsViewModel.cs` (settings), `Views/DashboardWindow.xaml` (main UI), `Views/AboutWindow.xaml` (about dialog), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings), `Views/ProcessPickerWindow.xaml` (live process picker)
 
-**What's next:** Phase 3 remaining (settings window enhancements, per-game profiles), Phase 4 (CI/CD, trimmed build, installer, release)
+**What's next:** Phase 3 remaining (per-game profiles), Phase 4 (CI/CD, trimmed build, installer, release)
+
+**NuGet dependencies:** Serilog (4.2.0), Serilog.Sinks.Console (6.0.0), Serilog.Sinks.File (6.0.0), System.Management (8.0.0), LiteDB (5.0.21), Microsoft.Data.Sqlite (8.0.0)
 
 **Known gotchas:**
 - CACHE_RELATIONSHIP struct needs 18-byte `Reserved` field (not 2-byte) — was a real bug
@@ -61,6 +66,128 @@ Development session history for X3D Dual CCD Optimizer.
 - Known games must detect by process name alone — foreground/GPU checks only for unknown games (GPU heuristic path)
 - WPF non-modal windows can't set DialogResult — use Close() directly
 - Multi-process apps (Docker, Firefox) spawn new child PIDs constantly — dedup activity log by exe name, not just PID
+
+---
+
+## Session 50 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Major 6-phase update — performance audit, dual-CCD only architecture, library scanning with GOG + LiteDB, Game Library UI + box art, About dialog, trust dialog update
+
+### Phase 1: Performance Overhead Audit
+- **Hot path audit:** Process.GetProcesses() called every 2s (ProcessWatcher) + every 3s (AffinityManager re-migration) = 5 full enumerations per 6s while game active. GameDetector already uses HashSet/Dictionary O(1). GpuMonitor already has idle skip. PerformanceMonitor PDH is efficient.
+- **Timing instrumentation:** Added `#if DEBUG` Stopwatch to ProcessWatcher.Poll() and AffinityManager.MigrateNewProcesses() — logs if >50ms.
+- **Idle polling:** ProcessWatcher now starts at 4s (idle), switches to 2s (active) on game detection, back to 4s on game exit. Stored `_activeIntervalMs` field.
+- **Re-migration timer:** 3s → 5s. Still responsive for catching child processes.
+- **UI debouncing:** MainViewModel.OnSnapshotReady() skips dispatch if no core changed by >1% load or >50 MHz frequency.
+- **Not done (flagged):** WMI replacement not feasible (GpuMonitor's WMI is only API; CcdMapper runs once). Process list sharing too much coupling.
+
+### Phase 2: Dual-CCD Only Architecture
+- **Unsupported processor dialog:** New `ShowUnsupportedProcessorDialog()` in App.xaml.cs with tier-specific messages. Non-AMD: "not recognized as supported chip." SingleCcdX3D: "V-Cache on all cores — doesn't need this." SingleCcdStandard: "single CCD — not applicable."
+- **ProcessorTier extension:** Added `IsSupported()` → true for DualCcdX3D/DualCcdStandard only. CpuTopology.IsSupported property.
+- **Removed single-CCD UI paths:** MainViewModel (IsOptimizeEnabled/ShowSecondPanel always true, removed IsSingleCcd branches in OnGameDetected/UpdateStatus), AffinityManager (removed IsSingleCcd early returns in OnGameDetected/OnGameExited/SwitchToOptimize/SwitchToMonitor), SettingsViewModel (removed SingleCcdStandardVisibility/SingleCcdX3DVisibility/GameColumnVisibility/BgColumnVisibility, simplified TierDescription/headers/tooltips), CcdPanelViewModel (removed single-CCD badge text), OverlayViewModel (ShowSecondBar always true), DashboardWindow.xaml (removed Visibility binding on CCD1), SettingsWindow.xaml (removed SingleCcdStandard empty state and SingleCcdX3D info panels).
+- App.xaml.cs: Non-AMD → exit (no more "Continue anyway?"). Single-CCD → friendly exit. Removed SingleCcdX3D from first-run strategy.
+
+### Phase 3: Library Scanning Upgrade
+- **New NuGet packages:** LiteDB 5.0.21, Microsoft.Data.Sqlite 8.0.0
+- **ScannedGame model:** Id, ProcessName, DisplayName, Source, InstallPath, SteamAppId, ArtworkPath, FirstSeen, LastSeen
+- **GameDatabase:** LiteDB wrapper at `user_games.db` in %APPDATA%. UpsertGames, ToDictionary (for GameDetector compat), MigrateFromJsonCache (one-time migration from old installed_games.json).
+- **GOG Galaxy support:** Hybrid approach — game titles from Galaxy SQLite DB (`galaxy-2.0.db`, copied to temp to avoid lock), install paths from registry (`HKLM\SOFTWARE\WOW6432Node\GOG.com\Games\`). Cross-references for best display name.
+- **GameLibraryScanner rewrite:** Returns `List<ScannedGame>` instead of `Dictionary<string, string>`. Steam scanner extracts SteamAppId from ACF filename. All three launchers (Steam, Epic, GOG) with per-source counts.
+- **Startup flow:** GameDatabase created at startup, JSON cache migrated, background rescan on every launch (non-blocking). Old IsCacheStale/LoadOrScan/SaveCache removed.
+- **Settings UI:** "Rescan Game Libraries" button with status text in Detection tab.
+
+### Phase 4: Game Library View + Box Art
+- **GameLibraryViewModel:** Loads built-in (known_games.json) + scanned (LiteDB) games. Source badges (Built-in purple, Steam dark blue, Epic gray, GOG violet). Total count text with per-source breakdown.
+- **Game Library tab:** Third tab in DashboardWindow.xaml. Virtualized ListView with display name, exe name, source badge. Dark themed.
+- **ArtworkDownloader:** Steam CDN (`library_600x900_2x.jpg`), static HttpClient, 100ms throttle, local cache at `%APPDATA%\X3DCCDOptimizer\artwork\`. Downloads after background rescan if enabled.
+- **Config:** `enableArtworkDownload` (default false). Toggle in Settings → Detection with transparency tooltip.
+- **Zero network by default** — artwork toggle is opt-in.
+
+### Phase 5: About Dialog
+- **AboutWindow.xaml:** 480x520, dark themed, non-resizable. Version from assembly, one-liner, GPL v2 link, GitHub link, author, AI disclosure ("Implementation assisted by Claude"), credits (cocafe, JayzTwoCents), GitHub/Wiki/Issues links.
+- **Footer:** "About" button added next to Settings. Version read from assembly instead of hardcoded.
+
+### Phase 6: Trust Dialog Update
+- Updated privacy bullet: "Private by default — no telemetry, no tracking, no network connections. Optional game artwork downloads connect only to Steam's public CDN — no data is ever sent."
+
+### Files Changed
+**New (6):** `Models/ScannedGame.cs`, `Core/GameDatabase.cs`, `Core/ArtworkDownloader.cs`, `ViewModels/GameLibraryViewModel.cs`, `Views/AboutWindow.xaml`, `Views/AboutWindow.xaml.cs`
+**Modified (16):** App.xaml.cs, AppConfig.cs, AffinityManager.cs, GameLibraryScanner.cs, ProcessWatcher.cs, CpuTopology.cs, ProcessorTier.cs, CcdPanelViewModel.cs, MainViewModel.cs, OverlayViewModel.cs, SettingsViewModel.cs, DashboardWindow.xaml, SettingsWindow.xaml, X3DCcdOptimizer.csproj, README.md, SESSION_LOG.md
+
+### Build & Tests
+- `dotnet build` — 0 warnings, 0 errors
+- `dotnet test` — 5 passed, 0 failed
+
+---
+
+## Session 49 — 2026-03-29
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Pre-release documentation audit and fixes
+
+### What Was Done
+
+Full documentation review audit across README.md, 11 wiki pages, and all in-app strings. Found 18 errors, 16 warnings, 9 notes. Executed all P0 and P1 fixes.
+
+1. **"500+" game count fixed everywhere** — Replaced misleading "500+ game database" with accurate "65 built-in known games + Steam/Epic library scanning" across README.md, How-It-Works.md, Process-Rules.md, AMD-X3D-Scheduling-Explained.md. Library scanning confirmed fully functional (reads Steam ACF manifests + Epic JSON manifests).
+
+2. **"3-second" scan interval fixed everywhere** — Main polling is 2000ms (2s), not 3s. Fixed in README.md, How-It-Works.md, Getting-Started.md, Process-Rules.md, AMD-X3D-Scheduling-Explained.md. The 3s timer is only the AffinityManager re-migration timer.
+
+3. **Settings-Explained.md rewritten** — Detection tab: replaced phantom "Detection cooldown" with actual settings (GPU threshold, Detection delay, Exit delay, Require foreground, Enable GPU auto-detection, Excluded processes). Overlay tab: replaced phantom "Show overlay on startup" and "Compact mode" with actual settings (Enable overlay, CCD load bars, Opacity, Auto-hide, Pixel shift, Default position). Fixed StartWithWindows default (On, not Off). Added tier-aware strategy defaulting note.
+
+4. **Installation.md updated** — Removed "unless you enable update checks" (no such feature). Added installer distribution instructions alongside portable. Added uninstaller instructions for both distribution methods.
+
+5. **README.md broken wiki link fixed** — `Process-Rules-Guide` → `Process-Rules`.
+
+6. **Home.md framing broadened** — From "X3D dual-CCD only" to all 4 Ryzen tiers.
+
+7. **The-Overlay.md fixed** — Removed phantom "Compact mode" toggle. Documented auto-hide and pixel shift as individual settings. Fixed settings table.
+
+8. **AMD-X3D-Scheduling-Explained.md — References section added** — 6 numbered references including JayzTwoCents video, AMD CPPC docs, Microsoft PPM docs, cocafe/vcache-tray, ManniX-ITA power plans. Note about community-sourced vs official claims.
+
+9. **Supported Processors tables completed** — Added 7900X3D, 9900X3D (DualCcdX3D); 5800X3D (SingleCcdX3D); 5950X, 5900X (DualCcdStandard); 5600X, 5800X, 9600X, 9700X (SingleCcdStandard) to README.md and Home.md.
+
+10. **Getting-Started.md updated** — Dashboard layout now describes compact 4x2 core grid + tabbed lower section. Migration note clarified with "(excluding system and protected processes)".
+
+11. **FAQ.md fixes** — Anti-cheat answer softened (removed specific anti-cheat names, added "based on community reports"). Single-CCD examples expanded (added 5800X3D, 9800X3D).
+
+12. **AMD-V-Cache-Driver-Preference.md** — Removed "(Default)" from Affinity Pinning heading. Added tier-aware defaulting note.
+
+13. **How-It-Works.md** — Added paragraph about both optimization strategies (Affinity Pinning + Driver Preference).
+
+14. **Troubleshooting.md** — Fixed "Show overlay on startup" → "Enable overlay".
+
+15. **PDF User Manual generated** — `docs/X3D-CCD-Optimizer-User-Manual.pdf` (58 KB) compiled from all 11 wiki pages in logical reading order with cover page, table of contents, page numbers, and professional formatting. Generator script at `docs/generate_manual.py` using fpdf2.
+
+### Verification Results
+
+- `grep "500+"` in docs: 0 hits in user-facing documentation (only internal audit/session notes)
+- `grep "3 seconds|3-second|every 3"` in docs: only correct contexts (pixel shift 3min, re-migration 3s)
+- `grep "Detection cooldown|Compact mode|Show overlay on startup"` in docs: 0 hits
+- All README wiki links verified against actual wiki page filenames
+- Settings tables cross-checked against SettingsWindow.xaml
+- Processor lists verified against CcdMapper.cs comments
+
+### Files Modified (13)
+
+```
+README.md — game count, scan interval, broken link, processor table
+wiki docs/.../Home.md — framing, processor table, examples
+wiki docs/.../AMD-X3D-Scheduling-Explained.md — game count, scan interval, References section
+wiki docs/.../How-It-Works.md — game count, scan interval, two strategies
+wiki docs/.../Installation.md — trust dialog text, installer instructions
+wiki docs/.../Getting-Started.md — scan interval, dashboard layout, migration precision
+wiki docs/.../Process-Rules.md — game count, scan interval
+wiki docs/.../Settings-Explained.md — Detection tab, Overlay tab, defaults rewrite
+wiki docs/.../The-Overlay.md — removed Compact mode, fixed settings table
+wiki docs/.../FAQ.md — anti-cheat softening, processor examples
+wiki docs/.../AMD-V-Cache-Driver-Preference.md — default strategy note
+wiki docs/.../Troubleshooting.md — overlay setting name
+docs/generate_manual.py — NEW: PDF user manual generator
+docs/X3D-CCD-Optimizer-User-Manual.pdf — NEW: generated user manual
+docs/X3D-CCD-Optimizer-User-Manual.html — NEW: HTML reference version
+```
 
 ---
 

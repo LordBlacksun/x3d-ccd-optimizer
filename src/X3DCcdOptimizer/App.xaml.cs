@@ -35,6 +35,7 @@ public partial class App : System.Windows.Application
     private DashboardWindow? _dashboardWindow;
     private OverlayWindow? _overlayWindow;
     private TrayIconManager? _trayManager;
+    private GameDatabase? _gameDb;
     private Mutex? _singleInstanceMutex;
     private bool _hotkeyRegistered;
 
@@ -138,40 +139,25 @@ public partial class App : System.Windows.Application
 
         Log.Information("CPU: {Model} | Tier: {Tier}", _topology.CpuModel, _topology.Tier);
 
-        // Non-AMD CPU warning (ZC-003)
+        // Non-AMD CPU — exit with friendly message
         if (!_topology.CpuModel.Contains("AMD", StringComparison.OrdinalIgnoreCase))
         {
-            Log.Warning("Non-AMD CPU detected: {Model}", _topology.CpuModel);
-            var result = MessageBox.Show(
-                $"X3D CCD Optimizer is designed for AMD Ryzen processors.\n\n" +
-                $"Your CPU ({_topology.CpuModel}) is not an AMD processor. " +
-                $"The monitoring features will work, but optimization features are not applicable to your hardware.\n\n" +
-                $"Continue anyway?",
-                "X3D CCD Optimizer — Non-AMD CPU Detected",
-                MessageBoxButton.YesNo, MessageBoxImage.Warning);
-            if (result != MessageBoxResult.Yes)
-            {
-                Shutdown();
-                return;
-            }
+            Log.Warning("Non-AMD CPU detected: {Model}. Exiting.", _topology.CpuModel);
+            ShowUnsupportedProcessorDialog(_topology);
+            Shutdown();
+            return;
+        }
 
-            // Non-AMD: force SingleCcdStandard with Optimize disabled
-            _topology.Tier = ProcessorTier.SingleCcdStandard;
+        // Single-CCD — exit with friendly message
+        if (!_topology.IsSupported)
+        {
+            Log.Information("Single-CCD processor detected ({Tier}). Not supported — exiting.", _topology.Tier);
+            ShowUnsupportedProcessorDialog(_topology);
+            Shutdown();
+            return;
         }
 
         var mode = _config.GetOperationMode();
-
-        // Tier-based mode gating
-        if (_topology.IsSingleCcd && mode == OperationMode.Optimize)
-        {
-            Log.Warning("Single-CCD processor — forcing Monitor mode (no CCD steering possible)");
-            mode = OperationMode.Monitor;
-        }
-        else if (mode == OperationMode.Optimize && !_topology.IsDualCcd)
-        {
-            Log.Warning("Config says Optimize but topology doesn't support it — falling back to Monitor");
-            mode = OperationMode.Monitor;
-        }
 
         // Tier-aware default strategy (on first run, set optimal default)
         if (_config.IsFirstRun)
@@ -179,7 +165,6 @@ public partial class App : System.Windows.Application
             var defaultStrategy = _topology.Tier switch
             {
                 ProcessorTier.DualCcdX3D when VCacheDriverManager.IsDriverAvailable => "driverPreference",
-                ProcessorTier.SingleCcdX3D when VCacheDriverManager.IsDriverAvailable => "driverPreference",
                 _ => "affinityPinning"
             };
             _config.OptimizeStrategy = defaultStrategy;
@@ -193,7 +178,7 @@ public partial class App : System.Windows.Application
             strategy = OptimizeStrategy.AffinityPinning;
         }
         if (strategy == OptimizeStrategy.DriverPreference &&
-            _topology.Tier is not (ProcessorTier.DualCcdX3D or ProcessorTier.SingleCcdX3D))
+            _topology.Tier is not ProcessorTier.DualCcdX3D)
         {
             Log.Warning("DriverPreference requires X3D processor — falling back to AffinityPinning");
             strategy = OptimizeStrategy.AffinityPinning;
@@ -225,8 +210,10 @@ public partial class App : System.Windows.Application
             }
         }
 
-        // Scan installed game launchers (Steam, Epic)
-        var launcherGames = GameLibraryScanner.LoadOrScan();
+        // Game library database (LiteDB)
+        _gameDb = new GameDatabase();
+        _gameDb.MigrateFromJsonCache();
+        var launcherGames = _gameDb.ToDictionary();
 
         // Engine
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
@@ -243,6 +230,7 @@ public partial class App : System.Windows.Application
         _mainViewModel = new MainViewModel(
             _topology, _perfMon, _processWatcher, _gameDetector, _affinityManager, _config,
             powerPlanWarning);
+        _mainViewModel.InitGameLibrary(_gameDb);
         _overlayViewModel = new OverlayViewModel(_topology, _config.Overlay);
 
         // Dashboard
@@ -300,23 +288,32 @@ public partial class App : System.Windows.Application
         Log.Information("Monitoring started. Mode: {Mode}. Strategy: {Strategy}. Polling: {Interval}ms. Manual games: {Count}.",
             mode, strategy, _config.PollingIntervalMs, _gameDetector.GameCount);
 
-        // Background rescan if launcher cache is stale (>7 days)
-        if (GameLibraryScanner.IsCacheStale())
+        // Background library rescan on every startup (non-blocking)
+        Task.Run(async () =>
         {
-            Task.Run(() =>
+            try
             {
-                try
+                var scanned = GameLibraryScanner.ScanAll();
+                _gameDb?.UpsertGames(scanned);
+                _gameDetector?.UpdateLauncherGames(_gameDb?.ToDictionary() ?? new());
+
+                // Refresh Game Library UI after scan
+                Application.Current?.Dispatcher.BeginInvoke(() =>
+                    _mainViewModel?.GameLibrary?.Refresh());
+
+                // Download artwork if enabled
+                if (_config.EnableArtworkDownload && _gameDb != null)
                 {
-                    var freshGames = GameLibraryScanner.ScanAll();
-                    GameLibraryScanner.SaveCache(freshGames);
-                    _gameDetector.UpdateLauncherGames(freshGames);
+                    await ArtworkDownloader.DownloadAllMissing(_gameDb);
+                    Application.Current?.Dispatcher.BeginInvoke(() =>
+                        _mainViewModel?.GameLibrary?.Refresh());
                 }
-                catch (Exception ex)
-                {
-                    Log.Warning(ex, "Background launcher rescan failed");
-                }
-            });
-        }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Background library rescan failed");
+            }
+        });
 
         // Register hotkey (after window is created so we have an HWND)
         _dashboardWindow.SourceInitialized += (_, _) => RegisterOverlayHotkey();
@@ -403,6 +400,7 @@ public partial class App : System.Windows.Application
         _perfMon?.Dispose();
         _gpuMonitor?.Dispose();
         _affinityManager?.Dispose();
+        _gameDb?.Dispose();
 
         // Clean shutdown — clear recovery state
         RecoveryManager.OnDisengage();
@@ -452,6 +450,79 @@ public partial class App : System.Windows.Application
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
     }
 
+    private void ShowUnsupportedProcessorDialog(CpuTopology topology)
+    {
+        string title;
+        string message;
+
+        if (!topology.CpuModel.Contains("AMD", StringComparison.OrdinalIgnoreCase))
+        {
+            title = "X3D CCD Optimizer \u2014 Unsupported Processor";
+            message = $"This tool is designed for AMD Ryzen dual-CCD processors.\n\n" +
+                $"Your processor ({topology.CpuModel}) was not recognized as a supported chip.";
+        }
+        else if (topology.Tier == ProcessorTier.SingleCcdX3D)
+        {
+            title = "X3D CCD Optimizer \u2014 Single-CCD Processor";
+            message = $"Your {topology.CpuModel} has V-Cache on all cores \u2014 every core already has " +
+                $"access to the full cache.\n\n" +
+                $"The CCD scheduling problem this tool solves only exists on dual-CCD processors. " +
+                $"Your chip doesn\u2019t need this, and that\u2019s a good thing!";
+        }
+        else
+        {
+            title = "X3D CCD Optimizer \u2014 Single-CCD Processor";
+            message = $"Your {topology.CpuModel} has a single CCD.\n\n" +
+                $"This tool optimizes game scheduling across two CCDs and is not applicable " +
+                $"to single-CCD processors.";
+        }
+
+        var dialog = new Window
+        {
+            Title = title,
+            Width = 480,
+            Height = 280,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Background = TryFindResource("BgPrimaryBrush") as System.Windows.Media.Brush
+                ?? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1A, 0x1A, 0x1E))
+        };
+
+        var panel = new StackPanel { Margin = new Thickness(24) };
+        var primaryBrush = TryFindResource("TextPrimaryBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.White;
+        var secondaryBrush = TryFindResource("TextSecondaryBrush") as System.Windows.Media.Brush ?? System.Windows.Media.Brushes.LightGray;
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = message,
+            FontSize = 13,
+            Foreground = primaryBrush,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 16)
+        });
+
+        panel.Children.Add(new TextBlock
+        {
+            Text = "For more information, visit our Wiki on GitHub.",
+            FontSize = 11,
+            Foreground = secondaryBrush,
+            Margin = new Thickness(0, 0, 0, 20)
+        });
+
+        var closeButton = new Button
+        {
+            Content = "Close",
+            Padding = new Thickness(16, 6, 16, 6),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            IsDefault = true
+        };
+        closeButton.Click += (_, _) => dialog.Close();
+        panel.Children.Add(closeButton);
+
+        dialog.Content = panel;
+        dialog.ShowDialog();
+    }
+
     private void ShowAdminTrustDialog()
     {
         var dialog = new Window
@@ -492,7 +563,7 @@ public partial class App : System.Windows.Application
         var points = new[]
         {
             "\u2022  Fully open source \u2014 audit every line at github.com/LordBlacksun/x3d-ccd-optimizer",
-            "\u2022  Private by default \u2014 no telemetry, no tracking, no network connections",
+            "\u2022  Private by default \u2014 no telemetry, no tracking, no network connections. Optional game artwork downloads connect only to Steam\u2019s public CDN \u2014 no data is ever sent.",
             "\u2022  Minimal \u2014 only reads process lists and sets CPU affinity, nothing else"
         };
 

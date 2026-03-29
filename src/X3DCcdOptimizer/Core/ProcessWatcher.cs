@@ -14,8 +14,10 @@ public class ProcessWatcher : IDisposable
     private readonly int _gpuThreshold;
     private readonly int _detectionDelaySec;
     private readonly int _exitDelaySec;
+    private readonly int _activeIntervalMs;
     private readonly System.Timers.Timer _timer;
     private volatile bool _disposed;
+    private bool _isIdle = true;
 
     // Auto-detection debounce state
     private int _autoDetectCandidatePid;
@@ -26,6 +28,10 @@ public class ProcessWatcher : IDisposable
 
     // PIDs already reported as below-threshold (don't spam every poll cycle)
     private readonly HashSet<int> _belowThresholdReported = new();
+
+#if DEBUG
+    private readonly Stopwatch _pollStopwatch = new();
+#endif
 
     public event Action<ProcessInfo>? GameDetected;
     public event Action<ProcessInfo>? GameExited;
@@ -43,8 +49,10 @@ public class ProcessWatcher : IDisposable
         _detectionDelaySec = detectionDelaySec;
         _exitDelaySec = exitDelaySec;
         _gpuMonitor = gpuMonitor;
+        _activeIntervalMs = pollingIntervalMs;
 
-        _timer = new System.Timers.Timer(pollingIntervalMs);
+        // Start at idle interval (2x active) — switch to active on game detection
+        _timer = new System.Timers.Timer(pollingIntervalMs * 2);
         _timer.Elapsed += (_, _) => Poll();
         _timer.AutoReset = true;
     }
@@ -64,6 +72,10 @@ public class ProcessWatcher : IDisposable
     private void Poll()
     {
         if (_disposed) return;
+
+#if DEBUG
+        _pollStopwatch.Restart();
+#endif
 
         try
         {
@@ -167,6 +179,7 @@ public class ProcessWatcher : IDisposable
                                 HandleGameExit(current);
                                 _detector.CurrentGame = info;
                                 ResetAutoDetectState();
+                                SwitchToActivePolling();
                                 GameDetected?.Invoke(info);
                                 return;
                             }
@@ -216,6 +229,7 @@ public class ProcessWatcher : IDisposable
 
                         _detector.CurrentGame = info;
                         ResetAutoDetectState();
+                        SwitchToActivePolling();
                         Log.Information("GAME DETECTED: {Name} (PID {Pid}) {Source}",
                             info.Name, info.Pid, info.DetectionSource);
                         GameDetected?.Invoke(info);
@@ -247,6 +261,14 @@ public class ProcessWatcher : IDisposable
             if (!_disposed)
                 Log.Warning(ex, "Error during process scan");
         }
+#if DEBUG
+        finally
+        {
+            _pollStopwatch.Stop();
+            if (_pollStopwatch.ElapsedMilliseconds > 50)
+                Log.Debug("ProcessWatcher.Poll took {Ms}ms", _pollStopwatch.ElapsedMilliseconds);
+        }
+#endif
     }
 
     private void TryAutoDetect(int foregroundPid)
@@ -319,6 +341,7 @@ public class ProcessWatcher : IDisposable
 
             _detector.CurrentGame = info;
             ResetAutoDetectState();
+            SwitchToActivePolling();
             Log.Information("GAME DETECTED: {Name} (PID {Pid}) {Source}",
                 info.Name, info.Pid, info.DetectionSource);
             GameDetected?.Invoke(info);
@@ -346,8 +369,25 @@ public class ProcessWatcher : IDisposable
     private void HandleGameExit(ProcessInfo game)
     {
         _detector.CurrentGame = null;
+        SwitchToIdlePolling();
         Log.Information("GAME EXITED: {Name} (PID {Pid})", game.Name, game.Pid);
         GameExited?.Invoke(game);
+    }
+
+    private void SwitchToActivePolling()
+    {
+        if (!_isIdle) return;
+        _isIdle = false;
+        _timer.Interval = _activeIntervalMs;
+        Log.Debug("Polling switched to active ({Interval}ms)", _activeIntervalMs);
+    }
+
+    private void SwitchToIdlePolling()
+    {
+        if (_isIdle) return;
+        _isIdle = true;
+        _timer.Interval = _activeIntervalMs * 2;
+        Log.Debug("Polling switched to idle ({Interval}ms)", _activeIntervalMs * 2);
     }
 
     public void Dispose()

@@ -18,6 +18,9 @@ public class AffinityManager : IDisposable
     private readonly OptimizeStrategy _strategy;
     private readonly System.Timers.Timer? _reMigrationTimer;
     private bool _engaged;
+#if DEBUG
+    private readonly Stopwatch _migrateStopwatch = new();
+#endif
     private ProcessInfo? _currentGame;
     private volatile bool _disposed;
 
@@ -80,7 +83,7 @@ public class AffinityManager : IDisposable
         }
 
         // Background re-migration runs for both strategies — only game handling differs
-        _reMigrationTimer = new System.Timers.Timer(3000);
+        _reMigrationTimer = new System.Timers.Timer(5000);
         _reMigrationTimer.AutoReset = true;
         _reMigrationTimer.Elapsed += (_, _) => MigrateNewProcesses();
     }
@@ -99,14 +102,6 @@ public class AffinityManager : IDisposable
             _currentGame = game;
             _originalMasks.Clear();
             _loggedMigrateExes.Clear();
-
-            // Single-CCD processors have no second CCD to steer to
-            if (_topology.IsSingleCcd)
-            {
-                Emit(AffinityAction.Skipped, game.Name, game.Pid,
-                    "single-CCD processor — no CCD steering needed", game.DisplayName);
-                return;
-            }
 
             if (Mode == OperationMode.Optimize)
             {
@@ -146,12 +141,6 @@ public class AffinityManager : IDisposable
             _engaged = false;
             _reMigrationTimer?.Stop();
 
-            if (_topology.IsSingleCcd)
-            {
-                _currentGame = null;
-                return;
-            }
-
             if (Mode == OperationMode.Optimize)
             {
                 // Restore game handling
@@ -182,7 +171,7 @@ public class AffinityManager : IDisposable
     {
         lock (_syncLock)
         {
-            if (Mode == OperationMode.Optimize || _topology.IsSingleCcd)
+            if (Mode == OperationMode.Optimize)
                 return;
 
             Mode = OperationMode.Optimize;
@@ -212,7 +201,7 @@ public class AffinityManager : IDisposable
     {
         lock (_syncLock)
         {
-            if (Mode == OperationMode.Monitor || _topology.IsSingleCcd)
+            if (Mode == OperationMode.Monitor)
                 return;
 
             _reMigrationTimer?.Stop();
@@ -567,6 +556,10 @@ public class AffinityManager : IDisposable
     {
         if (_disposed) return;
 
+#if DEBUG
+        _migrateStopwatch.Restart();
+#endif
+
         lock (_syncLock)
         {
             if (!_engaged || Mode != OperationMode.Optimize || _currentGame == null)
@@ -663,6 +656,11 @@ public class AffinityManager : IDisposable
                 }
             }
         }
+#if DEBUG
+        _migrateStopwatch.Stop();
+        if (_migrateStopwatch.ElapsedMilliseconds > 50)
+            Log.Debug("AffinityManager.MigrateNewProcesses took {Ms}ms", _migrateStopwatch.ElapsedMilliseconds);
+#endif
         FlushEvents();
     }
 

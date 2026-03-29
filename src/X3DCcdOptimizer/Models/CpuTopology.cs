@@ -16,6 +16,7 @@ public class CpuTopology
     public bool HasVCache => VCacheL3SizeMB > StandardL3SizeMB * 2;
     public bool IsSingleCcd => Tier is ProcessorTier.SingleCcdX3D or ProcessorTier.SingleCcdStandard;
     public bool IsDualCcd => !IsSingleCcd;
+    public bool IsSupported => Tier.IsSupported();
 
     public string VCacheMaskHex => $"0x{VCacheMask.ToInt64():X4}";
     public string FrequencyMaskHex => FrequencyMask != IntPtr.Zero ? $"0x{FrequencyMask.ToInt64():X4}" : "N/A";
