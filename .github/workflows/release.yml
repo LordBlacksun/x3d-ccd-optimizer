@@ -32,7 +32,9 @@ jobs:
         run: >
           dotnet publish src/X3DCcdOptimizer/X3DCcdOptimizer.csproj
           -c Release -r win-x64 --self-contained false
-          -p:PublishSingleFile=true -o ./publish
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=false
+          -o ./publish
 
       # Code signing via SignPath — uncomment after SignPath approval
       # See: https://about.signpath.io/documentation/github-actions
@@ -63,7 +65,10 @@ jobs:
           $zipName = "X3DCcdOptimizer-${tag}-win-x64.zip"
 
           New-Item -ItemType Directory -Path ./release-staging -Force
+          New-Item -ItemType Directory -Path ./release-staging/amd64 -Force
           Copy-Item ./publish/X3DCcdOptimizer.exe ./release-staging/
+          Copy-Item ./publish/e_sqlite3.dll ./release-staging/ -ErrorAction SilentlyContinue
+          Copy-Item ./publish/amd64/KernelTraceControl.dll ./release-staging/amd64/ -ErrorAction SilentlyContinue
           Copy-Item ./src/X3DCcdOptimizer/Resources/app.ico ./release-staging/ -ErrorAction SilentlyContinue
           Copy-Item ./LICENSE ./release-staging/ -ErrorAction SilentlyContinue
           Copy-Item ./README.md ./release-staging/

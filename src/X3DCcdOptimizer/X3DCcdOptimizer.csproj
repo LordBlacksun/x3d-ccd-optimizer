@@ -42,4 +42,17 @@
     <PackageReference Include="System.Management" Version="8.0.0" />
   </ItemGroup>
 
+  <!-- Exclude TraceEvent's unneeded native libs from publish (msdia140.dll = 2.2 MB PDB symbol parser,
+       various x86/arm/linux/mac libs). We only use kernel ETW events via KernelTraceControl.dll. -->
+  <Target Name="RemoveUnneededNativeLibs" AfterTargets="Publish">
+    <ItemGroup>
+      <_UnneededFiles Include="$(PublishDir)\amd64\msdia140.dll" />
+      <_UnneededFiles Include="$(PublishDir)\x86\**\*" />
+      <_UnneededFiles Include="$(PublishDir)\arm64\**\*" />
+      <_UnneededFiles Include="$(PublishDir)\**\*.pdb" />
+    </ItemGroup>
+    <Delete Files="@(_UnneededFiles)" />
+    <RemoveDir Directories="$(PublishDir)\x86;$(PublishDir)\arm64;$(PublishDir)\Data" />
+  </Target>
+
 </Project>
