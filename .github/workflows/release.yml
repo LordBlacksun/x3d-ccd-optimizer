@@ -31,6 +31,28 @@ jobs:
           -c Release -r win-x64 --self-contained false
           -p:PublishSingleFile=true -o ./publish
 
+      # Code signing via SignPath — uncomment after SignPath approval
+      # See: https://about.signpath.io/documentation/github-actions
+      #
+      # - name: Upload artifact for signing
+      #   id: upload-for-signing
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: unsigned-exe
+      #     path: ./publish/X3DCcdOptimizer.exe
+      #
+      # - name: Sign with SignPath
+      #   uses: signpath/github-action-submit-signing-request@v1
+      #   with:
+      #     api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+      #     organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+      #     project-slug: x3d-ccd-optimizer
+      #     signing-policy-slug: release-signing
+      #     artifact-configuration-slug: exe
+      #     github-artifact-id: ${{ steps.upload-for-signing.outputs.artifact-id }}
+      #     wait-for-completion: true
+      #     output-artifact-directory: ./publish
+
       - name: Prepare release zip
         shell: pwsh
         run: |

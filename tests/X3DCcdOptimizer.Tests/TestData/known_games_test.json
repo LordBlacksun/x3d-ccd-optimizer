@@ -1,0 +1,6 @@
+{
+  "games": [
+    { "exe": "testgame.exe", "name": "Test Game" },
+    { "exe": "othergame.exe", "name": "Other Game" }
+  ]
+}

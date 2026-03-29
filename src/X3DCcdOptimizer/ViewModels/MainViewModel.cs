@@ -103,6 +103,13 @@ public class MainViewModel : ViewModelBase
 
     public string OverlayButtonText => _isOverlayVisible ? "Hide Overlay" : "Show Overlay";
 
+    private string _updateText = "";
+    public string UpdateText
+    {
+        get => _updateText;
+        set => SetProperty(ref _updateText, value);
+    }
+
     public string FooterText { get; }
 
     public RelayCommand ToggleModeCommand { get; }

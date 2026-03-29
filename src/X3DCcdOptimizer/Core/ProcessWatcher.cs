@@ -16,8 +16,10 @@ public class ProcessWatcher : IDisposable
     private readonly int _exitDelaySec;
     private readonly int _activeIntervalMs;
     private readonly System.Timers.Timer _timer;
+    private ProcessEventWatcher? _etwWatcher;
     private volatile bool _disposed;
     private bool _isIdle = true;
+    private bool _etwActive;
 
     // Auto-detection debounce state
     private int _autoDetectCandidatePid;
@@ -59,9 +61,21 @@ public class ProcessWatcher : IDisposable
 
     public void Start()
     {
+        // Try ETW for near-instant game detection; polling becomes the fallback
+        _etwWatcher = new ProcessEventWatcher();
+        _etwActive = _etwWatcher.Start();
+
+        if (_etwActive)
+        {
+            _etwWatcher.ProcessStarted += OnEtwProcessStart;
+            _etwWatcher.ProcessStopped += OnEtwProcessStop;
+            // With ETW active, polling is a safety net at reduced frequency
+            _timer.Interval = 15000;
+        }
+
         _timer.Start();
-        Log.Information("Process watcher started. Polling: {Interval}ms. Manual games: {Count} entries. Auto-detect: {Auto}",
-            _timer.Interval, _detector.GameCount, _autoDetectEnabled);
+        Log.Information("Process watcher started. ETW: {Etw}. Polling: {Interval}ms. Games: {Count}. Auto-detect: {Auto}",
+            _etwActive ? "active" : "fallback only", _timer.Interval, _detector.GameCount, _autoDetectEnabled);
     }
 
     public void Stop()
@@ -374,20 +388,81 @@ public class ProcessWatcher : IDisposable
         GameExited?.Invoke(game);
     }
 
+    private void OnEtwProcessStart(int pid, string name)
+    {
+        if (_disposed) return;
+
+        try
+        {
+            // Check if this is a known game
+            var method = _detector.CheckGame(name);
+            if (method == null) return;
+
+            // Don't interrupt an already-tracked game
+            if (_detector.CurrentGame != null) return;
+
+            var source = method switch
+            {
+                DetectionMethod.Manual => "manual",
+                DetectionMethod.Database => "database",
+                DetectionMethod.LauncherScan => "launcher",
+                _ => "unknown"
+            };
+
+            var displayName = _detector.GetDisplayName(name);
+            var info = new ProcessInfo
+            {
+                Name = name + ".exe",
+                DisplayName = displayName,
+                Pid = pid,
+                DetectionSource = $"[{source}]",
+                Method = method.Value
+            };
+
+            _detector.CurrentGame = info;
+            ResetAutoDetectState();
+            SwitchToActivePolling();
+            Log.Information("GAME DETECTED (ETW): {Name} (PID {Pid}) {Source}",
+                info.Name, info.Pid, info.DetectionSource);
+            GameDetected?.Invoke(info);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug("ETW process start handler error: {Error}", ex.Message);
+        }
+    }
+
+    private void OnEtwProcessStop(int pid)
+    {
+        if (_disposed) return;
+
+        try
+        {
+            var current = _detector.CurrentGame;
+            if (current == null || current.Pid != pid) return;
+
+            HandleGameExit(current);
+        }
+        catch (Exception ex)
+        {
+            Log.Debug("ETW process stop handler error: {Error}", ex.Message);
+        }
+    }
+
     private void SwitchToActivePolling()
     {
         if (!_isIdle) return;
         _isIdle = false;
-        _timer.Interval = _activeIntervalMs;
-        Log.Debug("Polling switched to active ({Interval}ms)", _activeIntervalMs);
+        _timer.Interval = _etwActive ? 15000 : _activeIntervalMs;
+        Log.Debug("Polling switched to active ({Interval}ms)", _timer.Interval);
     }
 
     private void SwitchToIdlePolling()
     {
         if (_isIdle) return;
         _isIdle = true;
-        _timer.Interval = _activeIntervalMs * 2;
-        Log.Debug("Polling switched to idle ({Interval}ms)", _activeIntervalMs * 2);
+        _timer.Interval = _etwActive ? 15000 : _activeIntervalMs * 2;
+        Log.Debug("Polling switched to idle ({Interval}ms)", _timer.Interval);
     }
 
     public void Dispose()
@@ -397,6 +472,7 @@ public class ProcessWatcher : IDisposable
 
         _timer.Stop();
         _timer.Dispose();
+        _etwWatcher?.Dispose();
         GC.SuppressFinalize(this);
     }
 }

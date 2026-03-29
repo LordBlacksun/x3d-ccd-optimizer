@@ -221,6 +221,7 @@ public partial class App : System.Windows.Application
         _gpuMonitor = new GpuMonitor();
         _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses, launcherGames, _config.BackgroundApps);
         _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode, strategy, _config.BackgroundApps);
+        _affinityManager.UpdateGameProfiles(_config.GameProfiles);
         _processWatcher = new ProcessWatcher(
             _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground,
             _config.AutoDetection.Enabled, _config.AutoDetection.GpuThresholdPercent,
@@ -315,6 +316,33 @@ public partial class App : System.Windows.Application
                 Log.Warning(ex, "Background library rescan failed");
             }
         });
+
+        // Optional update check (off by default, no more than once per 24h)
+        if (_config.CheckForUpdates)
+        {
+            var shouldCheck = true;
+            if (DateTime.TryParse(_config.LastUpdateCheckUtc, out var lastCheck))
+                shouldCheck = (DateTime.UtcNow - lastCheck).TotalHours >= 24;
+
+            if (shouldCheck)
+            {
+                Task.Run(async () =>
+                {
+                    var newVersion = await UpdateChecker.CheckForUpdate();
+                    _config.LastUpdateCheckUtc = DateTime.UtcNow.ToString("o");
+                    _config.Save();
+
+                    if (newVersion != null)
+                    {
+                        Application.Current?.Dispatcher.BeginInvoke(() =>
+                        {
+                            if (_mainViewModel != null)
+                                _mainViewModel.UpdateText = $"v{newVersion} available";
+                        });
+                    }
+                });
+            }
+        }
 
         // Register hotkey (after window is created so we have an HWND)
         _dashboardWindow.SourceInitialized += (_, _) => RegisterOverlayHotkey();

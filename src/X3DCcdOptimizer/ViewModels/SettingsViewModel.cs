@@ -170,13 +170,19 @@ public class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _gameSuggestions, value);
     }
 
-    // Library rescan & artwork
+    // Library rescan, artwork, updates
     private string _scanStatusText = "";
     private bool _enableArtworkDownload;
+    private bool _checkForUpdates;
     public bool EnableArtworkDownload
     {
         get => _enableArtworkDownload;
         set => SetProperty(ref _enableArtworkDownload, value);
+    }
+    public bool CheckForUpdates
+    {
+        get => _checkForUpdates;
+        set => SetProperty(ref _checkForUpdates, value);
     }
     public string ScanStatusText
     {
@@ -234,6 +240,7 @@ public class SettingsViewModel : ViewModelBase
 
         _logLevel = config.Logging.Level;
         _enableArtworkDownload = config.EnableArtworkDownload;
+        _checkForUpdates = config.CheckForUpdates;
 
         foreach (var b in config.BackgroundApps)
             BackgroundApps.Add(new GameDisplayItem(b, ResolveBackgroundAppDisplayName(b)));
@@ -504,6 +511,7 @@ public class SettingsViewModel : ViewModelBase
         // Advanced
         _config.Logging.Level = _logLevel;
         _config.EnableArtworkDownload = _enableArtworkDownload;
+        _config.CheckForUpdates = _checkForUpdates;
 
         // Process rules
         _config.ManualGames = ManualGames.Select(g => g.Exe).ToList();

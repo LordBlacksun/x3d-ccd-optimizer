@@ -290,6 +290,9 @@
                 </StackPanel>
                 <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
                            VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding UpdateText}" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource AccentGreenBrush}" VerticalAlignment="Center"
+                           Margin="8,0,0,0"/>
             </DockPanel>
         </StackPanel>
     </Grid>
