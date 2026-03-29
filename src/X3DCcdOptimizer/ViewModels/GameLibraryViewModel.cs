@@ -102,7 +102,6 @@ public class GameLibraryViewModel : ViewModelBase
         Games.Clear();
 
         var seenExes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var steamCount = 0;
         var epicCount = 0;
         var gogCount = 0;
@@ -113,9 +112,8 @@ public class GameLibraryViewModel : ViewModelBase
             if (_excludedProcesses.Contains(game.ProcessName))
                 continue;
 
+            // Deduplicate by exe name only
             if (!seenExes.Add(game.ProcessName))
-                continue;
-            if (!seenNames.Add(game.DisplayName))
                 continue;
 
             Games.Add(new GameLibraryItemViewModel(
