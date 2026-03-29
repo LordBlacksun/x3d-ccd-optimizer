@@ -10,9 +10,20 @@ public static class AppLogger
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
         "X3DCCDOptimizer", "logs");
 
+    private static readonly string LogPath = Path.Combine(LogDir, "x3d-optimizer.log");
+
     public static void Initialize(string level = "Information")
     {
         Directory.CreateDirectory(LogDir);
+
+        // Fresh log each launch — previous log saved as .prev for reference
+        try
+        {
+            var prevPath = LogPath + ".prev";
+            if (File.Exists(LogPath))
+                File.Move(LogPath, prevPath, overwrite: true);
+        }
+        catch { }
 
         var logLevel = Enum.TryParse<LogEventLevel>(level, true, out var parsed)
             ? parsed
@@ -22,8 +33,7 @@ public static class AppLogger
             .MinimumLevel.Is(logLevel)
             .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
             .WriteTo.File(
-                Path.Combine(LogDir, "x3d-optimizer-.log"),
-                rollingInterval: RollingInterval.Day,
+                LogPath,
                 fileSizeLimitBytes: 10 * 1024 * 1024,
                 outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
             .CreateLogger();
