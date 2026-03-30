@@ -1,11 +1,11 @@
 using System.Management;
 using System.Runtime.InteropServices;
 using Serilog;
-using X3DCcdOptimizer.Config;
-using X3DCcdOptimizer.Models;
-using X3DCcdOptimizer.Native;
+using X3DCcdInspector.Config;
+using X3DCcdInspector.Models;
+using X3DCcdInspector.Native;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 // Known AMD Ryzen processor topologies (for reference — detection is hardware-based, not lookup):
 //

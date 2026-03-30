@@ -2,27 +2,23 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Serilog;
-using X3DCcdOptimizer.Config;
-using X3DCcdOptimizer.Core;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Config;
+using X3DCcdInspector.Core;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.ViewModels;
+namespace X3DCcdInspector.ViewModels;
 
 public class MainViewModel : ViewModelBase
 {
     private readonly CpuTopology _topology;
-    private readonly AffinityManager _affinityManager;
     private readonly AppConfig _config;
     private readonly DispatcherTimer _sessionTimer;
     private GameDatabase? _gameDb;
 
-    private OperationMode _currentMode;
     private string _statusText = "";
     private SolidColorBrush _statusColor;
     private bool _isGameActive;
     private string _sessionDurationText = "";
-    private string _currentGameName = "";
     private string _currentGameDisplayName = "";
     private DateTime _sessionStart;
     private bool _isOverlayVisible;
@@ -32,39 +28,10 @@ public class MainViewModel : ViewModelBase
     public CcdPanelViewModel? Ccd1Panel { get; }
     public bool ShowSecondPanel { get; }
     public ActivityLogViewModel ActivityLog { get; } = new();
-    public ProcessRouterViewModel ProcessRouter { get; }
+    public ProcessRouterViewModel CcdMap { get; }
     public GameLibraryViewModel? GameLibrary { get; private set; }
-
-    public OperationMode CurrentMode
-    {
-        get => _currentMode;
-        set
-        {
-            if (SetProperty(ref _currentMode, value))
-            {
-                OnPropertyChanged(nameof(IsOptimizeMode));
-
-                if (value == OperationMode.Optimize)
-                    _affinityManager.SwitchToOptimize();
-                else
-                    _affinityManager.SwitchToMonitor();
-
-                _config.OperationMode = value.ToString().ToLowerInvariant();
-                _config.Save();
-
-                UpdateStatus();
-                UpdateBorders();
-            }
-        }
-    }
-
-    public bool IsOptimizeMode
-    {
-        get => _currentMode == OperationMode.Optimize;
-        set => CurrentMode = value ? OperationMode.Optimize : OperationMode.Monitor;
-    }
-
-    public bool IsOptimizeEnabled { get; }
+    public SystemStatusViewModel SystemStatus { get; }
+    public ActiveGameViewModel ActiveGame { get; }
 
     public string StatusText
     {
@@ -121,7 +88,6 @@ public class MainViewModel : ViewModelBase
 
     public string FooterText { get; }
 
-    public RelayCommand ToggleModeCommand { get; }
     public RelayCommand ToggleOverlayCommand { get; }
     public RelayCommand OpenSettingsCommand { get; }
     public RelayCommand OpenAboutCommand { get; }
@@ -130,37 +96,29 @@ public class MainViewModel : ViewModelBase
     public CpuTopology Topology => _topology;
     public AppConfig Config => _config;
 
-    public string? PowerPlanWarning { get; }
-
     public MainViewModel(CpuTopology topology, PerformanceMonitor perfMon,
         ProcessWatcher processWatcher, GameDetector gameDetector,
-        AffinityManager affinityManager, AppConfig config,
-        string? powerPlanWarning = null)
+        AffinityManager affinityManager, AppConfig config)
     {
         _topology = topology;
-        _affinityManager = affinityManager;
         _config = config;
-        _currentMode = affinityManager.Mode;
-        PowerPlanWarning = powerPlanWarning;
 
-        IsOptimizeEnabled = true;
         ShowSecondPanel = true;
 
         Ccd0Panel = new CcdPanelViewModel(topology, 0);
         Ccd1Panel = new CcdPanelViewModel(topology, 1);
 
+        SystemStatus = new SystemStatusViewModel(topology);
+        ActiveGame = new ActiveGameViewModel();
+
         // Process router with CCD group names
         var ccd0Name = Ccd0Panel.BadgeText;
         var ccd1Name = Ccd1Panel?.BadgeText ?? "";
-        ProcessRouter = new ProcessRouterViewModel(ccd0Name, ccd1Name);
+        CcdMap = new ProcessRouterViewModel(ccd0Name, ccd1Name);
 
         _statusColor = FindBrush("AccentBlueBrush");
         var version = Assembly.GetExecutingAssembly().GetName().Version?.ToString(3) ?? "1.0.0";
         FooterText = $"v{version} | {topology.CpuModel} | {topology.TotalPhysicalCores} cores | {topology.TotalLogicalCores} threads | Polling: {config.PollingIntervalMs}ms";
-
-        ToggleModeCommand = new RelayCommand(
-            () => IsOptimizeMode = !IsOptimizeMode,
-            () => IsOptimizeEnabled);
 
         ToggleOverlayCommand = new RelayCommand(() =>
         {
@@ -170,7 +128,6 @@ public class MainViewModel : ViewModelBase
 
         OpenSettingsCommand = new RelayCommand(() =>
         {
-            // Check if a Settings window is already open
             foreach (System.Windows.Window win in System.Windows.Application.Current.Windows)
             {
                 if (win is Views.SettingsWindow existing)
@@ -236,22 +193,49 @@ public class MainViewModel : ViewModelBase
                 : $"{elapsed.Minutes}m {elapsed.Seconds:D2}s";
         };
 
-        if (config.IsFirstRun)
-            StatusText = "Monitor mode \u2014 observing your CPU without making changes. Switch to Optimize to pin games to V-Cache.";
-        else
-            UpdateStatus();
+        UpdateStatus();
     }
 
     public void InitGameLibrary(GameDatabase gameDb, IEnumerable<string>? excludedProcesses = null)
     {
         _gameDb = gameDb;
+        ActiveGame.SetGameDatabase(gameDb);
         GameLibrary = new GameLibraryViewModel(gameDb, excludedProcesses);
+        GameLibrary.PreferenceChanged += OnGamePreferenceChanged;
         OnPropertyChanged(nameof(GameLibrary));
+    }
+
+    private void OnGamePreferenceChanged(string exeName, string displayName, string newPreference)
+    {
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            var action = newPreference == "Auto"
+                ? AffinityAction.CcdPreferenceRemoved
+                : AffinityAction.CcdPreferenceSet;
+
+            var prefLabel = newPreference switch
+            {
+                "VCache" => "V-Cache",
+                "Frequency" => "Frequency",
+                _ => "Auto"
+            };
+
+            var detail = newPreference == "Auto"
+                ? $"CCD preference removed: {displayName} \u2192 Auto"
+                : $"CCD preference set: {displayName} \u2192 {prefLabel} (AMD driver profile)";
+
+            OnAffinityChanged(new AffinityEvent
+            {
+                Action = action,
+                ProcessName = exeName,
+                DisplayName = displayName,
+                Detail = detail
+            });
+        });
     }
 
     public void OnSnapshotReady(CoreSnapshot[] snapshots)
     {
-        // Debounce: skip UI update if no core changed by more than 1% load or 50 MHz frequency
         if (_lastSnapshots != null && _lastSnapshots.Length == snapshots.Length)
         {
             bool changed = false;
@@ -280,7 +264,16 @@ public class MainViewModel : ViewModelBase
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
             ActivityLog.AddEntry(evt);
-            ProcessRouter.OnAffinityChanged(evt);
+            CcdMap.OnAffinityChanged(evt);
+        });
+    }
+
+    public void OnSystemStateChanged(SystemState state)
+    {
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            SystemStatus.OnStateChanged(state);
+            ActiveGame.OnStateChanged(state);
         });
     }
 
@@ -288,26 +281,17 @@ public class MainViewModel : ViewModelBase
     {
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
-            _currentGameName = game.Name;
             _currentGameDisplayName = game.DisplayName ?? game.Name;
             IsGameActive = true;
             _sessionStart = DateTime.Now;
             _sessionTimer.Start();
 
             var display = _currentGameDisplayName;
-            if (_currentMode == OperationMode.Optimize)
-            {
-                Ccd0Panel.RoleLabel = $"Gaming \u2014 {display}";
-                if (Ccd1Panel != null)
-                    Ccd1Panel.RoleLabel = "Background";
-            }
-            else
-            {
-                Ccd0Panel.RoleLabel = $"Detected \u2014 {display}";
-                if (Ccd1Panel != null)
-                    Ccd1Panel.RoleLabel = "Idle";
-            }
+            Ccd0Panel.RoleLabel = $"Detected \u2014 {display}";
+            if (Ccd1Panel != null)
+                Ccd1Panel.RoleLabel = "Idle";
 
+            ActiveGame.OnGameDetected(game);
             UpdateStatus();
             UpdateBorders();
         });
@@ -317,7 +301,6 @@ public class MainViewModel : ViewModelBase
     {
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
-            _currentGameName = "";
             _currentGameDisplayName = "";
             IsGameActive = false;
             _sessionTimer.Stop();
@@ -325,8 +308,9 @@ public class MainViewModel : ViewModelBase
 
             Ccd0Panel.RoleLabel = "Idle";
             if (Ccd1Panel != null) Ccd1Panel.RoleLabel = "Idle";
-            ProcessRouter.Clear();
+            CcdMap.Clear();
 
+            ActiveGame.OnGameExited(game);
             UpdateStatus();
             UpdateBorders();
         });
@@ -334,46 +318,25 @@ public class MainViewModel : ViewModelBase
 
     private void UpdateStatus()
     {
-        var strategy = _config.GetOptimizeStrategy();
-        var display = _currentGameDisplayName;
         var ccdLabel = _topology.Tier == ProcessorTier.DualCcdStandard ? "CCD0" : "V-Cache CCD";
 
         if (_isGameActive)
         {
-            if (_currentMode == OperationMode.Optimize)
-            {
-                var suffix = strategy == OptimizeStrategy.AffinityPinning ? " (pinned)" : "";
-                StatusText = $"Optimize \u2014 {display} \u2192 {ccdLabel}{suffix}";
-                StatusColor = FindBrush("AccentGreenBrush");
-            }
-            else
-            {
-                StatusText = $"Monitor \u2014 {display} detected on {ccdLabel}";
-                StatusColor = FindBrush("AccentBlueBrush");
-            }
+            StatusText = $"{_currentGameDisplayName} detected on {ccdLabel}";
+            StatusColor = FindBrush("AccentGreenBrush");
         }
         else
         {
-            if (_currentMode == OperationMode.Optimize)
-            {
-                StatusText = PowerPlanWarning != null
-                    ? $"Optimize \u2014 waiting for game | \u26A0 {PowerPlanWarning}"
-                    : "Optimize \u2014 waiting for game";
-                StatusColor = FindBrush("AccentPurpleBrush");
-            }
-            else
-            {
-                StatusText = "Monitor \u2014 watching for games";
-                StatusColor = FindBrush("AccentBlueBrush");
-            }
+            StatusText = "Watching for games";
+            StatusColor = FindBrush("AccentBlueBrush");
         }
     }
 
     private void UpdateBorders()
     {
         int? gameCcd = _isGameActive ? 0 : null;
-        Ccd0Panel.UpdateBorderState(_currentMode, _isGameActive, gameCcd);
-        Ccd1Panel?.UpdateBorderState(_currentMode, _isGameActive, _isGameActive ? 1 : null);
+        Ccd0Panel.UpdateBorderState(_isGameActive, gameCcd);
+        Ccd1Panel?.UpdateBorderState(_isGameActive, _isGameActive ? 1 : null);
     }
 
     private static SolidColorBrush FindBrush(string key)

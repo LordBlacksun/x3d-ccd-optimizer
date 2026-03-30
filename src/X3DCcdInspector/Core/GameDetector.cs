@@ -1,7 +1,7 @@
 using System.IO;
 using Serilog;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 public enum DetectionMethod
 {

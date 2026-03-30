@@ -1,36 +1,24 @@
-using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
-using System.Text.Json;
 using Serilog;
-using X3DCcdOptimizer.Models;
-using X3DCcdOptimizer.Native;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 /// <summary>
-/// Handles dirty shutdown recovery. Writes a recovery.json file while affinities are
-/// engaged so that if the app crashes, the next launch can restore all processes to
-/// their default affinity (all cores).
+/// Handles dirty shutdown recovery. If the app previously set AMD driver preferences
+/// and crashed before restoring, this ensures the next launch cleans up.
 /// </summary>
 public static class RecoveryManager
 {
     private static readonly string RecoveryDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "X3DCCDOptimizer");
+        "X3DCCDInspector");
 
     private static readonly string RecoveryPath = Path.Combine(RecoveryDir, "recovery.json");
 
-    private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
-
-    private static RecoveryState? _currentState;
-    private static readonly object _lock = new();
-    private static Timer? _debounceTimer;
-    private static volatile bool _writePending;
-
     /// <summary>
     /// Check if a dirty shutdown occurred and recover if needed.
-    /// Call this before normal startup.
+    /// Restores AMD driver preference to default and cleans up any recovery file
+    /// left by a previous version of the app.
     /// </summary>
     public static void RecoverFromDirtyShutdown()
     {
@@ -41,34 +29,11 @@ public static class RecoveryManager
 
             Log.Warning("Recovery file found — previous session ended unexpectedly");
 
-            RecoveryState? state;
-            try
-            {
-                var json = File.ReadAllText(RecoveryPath);
-                state = JsonSerializer.Deserialize<RecoveryState>(json, JsonOptions);
-            }
-            catch (Exception ex)
-            {
-                Log.Warning(ex, "Recovery file corrupted — deleting and continuing");
-                DeleteRecoveryFile();
-                return;
-            }
-
-            if (state == null)
-            {
-                DeleteRecoveryFile();
-                return;
-            }
-
-            // Strategy-aware recovery
-            if (string.Equals(state.Strategy, "DriverPreference", StringComparison.OrdinalIgnoreCase))
-            {
-                RecoverDriverPreference(state);
-            }
+            // Restore AMD driver preference to default (safe no-op if driver not installed)
+            if (VCacheDriverManager.RestoreDefault())
+                Log.Information("Recovery: restored amd3dvcache DefaultType to PREFER_FREQ (default)");
             else
-            {
-                RecoverAffinityPinning(state);
-            }
+                Log.Information("Recovery: AMD driver not present or already at default — no action needed");
 
             DeleteRecoveryFile();
         }
@@ -79,220 +44,15 @@ public static class RecoveryManager
         }
     }
 
-    private static void RecoverDriverPreference(RecoveryState state)
-    {
-        Log.Information("Recovering driver preference from dirty shutdown (game was {Game})",
-            state.GameProcess);
-
-        if (VCacheDriverManager.RestoreDefault())
-            Log.Information("Recovery: restored amd3dvcache DefaultType to PREFER_FREQ (default)");
-        else
-            Log.Warning("Recovery: failed to restore amd3dvcache DefaultType — driver may not be installed");
-    }
-
-    private static readonly IReadOnlySet<string> ProtectedProcessNames = Models.ProtectedProcesses.Names;
-
-    private static void RecoverAffinityPinning(RecoveryState state)
-    {
-        if (state.ModifiedProcesses == null || state.ModifiedProcesses.Count == 0)
-        {
-            Log.Information("Recovery file empty — no processes to restore");
-            return;
-        }
-
-        Log.Information("Recovering {Count} processes from dirty shutdown (game was {Game})",
-            state.ModifiedProcesses.Count, state.GameProcess);
-
-        int restored = 0;
-        int skipped = 0;
-
-        // Get all running processes once
-        Process[] allProcesses;
-        try { allProcesses = Process.GetProcesses(); }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Failed to enumerate processes for recovery");
-            return;
-        }
-
-        var runningProcesses = new Dictionary<string, List<Process>>(StringComparer.OrdinalIgnoreCase);
-        foreach (var proc in allProcesses)
-        {
-            try
-            {
-                var name = proc.ProcessName;
-                if (!runningProcesses.ContainsKey(name))
-                    runningProcesses[name] = [];
-                runningProcesses[name].Add(proc);
-            }
-            catch
-            {
-                proc.Dispose();
-            }
-        }
-
-        try
-        {
-            foreach (var entry in state.ModifiedProcesses)
-            {
-                // Strip .exe for process name matching
-                var nameWithoutExe = entry.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                    ? entry.Name[..^4] : entry.Name;
-
-                if (ProtectedProcessNames.Contains(nameWithoutExe))
-                {
-                    Log.Warning("Recovery: skipping protected process {Name}", entry.Name);
-                    skipped++;
-                    continue;
-                }
-
-                if (!runningProcesses.TryGetValue(nameWithoutExe, out var matches))
-                {
-                    Log.Debug("Recovery: {Name} (PID {Pid}) — process no longer running, skipped",
-                        entry.Name, entry.Pid);
-                    skipped++;
-                    continue;
-                }
-
-                // Reset affinity on all matching processes (PID may have changed after restart)
-                foreach (var proc in matches)
-                {
-                    try
-                    {
-                        var handle = Kernel32.OpenProcess(
-                            Kernel32.PROCESS_SET_INFORMATION, false, proc.Id);
-
-                        if (handle == IntPtr.Zero)
-                        {
-                            skipped++;
-                            continue;
-                        }
-
-                        try
-                        {
-                            // Reset to all cores (full system mask)
-                            var fullMask = new IntPtr(-1);
-                            if (Kernel32.SetProcessAffinityMask(handle, fullMask))
-                            {
-                                restored++;
-                                Log.Information("Recovery: restored {Name} (PID {Pid}) to all cores",
-                                    entry.Name, proc.Id);
-                            }
-                            else
-                            {
-                                skipped++;
-                            }
-                        }
-                        finally
-                        {
-                            Kernel32.CloseHandle(handle);
-                        }
-                    }
-                    catch
-                    {
-                        skipped++;
-                    }
-                }
-            }
-        }
-        finally
-        {
-            // Dispose all cached processes
-            foreach (var list in runningProcesses.Values)
-                foreach (var proc in list)
-                    proc.Dispose();
-        }
-
-        Log.Information("Recovery complete: {Restored} restored, {Skipped} skipped/exited",
-            restored, skipped);
-    }
-
     /// <summary>
-    /// Called when Optimize mode engages a game. Creates the recovery file.
-    /// </summary>
-    public static void OnEngage(string gameName, int gamePid, OptimizeStrategy strategy = OptimizeStrategy.AffinityPinning)
-    {
-        lock (_lock)
-        {
-            _currentState = new RecoveryState
-            {
-                Engaged = true,
-                Timestamp = DateTime.UtcNow,
-                GameProcess = gameName,
-                GamePid = gamePid,
-                ModifiedProcesses = [],
-                Strategy = strategy.ToString()
-            };
-            WriteState();
-        }
-    }
-
-    /// <summary>
-    /// Called when a process is migrated. Adds it to the recovery file.
-    /// </summary>
-    public static void AddModifiedProcess(string name, int pid, IntPtr originalMask)
-    {
-        lock (_lock)
-        {
-            if (_currentState == null) return;
-
-            _currentState.ModifiedProcesses.Add(new RecoveryProcessEntry
-            {
-                Name = name,
-                Pid = pid,
-                OriginalMask = $"0x{originalMask.ToInt64():X}"
-            });
-
-            // Debounce: batch rapid writes during initial migration
-            if (!_writePending)
-            {
-                _writePending = true;
-                _debounceTimer?.Dispose();
-                _debounceTimer = new Timer(_ =>
-                {
-                    _writePending = false;
-                    lock (_lock) { WriteState(); }
-                }, null, 500, Timeout.Infinite);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Called on clean disengage or clean exit. Deletes recovery file.
+    /// Called on clean exit. Deletes any leftover recovery file.
     /// </summary>
     public static void OnDisengage()
     {
-        lock (_lock)
-        {
-            _debounceTimer?.Dispose();
-            _debounceTimer = null;
-            _writePending = false;
-            _currentState = null;
-            DeleteRecoveryFile();
-        }
+        DeleteRecoveryFile();
     }
 
-    public static bool IsRecoveryNeeded()
-    {
-        return File.Exists(RecoveryPath);
-    }
-
-    private static void WriteState()
-    {
-        var tempPath = RecoveryPath + ".tmp";
-        try
-        {
-            Directory.CreateDirectory(RecoveryDir);
-            var json = JsonSerializer.Serialize(_currentState, JsonOptions);
-            File.WriteAllText(tempPath, json);
-            File.Move(tempPath, RecoveryPath, overwrite: true);
-        }
-        catch (Exception ex)
-        {
-            try { File.Delete(tempPath); } catch { }
-            Log.Warning(ex, "Failed to write recovery state");
-        }
-    }
+    public static bool IsRecoveryNeeded() => File.Exists(RecoveryPath);
 
     private static void DeleteRecoveryFile()
     {

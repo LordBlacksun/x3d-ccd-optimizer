@@ -3,9 +3,9 @@ using System.Text.Json;
 using Microsoft.Data.Sqlite;
 using Microsoft.Win32;
 using Serilog;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 /// <summary>
 /// Scans installed game launchers (Steam, Epic, GOG Galaxy) to discover installed games.

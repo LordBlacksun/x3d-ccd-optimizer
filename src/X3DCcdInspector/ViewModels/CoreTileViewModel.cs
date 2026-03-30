@@ -1,8 +1,8 @@
 using System.Windows;
 using System.Windows.Media;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.ViewModels;
+namespace X3DCcdInspector.ViewModels;
 
 public class CoreTileViewModel : ViewModelBase
 {

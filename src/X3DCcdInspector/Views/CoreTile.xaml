@@ -1,4 +1,4 @@
-<UserControl x:Class="X3DCcdOptimizer.Views.CoreTile"
+<UserControl x:Class="X3DCcdInspector.Views.CoreTile"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Border Style="{StaticResource CoreTileStyle}"
@@ -43,7 +43,7 @@
                     <Border.Width>
                         <MultiBinding>
                             <MultiBinding.Converter>
-                                <local:LoadBarWidthConverter xmlns:local="clr-namespace:X3DCcdOptimizer.Converters"/>
+                                <local:LoadBarWidthConverter xmlns:local="clr-namespace:X3DCcdInspector.Converters"/>
                             </MultiBinding.Converter>
                             <Binding Path="LoadPercent"/>
                             <Binding Path="ActualWidth" RelativeSource="{RelativeSource AncestorType=Border}"/>

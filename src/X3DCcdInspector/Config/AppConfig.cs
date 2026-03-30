@@ -1,9 +1,9 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using X3DCcdOptimizer.Models;
 
-namespace X3DCcdOptimizer.Config;
+
+namespace X3DCcdInspector.Config;
 
 public class AutoDetectionConfig
 {
@@ -93,7 +93,7 @@ public class AppConfig
 {
     private static readonly string ConfigDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "X3DCCDOptimizer");
+        "X3DCCDInspector");
 
     private static readonly string ConfigPath = Path.Combine(ConfigDir, "config.json");
 
@@ -193,7 +193,7 @@ public class AppConfig
     public bool CheckForUpdates { get; set; }
 
     [JsonPropertyName("gameProfiles")]
-    public List<GameProfile> GameProfiles { get; set; } = [];
+    public List<Dictionary<string, string>> GameProfiles { get; set; } = [];
 
     [JsonPropertyName("lastUpdateCheckUtc")]
     public string? LastUpdateCheckUtc { get; set; }
@@ -289,24 +289,6 @@ public class AppConfig
                 CcdOverride = null;
             }
         }
-    }
-
-    public Models.OperationMode GetOperationMode()
-    {
-        if (string.Equals(OperationMode, "optimize", StringComparison.OrdinalIgnoreCase))
-            return Models.OperationMode.Optimize;
-        if (!string.Equals(OperationMode, "monitor", StringComparison.OrdinalIgnoreCase))
-            try { Serilog.Log.Warning("Unrecognized operationMode '{Value}', defaulting to Monitor", OperationMode); } catch { }
-        return Models.OperationMode.Monitor;
-    }
-
-    public Models.OptimizeStrategy GetOptimizeStrategy()
-    {
-        if (string.Equals(OptimizeStrategy, "driverPreference", StringComparison.OrdinalIgnoreCase))
-            return Models.OptimizeStrategy.DriverPreference;
-        if (!string.Equals(OptimizeStrategy, "affinityPinning", StringComparison.OrdinalIgnoreCase))
-            try { Serilog.Log.Warning("Unrecognized optimizeStrategy '{Value}', defaulting to AffinityPinning", OptimizeStrategy); } catch { }
-        return Models.OptimizeStrategy.AffinityPinning;
     }
 
     private static AppConfig CreateDefault() => new();

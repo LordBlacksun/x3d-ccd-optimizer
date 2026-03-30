@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace X3DCcdOptimizer.ViewModels;
+namespace X3DCcdInspector.ViewModels;
 
 public class RelayCommand : ICommand
 {

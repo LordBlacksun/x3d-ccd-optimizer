@@ -3,9 +3,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Windows;
 using System.Windows.Data;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.ViewModels;
+namespace X3DCcdInspector.ViewModels;
 
 public class ProcessRouterViewModel : ViewModelBase, IDisposable
 {
@@ -46,34 +46,13 @@ public class ProcessRouterViewModel : ViewModelBase, IDisposable
         var displayName = evt.DisplayName ?? evt.ProcessName;
         switch (evt.Action)
         {
-            case AffinityAction.Engaged:
-            case AffinityAction.WouldEngage:
+            case AffinityAction.GameDetected:
                 AddOrUpdate(displayName, evt.ProcessName, evt.Pid, "V-Cache", true, evt.Detail,
-                    evt.Action == AffinityAction.WouldEngage, _ccd0Name, isGame: true);
+                    false, _ccd0Name, isGame: true);
                 StartPruneTimer();
                 break;
 
-            case AffinityAction.Migrated:
-            case AffinityAction.WouldMigrate:
-                if (evt.Pid != 0)
-                {
-                    AddOrUpdate(displayName, evt.ProcessName, evt.Pid, "Frequency", false, evt.Detail,
-                        evt.Action == AffinityAction.WouldMigrate, _ccd1Name, isGame: false);
-                    StartPruneTimer();
-                }
-                break;
-
-            case AffinityAction.DriverSet:
-            case AffinityAction.WouldSetDriver:
-                AddOrUpdate(displayName, evt.ProcessName, evt.Pid, "V-Cache (Driver)", true, evt.Detail,
-                    evt.Action == AffinityAction.WouldSetDriver, _ccd0Name, isGame: true);
-                StartPruneTimer();
-                break;
-
-            case AffinityAction.Restored:
-            case AffinityAction.WouldRestore:
-            case AffinityAction.DriverRestored:
-            case AffinityAction.WouldRestoreDriver:
+            case AffinityAction.GameExited:
                 Clear();
                 break;
         }

@@ -2,11 +2,11 @@ using System.Diagnostics;
 using Microsoft.Win32;
 using Serilog;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 public static class StartupManager
 {
-    private const string AppName = "X3DCcdOptimizer";
+    private const string AppName = "X3DCcdInspector";
     private const string RunKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
 
     public static void Enable()

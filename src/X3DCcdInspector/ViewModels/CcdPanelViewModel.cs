@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Media;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.ViewModels;
+namespace X3DCcdInspector.ViewModels;
 
 public class CcdPanelViewModel : ViewModelBase
 {
@@ -86,20 +86,12 @@ public class CcdPanelViewModel : ViewModelBase
         }
     }
 
-    public void UpdateBorderState(OperationMode mode, bool gameActive, int? gameCcdIndex)
+    public void UpdateBorderState(bool gameActive, int? gameCcdIndex)
     {
         if (gameActive && gameCcdIndex == CcdIndex)
         {
-            if (mode == OperationMode.Optimize)
-            {
-                BorderBrush = FindBrush("AccentGreenBrush");
-                BorderThickness = 2;
-            }
-            else
-            {
-                BorderBrush = FindBrush("AccentBlueBrush");
-                BorderThickness = 2;
-            }
+            BorderBrush = FindBrush("AccentBlueBrush");
+            BorderThickness = 2;
         }
         else
         {

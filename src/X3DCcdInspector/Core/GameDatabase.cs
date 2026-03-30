@@ -1,9 +1,9 @@
 using System.IO;
 using LiteDB;
 using Serilog;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 /// <summary>
 /// Persistent storage for scanned game library results using LiteDB.
@@ -13,7 +13,7 @@ public class GameDatabase : IDisposable
 {
     private static readonly string DbPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "X3DCCDOptimizer", "user_games.db");
+        "X3DCCDInspector", "user_games.db");
 
     private readonly LiteDatabase _db;
     private readonly ILiteCollection<ScannedGame> _games;
@@ -41,13 +41,19 @@ public class GameDatabase : IDisposable
             // Capture key — LiteDB can't translate group.Key in LINQ expressions
             var source = group.Key;
 
-            // Preserve artwork paths from old entries
+            // Preserve artwork paths and CCD preferences from old entries
             var oldEntries = _games.Find(g => g.Source == source).ToList();
             var artworkMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var prefMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            var fallbackMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (var old in oldEntries)
             {
                 if (!string.IsNullOrEmpty(old.ArtworkPath))
                     artworkMap.TryAdd(old.ProcessName, old.ArtworkPath);
+                if (old.CcdPreference != "Auto")
+                    prefMap.TryAdd(old.ProcessName, old.CcdPreference);
+                if (old.FallbackCcdPin != "None")
+                    fallbackMap.TryAdd(old.ProcessName, old.FallbackCcdPin);
             }
 
             // Wipe old entries for this source
@@ -60,6 +66,10 @@ public class GameDatabase : IDisposable
                 game.LastSeen = now;
                 if (artworkMap.TryGetValue(game.ProcessName, out var art))
                     game.ArtworkPath = art;
+                if (prefMap.TryGetValue(game.ProcessName, out var pref))
+                    game.CcdPreference = pref;
+                if (fallbackMap.TryGetValue(game.ProcessName, out var fallback))
+                    game.FallbackCcdPin = fallback;
                 _games.Insert(game);
             }
 
@@ -71,6 +81,53 @@ public class GameDatabase : IDisposable
 
     public ScannedGame? FindByExe(string exeName) =>
         _games.FindOne(g => g.ProcessName == exeName);
+
+    /// <summary>
+    /// Updates the CCD preference for a game by exe name.
+    /// Returns true if a matching game was found and updated.
+    /// </summary>
+    public bool UpdateCcdPreference(string exeName, string preference)
+    {
+        var game = _games.FindOne(g => g.ProcessName == exeName);
+        if (game == null) return false;
+
+        game.CcdPreference = preference;
+        _games.Update(game);
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the CCD preference for a game by exe name, or "Auto" if not found.
+    /// </summary>
+    public string GetCcdPreference(string exeName)
+    {
+        var game = _games.FindOne(g => g.ProcessName == exeName);
+        return game?.CcdPreference ?? "Auto";
+    }
+
+    public bool UpdateFallbackPin(string exeName, string fallbackPin)
+    {
+        var game = _games.FindOne(g => g.ProcessName == exeName);
+        if (game == null) return false;
+
+        game.FallbackCcdPin = fallbackPin;
+        _games.Update(game);
+        return true;
+    }
+
+    public string GetFallbackPin(string exeName)
+    {
+        var game = _games.FindOne(g => g.ProcessName == exeName);
+        return game?.FallbackCcdPin ?? "None";
+    }
+
+    /// <summary>
+    /// Returns all games that have a non-Auto CCD preference.
+    /// </summary>
+    public List<ScannedGame> GetGamesWithPreference()
+    {
+        return _games.Find(g => g.CcdPreference != "Auto").ToList();
+    }
 
     public void UpdateArtworkPath(int id, string path)
     {
@@ -170,7 +227,7 @@ public class GameDatabase : IDisposable
     {
         var cachePath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "X3DCCDOptimizer", "installed_games.json");
+            "X3DCCDInspector", "installed_games.json");
 
         if (!File.Exists(cachePath)) return;
         if (_games.Count() > 0) return; // Already migrated

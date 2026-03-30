@@ -1,7 +1,7 @@
-<Window x:Class="X3DCcdOptimizer.Views.OverlayWindow"
+<Window x:Class="X3DCcdInspector.Views.OverlayWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:converters="clr-namespace:X3DCcdOptimizer.Converters"
+        xmlns:converters="clr-namespace:X3DCcdInspector.Converters"
         Title="X3D Overlay"
         SizeToContent="WidthAndHeight"
         WindowStyle="None"
@@ -10,7 +10,7 @@
         ShowInTaskbar="False"
         ResizeMode="NoResize"
         Background="Transparent"
-        AutomationProperties.Name="CCD optimizer overlay">
+        AutomationProperties.Name="CCD inspector overlay">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>

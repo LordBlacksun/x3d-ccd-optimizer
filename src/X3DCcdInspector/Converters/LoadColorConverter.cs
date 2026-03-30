@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Data;
 using System.Windows.Media;
 
-namespace X3DCcdOptimizer.Converters;
+namespace X3DCcdInspector.Converters;
 
 public class LoadColorConverter : IValueConverter
 {

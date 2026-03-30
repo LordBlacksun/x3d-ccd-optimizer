@@ -3,7 +3,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Documents;
 
-namespace X3DCcdOptimizer.Views;
+namespace X3DCcdInspector.Views;
 
 public partial class AboutWindow : Window
 {

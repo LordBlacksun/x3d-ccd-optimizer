@@ -17,6 +17,7 @@
     <Color x:Key="AccentPurple">#9B6DFF</Color>
     <Color x:Key="AccentAmber">#FFB340</Color>
     <Color x:Key="AccentRed">#FF4545</Color>
+    <Color x:Key="AccentYellow">#FFD60A</Color>
 
     <!-- Core tile load colors — richer tints -->
     <Color x:Key="CoreIdle">#222226</Color>
@@ -48,6 +49,7 @@
     <SolidColorBrush x:Key="AccentPurpleBrush" Color="{StaticResource AccentPurple}"/>
     <SolidColorBrush x:Key="AccentAmberBrush" Color="{StaticResource AccentAmber}"/>
     <SolidColorBrush x:Key="AccentRedBrush" Color="{StaticResource AccentRed}"/>
+    <SolidColorBrush x:Key="AccentYellowBrush" Color="{StaticResource AccentYellow}"/>
 
     <SolidColorBrush x:Key="CoreIdleBrush" Color="{StaticResource CoreIdle}"/>
     <SolidColorBrush x:Key="CoreModerateBrush" Color="{StaticResource CoreModerate}"/>

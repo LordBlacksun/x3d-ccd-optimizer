@@ -1,7 +1,7 @@
 using System.Windows;
 using System.Windows.Media;
 
-namespace X3DCcdOptimizer.ViewModels;
+namespace X3DCcdInspector.ViewModels;
 
 public class ProcessEntryViewModel : ViewModelBase
 {

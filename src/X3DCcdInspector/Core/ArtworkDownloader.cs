@@ -2,7 +2,7 @@ using System.IO;
 using System.Net.Http;
 using Serilog;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 /// <summary>
 /// Downloads game box art from Steam's public CDN.
@@ -12,7 +12,7 @@ public static class ArtworkDownloader
 {
     private static readonly string ArtworkDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "X3DCCDOptimizer", "artwork");
+        "X3DCCDInspector", "artwork");
 
     private static readonly HttpClient HttpClient = new()
     {

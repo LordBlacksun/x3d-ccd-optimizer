@@ -1,4 +1,4 @@
-namespace X3DCcdOptimizer.Models;
+namespace X3DCcdInspector.Models;
 
 public record CoreSnapshot
 {

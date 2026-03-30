@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Text.Json;
 using Serilog;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 /// <summary>
 /// Checks for new releases via the GitHub Releases API.
@@ -33,7 +33,7 @@ public static class UpdateChecker
             if (currentVersion == null) return null;
 
             var request = new HttpRequestMessage(HttpMethod.Get, ReleasesUrl);
-            request.Headers.UserAgent.ParseAdd($"X3DCcdOptimizer/{currentVersion.ToString(3)}");
+            request.Headers.UserAgent.ParseAdd($"X3DCcdInspector/{currentVersion.ToString(3)}");
             request.Headers.Accept.ParseAdd("application/vnd.github+json");
 
             var response = await Http.SendAsync(request);
@@ -92,7 +92,7 @@ public static class UpdateChecker
             // Get the latest release asset URL
             var version = Assembly.GetExecutingAssembly().GetName().Version;
             var request = new HttpRequestMessage(HttpMethod.Get, ReleasesUrl);
-            request.Headers.UserAgent.ParseAdd($"X3DCcdOptimizer/{version?.ToString(3) ?? "0"}");
+            request.Headers.UserAgent.ParseAdd($"X3DCcdInspector/{version?.ToString(3) ?? "0"}");
             request.Headers.Accept.ParseAdd("application/vnd.github+json");
 
             var response = await Http.SendAsync(request, ct);
@@ -133,7 +133,7 @@ public static class UpdateChecker
             Log.Information("Downloading update from {Url}", downloadUrl);
 
             var downloadReq = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
-            downloadReq.Headers.UserAgent.ParseAdd($"X3DCcdOptimizer/{version?.ToString(3) ?? "0"}");
+            downloadReq.Headers.UserAgent.ParseAdd($"X3DCcdInspector/{version?.ToString(3) ?? "0"}");
             var downloadResp = await Http.SendAsync(downloadReq, HttpCompletionOption.ResponseHeadersRead, ct);
             downloadResp.EnsureSuccessStatusCode();
 
@@ -151,12 +151,12 @@ public static class UpdateChecker
                 onProgress("Extracting...");
                 System.IO.Compression.ZipFile.ExtractToDirectory(tempZip, tempDir);
 
-                var newExe = Directory.EnumerateFiles(tempDir, "X3DCcdOptimizer.exe", SearchOption.AllDirectories)
+                var newExe = Directory.EnumerateFiles(tempDir, "X3DCcdInspector.exe", SearchOption.AllDirectories)
                     .FirstOrDefault();
 
                 if (newExe == null)
                 {
-                    Log.Warning("Update ZIP does not contain X3DCcdOptimizer.exe");
+                    Log.Warning("Update ZIP does not contain X3DCcdInspector.exe");
                     return false;
                 }
 
@@ -168,7 +168,7 @@ public static class UpdateChecker
                     "Start-Sleep -Milliseconds 500\n" +
                     "$maxWait = 30\n" +
                     "$waited = 0\n" +
-                    "while ((Get-Process -Name 'X3DCcdOptimizer' -ErrorAction SilentlyContinue) -and $waited -lt $maxWait) {\n" +
+                    "while ((Get-Process -Name 'X3DCcdInspector' -ErrorAction SilentlyContinue) -and $waited -lt $maxWait) {\n" +
                     "    Start-Sleep -Seconds 1\n" +
                     "    $waited++\n" +
                     "}\n" +

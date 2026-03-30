@@ -1,7 +1,7 @@
-<Window x:Class="X3DCcdOptimizer.Views.AboutWindow"
+<Window x:Class="X3DCcdInspector.Views.AboutWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="About X3D CCD Optimizer"
+        Title="About X3D CCD Inspector"
         Width="480" Height="520"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterOwner"
@@ -20,7 +20,7 @@
 
         <!-- App name + version -->
         <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,8">
-            <TextBlock Text="X3D CCD Optimizer" FontSize="22" FontWeight="Bold"
+            <TextBlock Text="X3D CCD Inspector" FontSize="22" FontWeight="Bold"
                        Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
             <TextBlock x:Name="VersionText" FontSize="13"
                        Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center"

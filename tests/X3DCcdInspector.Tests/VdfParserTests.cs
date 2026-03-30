@@ -1,10 +1,10 @@
 using System.Reflection;
 using Xunit;
 
-namespace X3DCcdOptimizer.Tests;
+namespace X3DCcdInspector.Tests;
 
 /// <summary>
-/// Tests for the VdfParser internal class in X3DCcdOptimizer.Core.
+/// Tests for the VdfParser internal class in X3DCcdInspector.Core.
 /// Uses reflection to access the internal static Parse method.
 /// </summary>
 public class VdfParserTests
@@ -14,8 +14,8 @@ public class VdfParserTests
 
     static VdfParserTests()
     {
-        var assembly = typeof(X3DCcdOptimizer.Core.GameLibraryScanner).Assembly;
-        VdfParserType = assembly.GetType("X3DCcdOptimizer.Core.VdfParser")!;
+        var assembly = typeof(X3DCcdInspector.Core.GameLibraryScanner).Assembly;
+        VdfParserType = assembly.GetType("X3DCcdInspector.Core.VdfParser")!;
         ParseMethod = VdfParserType.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static)!;
     }
 

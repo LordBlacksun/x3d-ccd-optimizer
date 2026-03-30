@@ -1,8 +1,8 @@
 using System.Windows;
 using System.Windows.Media;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.ViewModels;
+namespace X3DCcdInspector.ViewModels;
 
 public class LogEntryViewModel
 {
@@ -24,31 +24,23 @@ public class LogEntryViewModel
             ? evt.Detail
             : $"{displayProcess} {evt.Detail}";
 
-        IsMonitorAction = evt.Action is AffinityAction.WouldEngage
-            or AffinityAction.WouldMigrate
-            or AffinityAction.WouldRestore
-            or AffinityAction.WouldSetDriver
-            or AffinityAction.WouldRestoreDriver
-            or AffinityAction.DetectionSkipped;
-
+        IsMonitorAction = evt.Action is AffinityAction.DetectionSkipped or AffinityAction.CcdObservation;
         FontStyle = IsMonitorAction ? System.Windows.FontStyles.Italic : System.Windows.FontStyles.Normal;
         Opacity = IsMonitorAction ? 0.7 : 1.0;
 
         (ActionText, ActionColor) = evt.Action switch
         {
-            AffinityAction.Engaged => ("ENGAGE", FindBrush("AccentGreenBrush")),
-            AffinityAction.Migrated => ("MIGRATE", FindBrush("AccentGreenBrush")),
-            AffinityAction.Restored => ("RESTORE", FindBrush("AccentBlueBrush")),
-            AffinityAction.Skipped => ("SKIP", FindBrush("AccentAmberBrush")),
+            AffinityAction.GameDetected => ("DETECTED", FindBrush("AccentGreenBrush")),
+            AffinityAction.GameExited => ("EXITED", FindBrush("AccentBlueBrush")),
             AffinityAction.Error => ("ERROR", FindBrush("AccentRedBrush")),
-            AffinityAction.WouldEngage => ("[MONITOR] WOULD ENGAGE", FindBrush("AccentBlueBrush")),
-            AffinityAction.WouldMigrate => ("[MONITOR] WOULD MIGRATE", FindBrush("AccentBlueBrush")),
-            AffinityAction.WouldRestore => ("[MONITOR] WOULD RESTORE", FindBrush("AccentBlueBrush")),
-            AffinityAction.DriverSet => ("DRIVER SET", FindBrush("AccentGreenBrush")),
-            AffinityAction.DriverRestored => ("DRIVER RESTORE", FindBrush("AccentBlueBrush")),
-            AffinityAction.WouldSetDriver => ("[MONITOR] WOULD SET DRIVER", FindBrush("AccentBlueBrush")),
-            AffinityAction.WouldRestoreDriver => ("[MONITOR] WOULD RESTORE DRIVER", FindBrush("AccentBlueBrush")),
             AffinityAction.DetectionSkipped => ("[AUTO] BELOW THRESHOLD", FindBrush("TextTertiaryBrush")),
+            AffinityAction.DriverStateChanged => ("DRIVER STATE", FindBrush("AccentAmberBrush")),
+            AffinityAction.GameBarStatus => ("GAME BAR", FindBrush("AccentPurpleBrush")),
+            AffinityAction.CcdObservation => ("CCD", FindBrush("AccentBlueBrush")),
+            AffinityAction.CcdPreferenceSet => ("CCD PREF", FindBrush("AccentGreenBrush")),
+            AffinityAction.CcdPreferenceRemoved => ("CCD PREF", FindBrush("AccentAmberBrush")),
+            AffinityAction.AffinityPinApplied => ("AFFINITY PIN", FindBrush("AccentGreenBrush")),
+            AffinityAction.AffinityPinRestored => ("AFFINITY PIN", FindBrush("AccentBlueBrush")),
             _ => ("UNKNOWN", FindBrush("TextSecondaryBrush"))
         };
     }
