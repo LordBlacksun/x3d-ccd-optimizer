@@ -108,8 +108,16 @@ public class MainViewModel : ViewModelBase
     public string UpdateText
     {
         get => _updateText;
-        set => SetProperty(ref _updateText, value);
+        set
+        {
+            if (SetProperty(ref _updateText, value))
+                OnPropertyChanged(nameof(UpdateVisible));
+        }
     }
+
+    public bool UpdateVisible => !string.IsNullOrEmpty(_updateText);
+
+    public RelayCommand ApplyUpdateCommand { get; }
 
     public string FooterText { get; }
 
@@ -193,6 +201,30 @@ public class MainViewModel : ViewModelBase
 
             var aboutWindow = new Views.AboutWindow();
             aboutWindow.Show();
+        });
+
+        ApplyUpdateCommand = new RelayCommand(() =>
+        {
+            var originalText = _updateText;
+            Task.Run(async () =>
+            {
+                var success = await Core.UpdateChecker.DownloadAndApply(
+                    status => Application.Current?.Dispatcher.BeginInvoke(() => UpdateText = status));
+
+                if (success)
+                {
+                    Application.Current?.Dispatcher.BeginInvoke(() =>
+                    {
+                        UpdateText = "Restarting...";
+                        Application.Current.Shutdown();
+                    });
+                }
+                else
+                {
+                    Application.Current?.Dispatcher.BeginInvoke(() =>
+                        UpdateText = originalText);
+                }
+            });
         });
 
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };

@@ -1,4 +1,4 @@
-# X3D Dual CCD Optimizer — Project Blueprint
+# X3D CCD Inspector — Project Blueprint
 
 **Version:** 1.0.0
 **Author:** LordBlacksun
@@ -24,7 +24,7 @@ On Linux, AMD contributed a proper kernel-level driver (`amd_x3d_vcache`, kernel
 
 Beyond the affinity problem, there is no Windows tool that simply lets you *see* what your dual-CCD processor is doing — which cores are active, which CCD a game is running on, whether AMD's built-in parking is even working. Users have to cross-reference Task Manager, HWiNFO, and Process Lasso to piece together a picture of their CCD behaviour. A real-time visual dashboard that makes CCD activity transparent would be valuable even if it never touched a single process affinity.
 
-**X3D Dual CCD Optimizer fills both gaps** — it provides a real-time visual dashboard that makes CCD activity transparent, AND optionally manages process affinity to route games to the V-Cache CCD.
+**X3D CCD Inspector fills both gaps** — it provides a real-time visual dashboard that makes CCD activity transparent, AND optionally manages process affinity to route games to the V-Cache CCD.
 
 ---
 
@@ -133,7 +133,7 @@ Users start in Monitor mode, observe the tool's behaviour, build trust, and enab
                                 │
 ┌───────────────────────────────▼───────────────────────────────────┐
 │                      Configuration                                 │
-│   JSON config v3 at %APPDATA%\X3DCCDOptimizer\config.json          │
+│   JSON config v3 at %APPDATA%\X3DCCDInspector\config.json          │
 │   Includes overlay, auto-detection with debounce, operation mode   │
 └────────────────────────────────────────────────────────────────────┘
 ```
@@ -409,7 +409,7 @@ When a game exits — disengage:
 
 #### Protected Processes (never touched in either mode)
 
-Hardcoded: `System`, `Idle`, `csrss`, `smss`, `services`, `wininit`, `lsass`, `winlogon`, `dwm`, `audiodg`, `fontdrvhost`, `Registry`, `Memory Compression`, `svchost`, `X3DCcdOptimizer`
+Hardcoded: `System`, `Idle`, `csrss`, `smss`, `services`, `wininit`, `lsass`, `winlogon`, `dwm`, `audiodg`, `fontdrvhost`, `Registry`, `Memory Compression`, `svchost`, `X3DCcdInspector`
 
 Additionally: PID 0 and PID 4 are always skipped. User-defined `protectedProcesses` list in config (default: `audiodg.exe`, `svchost.exe`).
 
@@ -561,7 +561,7 @@ public enum AffinityAction
 - "Open Dashboard"
 - "Show Overlay" / "Hide Overlay" (toggles)
 - Separator
-- "View Log File..." (opens `%APPDATA%\X3DCCDOptimizer\logs` in Explorer)
+- "View Log File..." (opens `%APPDATA%\X3DCCDInspector\logs` in Explorer)
 - "About" (version dialog)
 - Separator
 - "Exit"
@@ -584,7 +584,7 @@ public enum AffinityAction
 
 ### 4.11 Configuration (`Config/AppConfig.cs` + `config.json`)
 
-**Config file location:** `%APPDATA%\X3DCCDOptimizer\config.json`
+**Config file location:** `%APPDATA%\X3DCCDInspector\config.json`
 
 **Schema version:** 3
 
@@ -678,7 +678,7 @@ public enum AffinityAction
 
 **Implementation:** Serilog with dual sinks:
 - **Console sink:** For development and debugging
-- **File sink:** Rotating log file at `%APPDATA%\X3DCCDOptimizer\logs\`, configurable max size, configurable log level
+- **File sink:** Rotating log file at `%APPDATA%\X3DCCDInspector\logs\`, configurable max size, configurable log level
 
 **Structured logging:** All log entries use Serilog's structured format with named properties.
 
@@ -704,7 +704,7 @@ public enum AffinityAction
 ### Self-Contained Deployment
 
 ```bash
-dotnet publish src/X3DCcdOptimizer -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+dotnet publish src/X3DCcdInspector -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
 Single .exe, currently ~155MB (includes .NET runtime + WPF dependencies). Trimming planned for Phase 4 to reduce size. No prerequisites on target machine.
@@ -841,8 +841,8 @@ Planned additions:
 ```
 x3d-ccd-optimizer/
 ├── src/
-│   └── X3DCcdOptimizer/
-│       ├── X3DCcdOptimizer.csproj
+│   └── X3DCcdInspector/
+│       ├── X3DCcdInspector.csproj
 │       ├── App.xaml                        # WPF Application definition
 │       ├── App.xaml.cs                     # Entry point, engine wiring, hotkey
 │       │
@@ -910,10 +910,10 @@ x3d-ccd-optimizer/
 │           └── known_games.json           # 65-game database
 │
 ├── tests/
-│   └── X3DCcdOptimizer.Tests/
-│       └── X3DCcdOptimizer.Tests.csproj
+│   └── X3DCcdInspector.Tests/
+│       └── X3DCcdInspector.Tests.csproj
 │
-├── X3DCcdOptimizer.sln
+├── X3DCcdInspector.sln
 ├── X3D_CCD_OPTIMIZER_BLUEPRINT.md         # This file — project spec
 ├── CLAUDE.md                              # AI assistant instructions
 ├── CONTRIBUTING.md
@@ -1248,4 +1248,4 @@ Each CCD panel has a 3px accent-coloured left edge stripe:
 
 ---
 
-*This document is the single source of truth for the X3D Dual CCD Optimizer project. All implementation decisions reference this blueprint.*
+*This document is the single source of truth for the X3D CCD Inspector project. All implementation decisions reference this blueprint.*

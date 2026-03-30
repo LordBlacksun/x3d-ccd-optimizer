@@ -20,7 +20,7 @@ namespace X3DCcdOptimizer;
 
 public partial class App : System.Windows.Application
 {
-    private const string Version = "1.0.0";
+    private const string Version = "1.0.0-beta";
     private const int HotkeyId = 9001;
 
     private AppConfig _config = null!;
@@ -223,10 +223,19 @@ public partial class App : System.Windows.Application
         }
 
         // Game library database (LiteDB)
-        _gameDb = new GameDatabase();
-        _gameDb.MigrateFromJsonCache();
-        _gameDb.Deduplicate();
-        var launcherGames = _gameDb.ToDictionary();
+        var launcherGames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            _gameDb = new GameDatabase();
+            _gameDb.MigrateFromJsonCache();
+            _gameDb.PurgeLegacyEntries();
+            _gameDb.Deduplicate();
+            launcherGames = _gameDb.ToDictionary();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to initialize game database — continuing without library data");
+        }
 
         // Engine
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
@@ -244,7 +253,8 @@ public partial class App : System.Windows.Application
         _mainViewModel = new MainViewModel(
             _topology, _perfMon, _processWatcher, _gameDetector, _affinityManager, _config,
             powerPlanWarning);
-        _mainViewModel.InitGameLibrary(_gameDb, _config.ExcludedProcesses);
+        if (_gameDb != null)
+            _mainViewModel.InitGameLibrary(_gameDb, _config.ExcludedProcesses);
         _overlayViewModel = new OverlayViewModel(_topology, _config.Overlay);
 
         // Dashboard

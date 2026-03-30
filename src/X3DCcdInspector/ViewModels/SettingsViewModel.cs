@@ -293,9 +293,9 @@ public class SettingsViewModel : ViewModelBase
         // Populate game list with display names resolved from scanned games
         foreach (var g in config.ManualGames)
         {
-            var displayName = _scannedGamesList
-                .FirstOrDefault(k => string.Equals(k.Exe, g, StringComparison.OrdinalIgnoreCase))
-                .DisplayName;
+            var match = _scannedGamesList
+                .FirstOrDefault(k => string.Equals(k.Exe, g, StringComparison.OrdinalIgnoreCase));
+            var displayName = string.IsNullOrEmpty(match.DisplayName) ? null : match.DisplayName;
             ManualGames.Add(new GameDisplayItem(g, displayName));
         }
 
@@ -312,9 +312,9 @@ public class SettingsViewModel : ViewModelBase
                     game += ".exe";
                 if (!ManualGames.Any(g => string.Equals(g.Exe, game, StringComparison.OrdinalIgnoreCase)))
                 {
-                    var displayName = _scannedGamesList
-                        .FirstOrDefault(k => string.Equals(k.Exe, game, StringComparison.OrdinalIgnoreCase))
-                        .DisplayName;
+                    var match = _scannedGamesList
+                        .FirstOrDefault(k => string.Equals(k.Exe, game, StringComparison.OrdinalIgnoreCase));
+                    var displayName = string.IsNullOrEmpty(match.DisplayName) ? null : match.DisplayName;
                     ManualGames.Add(new GameDisplayItem(game, displayName));
                 }
                 NewGameText = "";

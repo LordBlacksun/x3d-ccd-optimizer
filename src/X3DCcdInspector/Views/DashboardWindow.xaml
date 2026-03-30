@@ -313,9 +313,14 @@
                 </StackPanel>
                 <TextBlock Text="{Binding FooterText}" Style="{StaticResource HintText}"
                            VerticalAlignment="Center"/>
-                <TextBlock Text="{Binding UpdateText}" FontSize="10" FontWeight="SemiBold"
-                           Foreground="{StaticResource AccentGreenBrush}" VerticalAlignment="Center"
-                           Margin="8,0,0,0"/>
+                <Button Command="{Binding ApplyUpdateCommand}"
+                        Visibility="{Binding UpdateVisible, Converter={StaticResource BoolToVis}}"
+                        Style="{StaticResource SubtleButtonStyle}"
+                        Foreground="{StaticResource AccentGreenBrush}"
+                        FontSize="10" FontWeight="SemiBold" Padding="8,3" Margin="8,0,0,0"
+                        AutomationProperties.Name="Download and install update">
+                    <TextBlock Text="{Binding UpdateText}"/>
+                </Button>
             </DockPanel>
         </StackPanel>
     </Grid>

@@ -12,7 +12,9 @@ public class PerformanceMonitor : IDisposable
     private IntPtr _queryHandle;
     private readonly IntPtr[] _loadCounters;
     private readonly IntPtr[] _freqCounters;
+    private readonly IntPtr[] _perfCounters;
     private readonly bool[] _freqAvailable;
+    private readonly bool[] _perfAvailable;
     private readonly bool[] _loadAvailable;
     private readonly object _disposeLock = new();
     private volatile bool _disposed;
@@ -25,7 +27,9 @@ public class PerformanceMonitor : IDisposable
         _topology = topology;
         _loadCounters = new IntPtr[topology.TotalLogicalCores];
         _freqCounters = new IntPtr[topology.TotalLogicalCores];
+        _perfCounters = new IntPtr[topology.TotalLogicalCores];
         _freqAvailable = new bool[topology.TotalLogicalCores];
+        _perfAvailable = new bool[topology.TotalLogicalCores];
         _loadAvailable = new bool[topology.TotalLogicalCores];
 
         InitializePdhCounters();
@@ -78,7 +82,7 @@ public class PerformanceMonitor : IDisposable
                 }
             }
 
-            // Read frequency
+            // Read frequency — effective MHz = base freq × (% performance / 100)
             if (_freqAvailable[i])
             {
                 status = Pdh.PdhGetFormattedCounterValue(
@@ -87,6 +91,19 @@ public class PerformanceMonitor : IDisposable
                     (freqVal.CStatus == Pdh.PDH_CSTATUS_VALID_DATA || freqVal.CStatus == Pdh.PDH_CSTATUS_NEW_DATA))
                 {
                     freq = freqVal.doubleValue;
+
+                    // Scale by % Processor Performance to get actual boost frequency
+                    if (_perfAvailable[i])
+                    {
+                        var perfStatus = Pdh.PdhGetFormattedCounterValue(
+                            _perfCounters[i], Pdh.PDH_FMT_DOUBLE, out _, out var perfVal);
+                        if (perfStatus == 0 &&
+                            (perfVal.CStatus == Pdh.PDH_CSTATUS_VALID_DATA || perfVal.CStatus == Pdh.PDH_CSTATUS_NEW_DATA) &&
+                            perfVal.doubleValue > 0)
+                        {
+                            freq = freq * perfVal.doubleValue / 100.0;
+                        }
+                    }
                 }
             }
 
@@ -151,12 +168,17 @@ public class PerformanceMonitor : IDisposable
             }
             _loadAvailable[i] = status == 0;
 
-            // Frequency counter
+            // Frequency counter (base/nominal)
             string freqPath = $@"\Processor Information(0,{i})\Processor Frequency";
             status = Pdh.PdhAddEnglishCounter(_queryHandle, freqPath, IntPtr.Zero, out _freqCounters[i]);
             _freqAvailable[i] = status == 0;
             if (status != 0)
                 Log.Debug("Frequency counter not available for core {Core}", i);
+
+            // Performance counter (% of nominal — used to compute effective boost frequency)
+            string perfPath = $@"\Processor Information(0,{i})\% Processor Performance";
+            status = Pdh.PdhAddEnglishCounter(_queryHandle, perfPath, IntPtr.Zero, out _perfCounters[i]);
+            _perfAvailable[i] = status == 0;
         }
     }
 
