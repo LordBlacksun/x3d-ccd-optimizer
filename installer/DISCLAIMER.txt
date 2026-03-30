@@ -1,6 +1,6 @@
 DISCLAIMER
 
-X3D CCD Optimizer modifies CPU affinity and/or AMD driver registry
+X3D CCD Inspector modifies CPU affinity and/or AMD driver registry
 preferences to optimize CCD scheduling. While these are standard
 Windows and AMD features, the developer provides this software as-is
 with no warranty.

@@ -33,7 +33,7 @@ What actually happened.
 
 ## Log file
 
-Attach the log file from `%APPDATA%\X3DCCDOptimizer\logs\` if available. Logs contain no sensitive data — only process names, core assignments, and timestamps.
+Attach the log file from `%APPDATA%\X3DCCDInspector\logs\` if available. Logs contain no sensitive data — only process names, core assignments, and timestamps.
 
 ## Screenshots
 

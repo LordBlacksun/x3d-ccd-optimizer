@@ -1,7 +1,7 @@
 """
 Generate PDF user manual from wiki markdown pages.
 Usage: python generate_manual.py
-Output: X3D-CCD-Optimizer-User-Manual.pdf in the same directory
+Output: X3D-CCD-Inspector-User-Manual.pdf in the same directory
 Requires: pip install markdown fpdf2
 """
 import os
@@ -12,8 +12,8 @@ from html.parser import HTMLParser
 
 
 WIKI_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "wiki docs", "X3D-CCD-Optimizer.wiki")
-OUTPUT_PDF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "X3D-CCD-Optimizer-User-Manual.pdf")
-OUTPUT_HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "X3D-CCD-Optimizer-User-Manual.html")
+OUTPUT_PDF = os.path.join(os.path.dirname(os.path.abspath(__file__)), "X3D-CCD-Inspector-User-Manual.pdf")
+OUTPUT_HTML = os.path.join(os.path.dirname(os.path.abspath(__file__)), "X3D-CCD-Inspector-User-Manual.html")
 
 # Pages in logical reading order
 PAGES = [
@@ -70,7 +70,7 @@ class ManualPDF(FPDF):
         if self.page_no() > 2:  # Skip cover and TOC
             self.set_font("Helvetica", "I", 8)
             self.set_text_color(150, 150, 150)
-            self.cell(0, 8, "X3D CCD Optimizer - User Manual", align="R")
+            self.cell(0, 8, "X3D CCD Inspector - User Manual", align="R")
             self.ln(4)
 
     def footer(self):
@@ -85,7 +85,7 @@ class ManualPDF(FPDF):
         self.ln(80)
         self.set_font("Helvetica", "B", 32)
         self.set_text_color(26, 26, 46)
-        self.cell(0, 16, "X3D CCD Optimizer", align="C", new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 16, "X3D CCD Inspector", align="C", new_x="LMARGIN", new_y="NEXT")
         self.ln(4)
         self.set_font("Helvetica", "", 16)
         self.set_text_color(100, 100, 100)
@@ -470,7 +470,7 @@ def build_html():
     .cover h1 { border: none; font-size: 2.5em; }
     """
     parts = [f"<html><head><meta charset='utf-8'><style>{css}</style></head><body>"]
-    parts.append("<div class='cover'><h1>X3D CCD Optimizer</h1><p>User Manual</p><p>Version 1.0.0-beta</p></div>")
+    parts.append("<div class='cover'><h1>X3D CCD Inspector</h1><p>User Manual</p><p>Version 1.0.0-beta</p></div>")
 
     for filename, title in PAGES:
         content = read_page(filename)

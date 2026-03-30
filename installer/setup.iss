@@ -1,8 +1,8 @@
-; X3D CCD Optimizer — Inno Setup Script
+; X3D CCD Inspector — Inno Setup Script
 ; Requires Inno Setup 6.x (https://jrsoftware.org/isinfo.php)
 ;
 ; Build prerequisites:
-;   1. Publish the app: dotnet publish src/X3DCcdOptimizer -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
+;   1. Publish the app: dotnet publish src/X3DCcdInspector -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish
 ;   2. Run Inno Setup Compiler on this script (or: iscc installer/setup.iss)
 ;
 ; The script expects files relative to the repo root. Run from the repo root
@@ -12,11 +12,11 @@
   #define SourceRoot ".."
 #endif
 
-#define MyAppName "X3D CCD Optimizer"
+#define MyAppName "X3D CCD Inspector"
 #define MyAppVersion "1.0.0-beta"
 #define MyAppPublisher "LordBlacksun"
 #define MyAppURL "https://github.com/LordBlacksun/x3d-ccd-optimizer"
-#define MyAppExeName "X3DCcdOptimizer.exe"
+#define MyAppExeName "X3DCcdInspector.exe"
 
 [Setup]
 AppId={{B7F3A2E1-5D4C-4E8B-9F1A-3C6D8E2B7A50}
@@ -27,13 +27,13 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}/issues
 AppUpdatesURL={#MyAppURL}/releases
-DefaultDirName={autopf}\X3DCcdOptimizer
+DefaultDirName={autopf}\X3DCcdInspector
 DefaultGroupName={#MyAppName}
 LicenseFile={#SourceRoot}\LICENSE
 InfoBeforeFile={#SourceRoot}\installer\DISCLAIMER.txt
 OutputDir={#SourceRoot}\installer\output
-OutputBaseFilename=X3DCcdOptimizer-Setup-{#MyAppVersion}
-SetupIconFile={#SourceRoot}\src\X3DCcdOptimizer\Resources\app.ico
+OutputBaseFilename=X3DCcdInspector-Setup-{#MyAppVersion}
+SetupIconFile={#SourceRoot}\src\X3DCcdInspector\Resources\app.ico
 UninstallDisplayIcon={app}\app.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
@@ -51,10 +51,10 @@ Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription
 
 [Files]
 ; Main executable (from publish output)
-Source: "{#SourceRoot}\publish\X3DCcdOptimizer.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceRoot}\publish\X3DCcdInspector.exe"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Resources
-Source: "{#SourceRoot}\src\X3DCcdOptimizer\Resources\app.ico"; DestDir: "{app}"; Flags: ignoreversion
+Source: "{#SourceRoot}\src\X3DCcdInspector\Resources\app.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Documentation
 Source: "{#SourceRoot}\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
@@ -88,11 +88,11 @@ var
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    AppDataDir := ExpandConstant('{userappdata}\X3DCCDOptimizer');
+    AppDataDir := ExpandConstant('{userappdata}\X3DCCDInspector');
     RunKey := 'Software\Microsoft\Windows\CurrentVersion\Run';
 
     // Remove Start with Windows registry entry if present
-    RegDeleteValue(HKEY_CURRENT_USER, RunKey, 'X3DCCDOptimizer');
+    RegDeleteValue(HKEY_CURRENT_USER, RunKey, 'X3DCCDInspector');
 
     // Ask about user data
     if DirExists(AppDataDir) then

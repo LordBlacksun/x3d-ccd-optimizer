@@ -29,12 +29,12 @@ jobs:
 
       - name: Publish (framework-dependent single-file)
         run: >
-          dotnet publish src/X3DCcdOptimizer/X3DCcdOptimizer.csproj
+          dotnet publish src/X3DCcdInspector/X3DCcdInspector.csproj
           -c Release -r win-x64 --self-contained false
           -p:PublishSingleFile=true -o ./publish
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: X3DCcdOptimizer-win-x64
+          name: X3DCcdInspector-win-x64
           path: ./publish/

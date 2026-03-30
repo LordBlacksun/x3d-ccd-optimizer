@@ -30,7 +30,7 @@ jobs:
 
       - name: Publish (self-contained single-file)
         run: >
-          dotnet publish src/X3DCcdOptimizer/X3DCcdOptimizer.csproj
+          dotnet publish src/X3DCcdInspector/X3DCcdInspector.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
@@ -45,7 +45,7 @@ jobs:
       #   uses: actions/upload-artifact@v4
       #   with:
       #     name: unsigned-exe
-      #     path: ./publish/X3DCcdOptimizer.exe
+      #     path: ./publish/X3DCcdInspector.exe
       #
       # - name: Sign with SignPath
       #   uses: signpath/github-action-submit-signing-request@v1
@@ -63,10 +63,10 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ github.ref_name }}"
-          $zipName = "X3DCcdOptimizer-${tag}-win-x64.zip"
+          $zipName = "X3DCcdInspector-${tag}-win-x64.zip"
 
           New-Item -ItemType Directory -Path ./release-staging -Force
-          Copy-Item ./publish/X3DCcdOptimizer.exe ./release-staging/
+          Copy-Item ./publish/X3DCcdInspector.exe ./release-staging/
           Copy-Item ./LICENSE ./release-staging/ -ErrorAction SilentlyContinue
           Copy-Item ./README.md ./release-staging/
 
