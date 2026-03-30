@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace X3DCcdOptimizer.Native;
+namespace X3DCcdInspector.Native;
 
 internal static class Pdh
 {

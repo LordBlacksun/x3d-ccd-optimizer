@@ -1,4 +1,4 @@
-namespace X3DCcdOptimizer.Views;
+namespace X3DCcdInspector.Views;
 
 public partial class CoreTile : System.Windows.Controls.UserControl
 {

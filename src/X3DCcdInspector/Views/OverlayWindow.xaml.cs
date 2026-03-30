@@ -4,11 +4,11 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
-using X3DCcdOptimizer.Config;
-using X3DCcdOptimizer.Models;
-using X3DCcdOptimizer.ViewModels;
+using X3DCcdInspector.Config;
+using X3DCcdInspector.Models;
+using X3DCcdInspector.ViewModels;
 
-namespace X3DCcdOptimizer.Views;
+namespace X3DCcdInspector.Views;
 
 public partial class OverlayWindow : Window
 {
@@ -214,17 +214,6 @@ public partial class OverlayWindow : Window
             }
         };
         menu.Items.Add(dashboardItem);
-
-        var toggleItem = new MenuItem { Header = "Toggle Mode" };
-        toggleItem.Click += (_, _) =>
-        {
-            if (Tag is Window { DataContext: MainViewModel mainVm })
-            {
-                if (mainVm.IsOptimizeEnabled)
-                    mainVm.IsOptimizeMode = !mainVm.IsOptimizeMode;
-            }
-        };
-        menu.Items.Add(toggleItem);
 
         menu.Items.Add(new Separator());
 

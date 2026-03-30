@@ -1,22 +1,21 @@
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Management;
 using System.Security.Principal;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using Serilog;
-using X3DCcdOptimizer.Config;
-using X3DCcdOptimizer.Core;
-using X3DCcdOptimizer.Logging;
-using X3DCcdOptimizer.Models;
-using X3DCcdOptimizer.Native;
-using X3DCcdOptimizer.ViewModels;
-using X3DCcdOptimizer.Views;
-using X3DCcdOptimizer.Tray;
+using X3DCcdInspector.Config;
+using X3DCcdInspector.Core;
+using X3DCcdInspector.Logging;
+using X3DCcdInspector.Models;
+using X3DCcdInspector.Native;
+using X3DCcdInspector.ViewModels;
+using X3DCcdInspector.Views;
+using X3DCcdInspector.Tray;
 
-namespace X3DCcdOptimizer;
+namespace X3DCcdInspector;
 
 public partial class App : System.Windows.Application
 {
@@ -30,6 +29,7 @@ public partial class App : System.Windows.Application
     private AffinityManager? _affinityManager;
     private GameDetector? _gameDetector;
     private GpuMonitor? _gpuMonitor;
+    private SystemStateMonitor? _systemStateMonitor;
     private MainViewModel? _mainViewModel;
     private OverlayViewModel? _overlayViewModel;
     private DashboardWindow? _dashboardWindow;
@@ -47,7 +47,7 @@ public partial class App : System.Windows.Application
         _singleInstanceMutex = new Mutex(true, @"Global\{B7F3A2E1-5D4C-4E8B-9F1A-3C6D8E2B7A50}", out var createdNew);
         if (!createdNew)
         {
-            MessageBox.Show("X3D CCD Optimizer is already running.",
+            MessageBox.Show("X3D CCD Inspector is already running.",
                 "Already Running", MessageBoxButton.OK, MessageBoxImage.Information);
             Shutdown();
             return;
@@ -57,7 +57,7 @@ public partial class App : System.Windows.Application
         if (!IsRunningAsAdministrator())
         {
             var result = MessageBox.Show(
-                "X3D CCD Optimizer requires administrator privileges to manage CPU affinity on running processes.\n\n" +
+                "X3D CCD Inspector requires administrator privileges to manage CPU affinity on running processes.\n\n" +
                 "Would you like to restart with elevated permissions?",
                 "Administrator Required",
                 MessageBoxButton.YesNo, MessageBoxImage.Warning);
@@ -107,7 +107,7 @@ public partial class App : System.Windows.Application
         _config = AppConfig.Load();
         _config.Validate();
         AppLogger.Initialize(_config.Logging.Level);
-        Log.Information("X3D Dual CCD Optimizer v{Version}", Version);
+        Log.Information("X3D CCD Inspector v{Version}", Version);
 
         // First-launch admin trust dialog
         if (!_config.HasDismissedAdminDialog)
@@ -131,7 +131,7 @@ public partial class App : System.Windows.Application
                 "This application requires an AMD Ryzen processor with identifiable L3 cache topology.\n\n" +
                 "It is not compatible with Intel or older AMD processors.\n\n" +
                 "If you believe this is an error, check the log file for details.",
-                "X3D CCD Optimizer — Startup Error",
+                "X3D CCD Inspector — Startup Error",
                 MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown();
             return;
@@ -155,59 +155,6 @@ public partial class App : System.Windows.Application
             ShowUnsupportedProcessorDialog(_topology);
             Shutdown();
             return;
-        }
-
-        var mode = _config.GetOperationMode();
-
-        // Tier-aware default strategy (on first run, set optimal default)
-        if (_config.IsFirstRun)
-        {
-            var defaultStrategy = _topology.Tier switch
-            {
-                ProcessorTier.DualCcdX3D when VCacheDriverManager.IsDriverAvailable => "driverPreference",
-                _ => "affinityPinning"
-            };
-            _config.OptimizeStrategy = defaultStrategy;
-            Log.Information("First run — default strategy set to {Strategy} for {Tier}", defaultStrategy, _topology.Tier);
-        }
-
-        var strategy = _config.GetOptimizeStrategy();
-        if (strategy == OptimizeStrategy.DriverPreference && !VCacheDriverManager.IsDriverAvailable)
-        {
-            Log.Warning("Config says DriverPreference but amd3dvcache driver not detected — falling back to AffinityPinning");
-            strategy = OptimizeStrategy.AffinityPinning;
-        }
-        if (strategy == OptimizeStrategy.DriverPreference &&
-            _topology.Tier is not ProcessorTier.DualCcdX3D)
-        {
-            Log.Warning("DriverPreference requires X3D processor — falling back to AffinityPinning");
-            strategy = OptimizeStrategy.AffinityPinning;
-        }
-
-        // Power plan check for Driver Preference (ZC-002)
-        string? powerPlanWarning = null;
-        if (strategy == OptimizeStrategy.DriverPreference)
-        {
-            try
-            {
-                using var searcher = new ManagementObjectSearcher(
-                    @"root\cimv2\power", "SELECT ElementName FROM Win32_PowerPlan WHERE IsActive=True");
-                searcher.Options.Timeout = TimeSpan.FromSeconds(5);
-                foreach (var obj in searcher.Get())
-                {
-                    var planName = obj["ElementName"]?.ToString() ?? "";
-                    if (!planName.Contains("Balanced", StringComparison.OrdinalIgnoreCase))
-                    {
-                        powerPlanWarning = $"Power plan '{planName}' detected \u2014 Balanced recommended for Driver Preference";
-                        Log.Warning("Active power plan is '{Plan}' — Balanced recommended for Driver Preference strategy", planName);
-                    }
-                    break;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Debug("Power plan query failed: {Error}", ex.Message);
-            }
         }
 
         // Offer new default exclusions if any are missing from user's config
@@ -241,20 +188,25 @@ public partial class App : System.Windows.Application
         _perfMon = new PerformanceMonitor(_topology, _config.DashboardRefreshMs);
         _gpuMonitor = new GpuMonitor();
         _gameDetector = new GameDetector(_config.ManualGames, _config.ExcludedProcesses, launcherGames, _config.BackgroundApps);
-        _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses, mode, strategy, _config.BackgroundApps);
-        _affinityManager.UpdateGameProfiles(_config.GameProfiles);
+        _affinityManager = new AffinityManager(_topology, _config.ProtectedProcesses);
         _processWatcher = new ProcessWatcher(
             _gameDetector, _config.PollingIntervalMs, _config.AutoDetection.RequireForeground,
             _config.AutoDetection.Enabled, _config.AutoDetection.GpuThresholdPercent,
             _config.AutoDetection.DetectionDelaySeconds, _config.AutoDetection.ExitDelaySeconds,
             _gpuMonitor);
 
+        // System state monitor (polls driver, Game Bar, thread CCD mapping, foreground)
+        _systemStateMonitor = new SystemStateMonitor(_topology);
+
         // ViewModels
         _mainViewModel = new MainViewModel(
-            _topology, _perfMon, _processWatcher, _gameDetector, _affinityManager, _config,
-            powerPlanWarning);
+            _topology, _perfMon, _processWatcher, _gameDetector, _affinityManager, _config);
         if (_gameDb != null)
+        {
             _mainViewModel.InitGameLibrary(_gameDb, _config.ExcludedProcesses);
+            // Sync LiteDB CCD preferences with AMD driver registry
+            VCacheDriverManager.SyncAppProfiles(_gameDb);
+        }
         _overlayViewModel = new OverlayViewModel(_topology, _config.Overlay);
 
         // Dashboard
@@ -281,9 +233,9 @@ public partial class App : System.Windows.Application
                     _overlayWindow.Hide();
                 }
             }
-            else if (e.PropertyName is nameof(MainViewModel.CurrentMode) or nameof(MainViewModel.IsGameActive))
+            else if (e.PropertyName is nameof(MainViewModel.IsGameActive))
             {
-                _overlayViewModel.OnModeChanged(_mainViewModel.CurrentMode, _mainViewModel.IsGameActive);
+                _overlayViewModel.OnGameActiveChanged(_mainViewModel.IsGameActive);
             }
         };
 
@@ -299,18 +251,38 @@ public partial class App : System.Windows.Application
         _processWatcher.GameDetected += _affinityManager.OnGameDetected;
         _processWatcher.GameDetected += _mainViewModel.OnGameDetected;
         _processWatcher.GameDetected += _overlayViewModel.OnGameDetected;
+        _processWatcher.GameDetected += _systemStateMonitor.OnGameDetected;
         _processWatcher.GameDetected += game => { if (_gpuMonitor != null) _gpuMonitor.IsGameActive = true; };
         _processWatcher.GameExited += _affinityManager.OnGameExited;
         _processWatcher.GameExited += _mainViewModel.OnGameExited;
         _processWatcher.GameExited += _overlayViewModel.OnGameExited;
+        _processWatcher.GameExited += _systemStateMonitor.OnGameExited;
         _processWatcher.GameExited += game => { if (_gpuMonitor != null) _gpuMonitor.IsGameActive = false; };
+
+        // Wire system state monitor -> ViewModels
+        _systemStateMonitor.StateChanged += _mainViewModel.OnSystemStateChanged;
+        _systemStateMonitor.StateChanged += _overlayViewModel.OnSystemStateChanged;
+        _systemStateMonitor.ForegroundChanged += _overlayViewModel.OnForegroundChanged;
+        _systemStateMonitor.SystemEvent += _mainViewModel.OnAffinityChanged;
+
+        // Wire CCD preference verification -> activity log
+        _mainViewModel.ActiveGame.PreferenceVerified += _mainViewModel.OnAffinityChanged;
+
+        // Wire fallback affinity pin on game detect/exit (Phase 5)
+        _processWatcher.GameDetected += OnGameDetectedForFallbackPin;
+        _processWatcher.GameExited += OnGameExitedForFallbackPin;
+
+        // Wire fallback pin change from Game Library to activity log
+        if (_mainViewModel.GameLibrary != null)
+            _mainViewModel.GameLibrary.FallbackPinChanged += OnFallbackPinChanged;
 
         // Start engines
         _perfMon.Start();
         _processWatcher.Start();
+        _systemStateMonitor.Start();
 
-        Log.Information("Monitoring started. Mode: {Mode}. Strategy: {Strategy}. Polling: {Interval}ms. Manual games: {Count}.",
-            mode, strategy, _config.PollingIntervalMs, _gameDetector.GameCount);
+        Log.Information("Monitoring started. Polling: {Interval}ms. Games: {Count}.",
+            _config.PollingIntervalMs, _gameDetector.GameCount);
 
         // Library scan — consent-gated
         if (_config.LibraryScanConsent == null)
@@ -434,8 +406,26 @@ public partial class App : System.Windows.Application
             _processWatcher.GameExited -= _affinityManager.OnGameExited;
             _processWatcher.GameExited -= _mainViewModel.OnGameExited;
             _processWatcher.GameExited -= _overlayViewModel.OnGameExited;
+            _processWatcher.GameDetected -= OnGameDetectedForFallbackPin;
+            _processWatcher.GameExited -= OnGameExitedForFallbackPin;
+
+            if (_systemStateMonitor != null)
+            {
+                _processWatcher.GameDetected -= _systemStateMonitor.OnGameDetected;
+                _processWatcher.GameExited -= _systemStateMonitor.OnGameExited;
+                _systemStateMonitor.StateChanged -= _mainViewModel.OnSystemStateChanged;
+                _systemStateMonitor.StateChanged -= _overlayViewModel.OnSystemStateChanged;
+                _systemStateMonitor.ForegroundChanged -= _overlayViewModel.OnForegroundChanged;
+                _systemStateMonitor.SystemEvent -= _mainViewModel.OnAffinityChanged;
+            }
         }
 
+        // Restore any active affinity pin before shutdown
+        if (_affinityManager?.PinnedGamePid > 0 && _affinityManager.CurrentGame != null)
+            _affinityManager.RestoreGameAffinity(_affinityManager.CurrentGame);
+
+        _systemStateMonitor?.Stop();
+        _systemStateMonitor?.Dispose();
         _processWatcher?.Stop();
         _processWatcher?.Dispose();
         _perfMon?.Stop();
@@ -448,7 +438,7 @@ public partial class App : System.Windows.Application
         RecoveryManager.OnDisengage();
 
         _overlayViewModel?.StopTimers();
-        _mainViewModel?.ProcessRouter.Dispose();
+        _mainViewModel?.CcdMap.Dispose();
 
         // Unregister hotkey
         if (_hotkeyRegistered && _dashboardWindow != null)
@@ -463,9 +453,6 @@ public partial class App : System.Windows.Application
         }
 
         // Save state
-        if (_mainViewModel != null)
-            _config.OperationMode = _mainViewModel.CurrentMode.ToString().ToLowerInvariant();
-
         if (_dashboardWindow != null && _dashboardWindow.WindowState == WindowState.Normal)
         {
             _config.Ui.WindowPosition = [(int)_dashboardWindow.Left, (int)_dashboardWindow.Top];
@@ -479,7 +466,7 @@ public partial class App : System.Windows.Application
 
         _trayManager?.Dispose();
 
-        Log.Information("X3D Dual CCD Optimizer stopped.");
+        Log.Information("X3D CCD Inspector stopped.");
         AppLogger.Shutdown();
 
         base.OnExit(e);
@@ -502,7 +489,7 @@ public partial class App : System.Windows.Application
             $"New default exclusions are available. These processes use GPU but aren't games, " +
             $"and would cause false detections:\n\n{list}\n\n" +
             $"Add them to your exclusion list?",
-            "X3D CCD Optimizer \u2014 Updated Exclusions",
+            "X3D CCD Inspector \u2014 Updated Exclusions",
             MessageBoxButton.YesNo, MessageBoxImage.Information);
         return result == MessageBoxResult.Yes;
     }
@@ -514,7 +501,7 @@ public partial class App : System.Windows.Application
     {
         var dialog = new Window
         {
-            Title = "X3D CCD Optimizer \u2014 Game Library Scan",
+            Title = "X3D CCD Inspector \u2014 Game Library Scan",
             Width = 460,
             Height = 260,
             ResizeMode = ResizeMode.NoResize,
@@ -613,6 +600,52 @@ public partial class App : System.Windows.Application
         });
     }
 
+    private void OnGameDetectedForFallbackPin(ProcessInfo game)
+    {
+        // Only apply fallback pin when AMD driver is NOT available
+        if (VCacheDriverManager.IsDriverAvailable) return;
+        if (_gameDb == null || _affinityManager == null) return;
+
+        var fallback = _gameDb.GetFallbackPin(game.Name);
+        if (fallback == "None") return;
+
+        _affinityManager.PinGameToCcd(game, fallback);
+        _overlayViewModel?.OnAffinityPinChanged(true);
+    }
+
+    private void OnGameExitedForFallbackPin(ProcessInfo game)
+    {
+        if (_affinityManager == null) return;
+        if (_affinityManager.PinnedGamePid == 0) return;
+
+        _affinityManager.RestoreGameAffinity(game);
+        _overlayViewModel?.OnAffinityPinChanged(false);
+    }
+
+    private void OnFallbackPinChanged(string exeName, string displayName, string newFallbackPin)
+    {
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (_mainViewModel == null) return;
+
+            var detail = newFallbackPin == "None"
+                ? $"Fallback pin removed: {displayName} \u2192 None"
+                : $"Fallback pin set: {displayName} \u2192 {(newFallbackPin == "VCache" ? "V-Cache CCD" : "Frequency CCD")}";
+
+            var action = newFallbackPin == "None"
+                ? AffinityAction.AffinityPinRestored
+                : AffinityAction.AffinityPinApplied;
+
+            _mainViewModel.OnAffinityChanged(new AffinityEvent
+            {
+                Action = action,
+                ProcessName = exeName,
+                DisplayName = displayName,
+                Detail = detail
+            });
+        });
+    }
+
     private void ShowUnsupportedProcessorDialog(CpuTopology topology)
     {
         string title;
@@ -620,13 +653,13 @@ public partial class App : System.Windows.Application
 
         if (!topology.CpuModel.Contains("AMD", StringComparison.OrdinalIgnoreCase))
         {
-            title = "X3D CCD Optimizer \u2014 Unsupported Processor";
+            title = "X3D CCD Inspector \u2014 Unsupported Processor";
             message = $"This tool is designed for AMD Ryzen dual-CCD processors.\n\n" +
                 $"Your processor ({topology.CpuModel}) was not recognized as a supported chip.";
         }
         else if (topology.Tier == ProcessorTier.SingleCcdX3D)
         {
-            title = "X3D CCD Optimizer \u2014 Single-CCD Processor";
+            title = "X3D CCD Inspector \u2014 Single-CCD Processor";
             message = $"Your {topology.CpuModel} has V-Cache on all cores \u2014 every core already has " +
                 $"access to the full cache.\n\n" +
                 $"The CCD scheduling problem this tool solves only exists on dual-CCD processors. " +
@@ -634,7 +667,7 @@ public partial class App : System.Windows.Application
         }
         else
         {
-            title = "X3D CCD Optimizer \u2014 Single-CCD Processor";
+            title = "X3D CCD Inspector \u2014 Single-CCD Processor";
             message = $"Your {topology.CpuModel} has a single CCD.\n\n" +
                 $"This tool optimizes game scheduling across two CCDs and is not applicable " +
                 $"to single-CCD processors.";
@@ -707,7 +740,7 @@ public partial class App : System.Windows.Application
 
         panel.Children.Add(new TextBlock
         {
-            Text = "X3D CCD Optimizer requires administrator privileges to set CPU affinity on running processes. Without elevation, Windows blocks affinity changes on most applications.",
+            Text = "X3D CCD Inspector requires administrator privileges to set CPU affinity on running processes. Without elevation, Windows blocks affinity changes on most applications.",
             FontSize = 13,
             Foreground = primaryBrush,
             TextWrapping = TextWrapping.Wrap,

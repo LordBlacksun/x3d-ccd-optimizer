@@ -2,9 +2,9 @@ using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Navigation;
-using X3DCcdOptimizer.ViewModels;
+using X3DCcdInspector.ViewModels;
 
-namespace X3DCcdOptimizer.Views;
+namespace X3DCcdInspector.Views;
 
 public partial class SettingsWindow : Window
 {
@@ -35,15 +35,6 @@ public partial class SettingsWindow : Window
     {
         if (DataContext is SettingsViewModel vm)
             vm.Apply();
-    }
-
-    private void OnGameSuggestionSelected(object sender, SelectionChangedEventArgs e)
-    {
-        if (sender is ListBox lb && lb.SelectedItem is string exe && DataContext is SettingsViewModel vm)
-        {
-            vm.NewGameText = exe;
-            vm.AddGameCommand.Execute(null);
-        }
     }
 
 }

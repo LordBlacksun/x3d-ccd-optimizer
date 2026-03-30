@@ -1,8 +1,7 @@
 using Xunit;
-using X3DCcdOptimizer.Config;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Config;
 
-namespace X3DCcdOptimizer.Tests;
+namespace X3DCcdInspector.Tests;
 
 public class AppConfigTests
 {
@@ -11,13 +10,6 @@ public class AppConfigTests
     {
         var config = new AppConfig();
         Assert.Equal(3, config.Version);
-    }
-
-    [Fact]
-    public void Default_OperationMode_IsMonitor()
-    {
-        var config = new AppConfig();
-        Assert.Equal("monitor", config.OperationMode);
     }
 
     [Fact]
@@ -39,13 +31,6 @@ public class AppConfigTests
     {
         var config = new AppConfig();
         Assert.Equal(50, config.AutoDetection.GpuThresholdPercent);
-    }
-
-    [Fact]
-    public void Default_OptimizeStrategy_IsAffinityPinning()
-    {
-        var config = new AppConfig();
-        Assert.Equal("affinityPinning", config.OptimizeStrategy);
     }
 
     [Fact]
@@ -283,69 +268,6 @@ public class AppConfigTests
         Assert.Equal(2000, config.PollingIntervalMs);
         Assert.Equal(50, config.AutoDetection.GpuThresholdPercent);
         Assert.Equal(1000, config.DashboardRefreshMs);
-    }
-
-    // --- GetOperationMode ---
-
-    [Fact]
-    public void GetOperationMode_ReturnsMonitor_ForMonitorString()
-    {
-        var config = new AppConfig { OperationMode = "monitor" };
-        Assert.Equal(OperationMode.Monitor, config.GetOperationMode());
-    }
-
-    [Fact]
-    public void GetOperationMode_ReturnsOptimize_ForOptimizeString()
-    {
-        var config = new AppConfig { OperationMode = "optimize" };
-        Assert.Equal(OperationMode.Optimize, config.GetOperationMode());
-    }
-
-    [Fact]
-    public void GetOperationMode_ReturnsMonitor_ForInvalidString()
-    {
-        var config = new AppConfig { OperationMode = "garbage" };
-        Assert.Equal(OperationMode.Monitor, config.GetOperationMode());
-    }
-
-    [Fact]
-    public void GetOperationMode_IsCaseInsensitive()
-    {
-        var config = new AppConfig { OperationMode = "OPTIMIZE" };
-        Assert.Equal(OperationMode.Optimize, config.GetOperationMode());
-
-        config.OperationMode = "Monitor";
-        Assert.Equal(OperationMode.Monitor, config.GetOperationMode());
-    }
-
-    // --- GetOptimizeStrategy ---
-
-    [Fact]
-    public void GetOptimizeStrategy_ReturnsAffinityPinning_ForAffinityPinningString()
-    {
-        var config = new AppConfig { OptimizeStrategy = "affinityPinning" };
-        Assert.Equal(OptimizeStrategy.AffinityPinning, config.GetOptimizeStrategy());
-    }
-
-    [Fact]
-    public void GetOptimizeStrategy_ReturnsDriverPreference_ForDriverPreferenceString()
-    {
-        var config = new AppConfig { OptimizeStrategy = "driverPreference" };
-        Assert.Equal(OptimizeStrategy.DriverPreference, config.GetOptimizeStrategy());
-    }
-
-    [Fact]
-    public void GetOptimizeStrategy_ReturnsAffinityPinning_ForInvalidString()
-    {
-        var config = new AppConfig { OptimizeStrategy = "invalid" };
-        Assert.Equal(OptimizeStrategy.AffinityPinning, config.GetOptimizeStrategy());
-    }
-
-    [Fact]
-    public void GetOptimizeStrategy_IsCaseInsensitive()
-    {
-        var config = new AppConfig { OptimizeStrategy = "DRIVERPREFERENCE" };
-        Assert.Equal(OptimizeStrategy.DriverPreference, config.GetOptimizeStrategy());
     }
 
     // --- Overlay defaults ---

@@ -3,28 +3,11 @@ using System.Diagnostics;
 using System.IO;
 using System.Windows;
 using Serilog;
-using X3DCcdOptimizer.Config;
-using X3DCcdOptimizer.Core;
-using X3DCcdOptimizer.Data;
-using X3DCcdOptimizer.Models;
-using X3DCcdOptimizer.Views;
+using X3DCcdInspector.Config;
+using X3DCcdInspector.Core;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.ViewModels;
-
-public class GameDisplayItem
-{
-    public string Exe { get; }
-    public string Display { get; }
-
-    public GameDisplayItem(string exe, string? displayName = null)
-    {
-        Exe = exe;
-        var name = exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? exe[..^4] : exe;
-        Display = displayName != null ? $"{displayName} ({exe})" : exe;
-    }
-
-    public override string ToString() => Display;
-}
+namespace X3DCcdInspector.ViewModels;
 
 public class SettingsViewModel : ViewModelBase
 {
@@ -33,8 +16,6 @@ public class SettingsViewModel : ViewModelBase
 
     // General
     private bool _startWithWindows;
-    private string _defaultMode;
-    private string _optimizeStrategy;
     private bool _startMinimized;
     private bool _minimizeToTray;
     private bool _notifications;
@@ -59,47 +40,8 @@ public class SettingsViewModel : ViewModelBase
     // Advanced
     private string _logLevel;
 
-    // Process Rules — autocomplete
-    private string? _newGameText;
-    private ObservableCollection<string> _gameSuggestions = [];
-
     // General
     public bool StartWithWindows { get => _startWithWindows; set => SetProperty(ref _startWithWindows, value); }
-    public string DefaultMode { get => _defaultMode; set => SetProperty(ref _defaultMode, value); }
-    public string OptimizeStrategy
-    {
-        get => _optimizeStrategy;
-        set
-        {
-            if (SetProperty(ref _optimizeStrategy, value))
-            {
-                OnPropertyChanged(nameof(AffinityPinningWarningVisibility));
-                OnPropertyChanged(nameof(DriverPreferenceCppcVisibility));
-            }
-        }
-    }
-    public bool HasVCache => _topology.HasVCache;
-    public bool CanOptimize => _topology.IsDualCcd;
-    public bool IsStrategyAvailable => _topology.IsDualCcd &&
-        _topology.Tier is ProcessorTier.DualCcdX3D or ProcessorTier.DualCcdStandard;
-    public bool IsDriverAvailable => VCacheDriverManager.IsDriverAvailable &&
-        _topology.Tier is ProcessorTier.DualCcdX3D;
-    public Visibility DriverWarningVisibility =>
-        _topology.Tier is ProcessorTier.DualCcdX3D && !VCacheDriverManager.IsDriverAvailable
-            ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility StrategyVisibility => IsStrategyAvailable ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility AffinityPinningWarningVisibility =>
-        string.Equals(_optimizeStrategy, "affinityPinning", StringComparison.OrdinalIgnoreCase) && IsStrategyAvailable
-            ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility DriverPreferenceCppcVisibility =>
-        string.Equals(_optimizeStrategy, "driverPreference", StringComparison.OrdinalIgnoreCase) && IsStrategyAvailable
-            ? Visibility.Visible : Visibility.Collapsed;
-    public string TierDescription => _topology.Tier switch
-    {
-        ProcessorTier.DualCcdX3D => "Dual-CCD X3D \u2014 full optimization available",
-        ProcessorTier.DualCcdStandard => "Dual-CCD (no V-Cache) \u2014 affinity pinning available",
-        _ => ""
-    };
     public bool StartMinimized { get => _startMinimized; set => SetProperty(ref _startMinimized, value); }
     public bool MinimizeToTray { get => _minimizeToTray; set => SetProperty(ref _minimizeToTray, value); }
     public bool Notifications { get => _notifications; set => SetProperty(ref _notifications, value); }
@@ -124,50 +66,10 @@ public class SettingsViewModel : ViewModelBase
     // Advanced
     public string LogLevel { get => _logLevel; set => SetProperty(ref _logLevel, value); }
 
-    // Process Rules — tier awareness (app only runs on dual-CCD processors)
-    public ProcessorTier Tier => _topology.Tier;
-
-    public string GameColumnHeader => Tier switch
-    {
-        ProcessorTier.DualCcdX3D => "V-Cache CCD (Games)",
-        _ => "CCD0 \u2014 Primary (Games)"
-    };
-    public string BgColumnHeader => Tier switch
-    {
-        ProcessorTier.DualCcdX3D => "Frequency CCD (Background)",
-        _ => "CCD1 \u2014 Background"
-    };
-    public string GameColumnTooltip => Tier switch
-    {
-        ProcessorTier.DualCcdX3D => "Games pinned to V-Cache CCD in Optimize mode.",
-        _ => "Games pinned to CCD0 in Optimize mode. Your processor has two symmetric CCDs \u2014 pinning games to one CCD improves cache isolation."
-    };
-    public string BgColumnTooltip => Tier switch
-    {
-        ProcessorTier.DualCcdX3D => "Apps explicitly pinned to Frequency CCD in Optimize mode.",
-        _ => "Apps pinned to CCD1 in Optimize mode. Your processor has two symmetric CCDs \u2014 pinning background apps to the other CCD improves cache isolation."
-    };
-
-    // Process Rules
-    public ObservableCollection<GameDisplayItem> ManualGames { get; } = [];
-    public ObservableCollection<GameDisplayItem> BackgroundApps { get; } = [];
-    public Visibility BgEmptyHintVisibility => BackgroundApps.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    // Exclusions
     public ObservableCollection<string> ExcludedProcesses { get; } = [];
-
-    public string? NewGameText
-    {
-        get => _newGameText;
-        set
-        {
-            if (SetProperty(ref _newGameText, value))
-                UpdateGameSuggestions(value);
-        }
-    }
-    public ObservableCollection<string> GameSuggestions
-    {
-        get => _gameSuggestions;
-        set => SetProperty(ref _gameSuggestions, value);
-    }
+    public string? SelectedExclusion { get; set; }
+    public string? NewExclusionText { get; set; }
 
     // Library rescan, artwork, updates
     private string _scanStatusText = "";
@@ -191,30 +93,16 @@ public class SettingsViewModel : ViewModelBase
     public RelayCommand RescanLibrariesCommand { get; }
 
     // Commands
-    public RelayCommand AddGameCommand { get; }
-    public RelayCommand RemoveGameCommand { get; }
-    public RelayCommand AddBgFromPickerCommand { get; }
-    public RelayCommand RemoveBgCommand { get; }
     public RelayCommand AddExclusionCommand { get; }
     public RelayCommand RemoveExclusionCommand { get; }
     public RelayCommand OpenLogFolderCommand { get; }
     public RelayCommand OpenConfigFolderCommand { get; }
     public RelayCommand ResetDefaultsCommand { get; }
 
-    public GameDisplayItem? SelectedGame { get; set; }
-    public GameDisplayItem? SelectedBg { get; set; }
-    public string? SelectedExclusion { get; set; }
-    public string? NewExclusionText { get; set; }
-
-    // Game database for autocomplete (display → exe)
-    private readonly List<(string DisplayName, string Exe)> _scannedGamesList = [];
-
     public SettingsViewModel(AppConfig config, CpuTopology topology, GameDatabase? gameDb = null)
     {
         _config = config;
         _topology = topology;
-        _defaultMode = config.OperationMode;
-        _optimizeStrategy = config.OptimizeStrategy;
 
         // Load current values
         _startWithWindows = StartupManager.IsEnabled();
@@ -241,15 +129,10 @@ public class SettingsViewModel : ViewModelBase
         _enableArtworkDownload = config.EnableArtworkDownload;
         _checkForUpdates = config.CheckForUpdates;
 
-        foreach (var b in config.BackgroundApps)
-            BackgroundApps.Add(new GameDisplayItem(b, ResolveBackgroundAppDisplayName(b)));
         foreach (var e in config.ExcludedProcesses) ExcludedProcesses.Add(e);
-
-        BackgroundApps.CollectionChanged += (_, _) => OnPropertyChanged(nameof(BgEmptyHintVisibility));
 
         RescanLibrariesCommand = new RelayCommand(() =>
         {
-            // Explicit user action = implicit consent for future scans
             _config.LibraryScanConsent = true;
 
             ScanStatusText = "Scanning...";
@@ -272,85 +155,9 @@ public class SettingsViewModel : ViewModelBase
                 {
                     Log.Warning(ex, "Manual library rescan failed");
                     Application.Current?.Dispatcher.BeginInvoke(() =>
-                        ScanStatusText = "Scan failed — see log for details");
+                        ScanStatusText = "Scan failed \u2014 see log for details");
                 }
             });
-        });
-
-        // Load scanned games from LiteDB for autocomplete + display name resolution
-        if (gameDb != null)
-        {
-            try
-            {
-                foreach (var game in gameDb.GetAllGames())
-                {
-                    _scannedGamesList.Add((game.DisplayName, game.ProcessName));
-                }
-            }
-            catch { }
-        }
-
-        // Populate game list with display names resolved from scanned games
-        foreach (var g in config.ManualGames)
-        {
-            var match = _scannedGamesList
-                .FirstOrDefault(k => string.Equals(k.Exe, g, StringComparison.OrdinalIgnoreCase));
-            var displayName = string.IsNullOrEmpty(match.DisplayName) ? null : match.DisplayName;
-            ManualGames.Add(new GameDisplayItem(g, displayName));
-        }
-
-        AddGameCommand = new RelayCommand(() =>
-        {
-            if (!string.IsNullOrWhiteSpace(NewGameText))
-            {
-                var game = NewGameText.Trim();
-                if (game.Length > 260)
-                    game = game[..260];
-                if (game.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
-                    return;
-                if (!game.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                    game += ".exe";
-                if (!ManualGames.Any(g => string.Equals(g.Exe, game, StringComparison.OrdinalIgnoreCase)))
-                {
-                    var match = _scannedGamesList
-                        .FirstOrDefault(k => string.Equals(k.Exe, game, StringComparison.OrdinalIgnoreCase));
-                    var displayName = string.IsNullOrEmpty(match.DisplayName) ? null : match.DisplayName;
-                    ManualGames.Add(new GameDisplayItem(game, displayName));
-                }
-                NewGameText = "";
-            }
-        });
-
-        RemoveGameCommand = new RelayCommand(() =>
-        {
-            if (SelectedGame != null)
-                ManualGames.Remove(SelectedGame);
-        });
-
-        AddBgFromPickerCommand = new RelayCommand(() =>
-        {
-            var allAssigned = new List<string>();
-            allAssigned.AddRange(ManualGames.Select(g => g.Exe));
-            allAssigned.AddRange(BackgroundApps.Select(b => b.Exe));
-
-            var picker = new ProcessPickerWindow(allAssigned);
-            if (picker.ShowDialog() == true)
-            {
-                foreach (var exe in picker.SelectedExes)
-                {
-                    if (!BackgroundApps.Any(b => string.Equals(b.Exe, exe, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        var displayName = picker.SelectedDisplayNames.GetValueOrDefault(exe);
-                        BackgroundApps.Add(new GameDisplayItem(exe, displayName));
-                    }
-                }
-            }
-        });
-
-        RemoveBgCommand = new RelayCommand(() =>
-        {
-            if (SelectedBg != null)
-                BackgroundApps.Remove(SelectedBg);
         });
 
         AddExclusionCommand = new RelayCommand(() =>
@@ -377,7 +184,7 @@ public class SettingsViewModel : ViewModelBase
         {
             var logDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "X3DCCDOptimizer", "logs");
+                "X3DCCDInspector", "logs");
             if (System.IO.Directory.Exists(logDir))
                 Process.Start("explorer.exe", logDir);
         });
@@ -386,7 +193,7 @@ public class SettingsViewModel : ViewModelBase
         {
             var configDir = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "X3DCCDOptimizer");
+                "X3DCCDInspector");
             if (System.IO.Directory.Exists(configDir))
                 Process.Start("explorer.exe", configDir);
         });
@@ -410,59 +217,8 @@ public class SettingsViewModel : ViewModelBase
                 LogLevel = defaults.Logging.Level;
                 MinimizeToTray = defaults.Ui.MinimizeToTray;
                 Notifications = defaults.Ui.Notifications;
-                OptimizeStrategy = defaults.OptimizeStrategy;
             }
         });
-    }
-
-    private void UpdateGameSuggestions(string? text)
-    {
-        if (string.IsNullOrWhiteSpace(text) || text.Length < 2)
-        {
-            GameSuggestions = [];
-            return;
-        }
-
-        var matches = _scannedGamesList
-            .Where(g => g.DisplayName.Contains(text, StringComparison.OrdinalIgnoreCase) ||
-                        g.Exe.Contains(text, StringComparison.OrdinalIgnoreCase))
-            .Take(8)
-            .Select(g => g.Exe)
-            .ToList();
-        GameSuggestions = new ObservableCollection<string>(matches);
-    }
-
-    private static string? ResolveBackgroundAppDisplayName(string exe)
-    {
-        // 1. Check curated suggestions database
-        var suggestion = BackgroundAppSuggestions.Apps
-            .FirstOrDefault(a => string.Equals(a.Exe, exe, StringComparison.OrdinalIgnoreCase));
-        if (suggestion.DisplayName != null)
-            return suggestion.DisplayName;
-
-        // 2. Check currently running processes for FileDescription
-        var nameWithoutExe = exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? exe[..^4] : exe;
-        try
-        {
-            foreach (var proc in Process.GetProcessesByName(nameWithoutExe))
-            {
-                try
-                {
-                    var path = proc.MainModule?.FileName;
-                    if (path != null)
-                    {
-                        var info = FileVersionInfo.GetVersionInfo(path);
-                        if (!string.IsNullOrWhiteSpace(info.FileDescription))
-                            return info.FileDescription;
-                    }
-                }
-                catch { }
-                finally { proc.Dispose(); }
-            }
-        }
-        catch { }
-
-        return null;
     }
 
     public void Apply()
@@ -474,8 +230,6 @@ public class SettingsViewModel : ViewModelBase
             StartupManager.Disable();
 
         // General
-        _config.OperationMode = _defaultMode;
-        _config.OptimizeStrategy = _optimizeStrategy;
         _config.Ui.StartMinimized = _startMinimized;
         _config.Ui.MinimizeToTray = _minimizeToTray;
         _config.Ui.Notifications = _notifications;
@@ -502,9 +256,7 @@ public class SettingsViewModel : ViewModelBase
         _config.EnableArtworkDownload = _enableArtworkDownload;
         _config.CheckForUpdates = _checkForUpdates;
 
-        // Process rules
-        _config.ManualGames = ManualGames.Select(g => g.Exe).ToList();
-        _config.BackgroundApps = BackgroundApps.Select(b => b.Exe).ToList();
+        // Exclusions
         _config.ExcludedProcesses = [.. ExcludedProcesses];
 
         _config.Validate();

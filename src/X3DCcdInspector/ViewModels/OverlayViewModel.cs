@@ -1,11 +1,11 @@
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
-using X3DCcdOptimizer.Config;
-using X3DCcdOptimizer.Core;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Config;
+using X3DCcdInspector.Core;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.ViewModels;
+namespace X3DCcdInspector.ViewModels;
 
 public class OverlayViewModel : ViewModelBase
 {
@@ -16,12 +16,15 @@ public class OverlayViewModel : ViewModelBase
     private readonly OverlayConfig _overlayConfig;
 
     private SolidColorBrush _modeDotColor;
-    private string _primaryText = "Monitoring";
+    private string _primaryText = "Watching for games";
     private string _secondaryText = "";
     private double _overlayOpacity;
     private bool _isFadedOut;
     private double _ccd0Load;
     private double _ccd1Load;
+    private string _currentGameName = "";
+    private bool _gameActive;
+    private bool _isAffinityPinned;
 
     public SolidColorBrush ModeDotColor
     {
@@ -148,33 +151,20 @@ public class OverlayViewModel : ViewModelBase
     {
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
-            var display = evt.DisplayName ?? evt.ProcessName;
             switch (evt.Action)
             {
-                case AffinityAction.Engaged:
-                    SecondaryText = $"\u2192 V-Cache CCD";
+                case AffinityAction.GameDetected:
+                    SecondaryText = "Detected on V-Cache CCD";
                     break;
-                case AffinityAction.WouldEngage:
-                    SecondaryText = $"\u2192 V-Cache CCD (monitor)";
-                    break;
-                case AffinityAction.DriverSet:
-                    SecondaryText = "V-Cache preferred (driver)";
-                    break;
-                case AffinityAction.WouldSetDriver:
-                    SecondaryText = "V-Cache preferred (monitor)";
-                    break;
-                case AffinityAction.Restored:
-                case AffinityAction.WouldRestore:
-                case AffinityAction.DriverRestored:
-                case AffinityAction.WouldRestoreDriver:
-                    SecondaryText = "Affinities restored";
+                case AffinityAction.GameExited:
+                    SecondaryText = "Session ended";
                     break;
                 case AffinityAction.Error:
-                    PrimaryText = display;
+                    PrimaryText = evt.DisplayName ?? evt.ProcessName;
                     SecondaryText = "Error: " + evt.Detail;
                     break;
                 default:
-                    return; // Don't reset auto-hide for Migrated/Skipped/etc.
+                    return;
             }
 
             ResetAutoHide();
@@ -185,8 +175,9 @@ public class OverlayViewModel : ViewModelBase
     {
         Application.Current?.Dispatcher.BeginInvoke(() =>
         {
-            PrimaryText = game.DisplayName ?? game.Name;
-            // SecondaryText will be set by the subsequent AffinityChanged event
+            _currentGameName = game.DisplayName ?? game.Name;
+            PrimaryText = _currentGameName;
+            // CCD info and driver state come from OnSystemStateChanged
             ResetAutoHide();
         });
     }
@@ -197,27 +188,77 @@ public class OverlayViewModel : ViewModelBase
         {
             PrimaryText = game.DisplayName ?? game.Name;
             SecondaryText = "Session ended";
+            _currentGameName = "";
             ResetAutoHide();
         });
     }
 
-    public void OnModeChanged(OperationMode mode, bool gameActive)
+    public void OnGameActiveChanged(bool gameActive)
     {
-        ModeDotColor = mode switch
-        {
-            OperationMode.Monitor => FindBrush("AccentBlueBrush"),
-            OperationMode.Optimize when gameActive => FindBrush("AccentGreenBrush"),
-            OperationMode.Optimize => FindBrush("AccentPurpleBrush"),
-            _ => FindBrush("AccentBlueBrush")
-        };
+        _gameActive = gameActive;
+        ModeDotColor = gameActive ? FindBrush("AccentGreenBrush") : FindBrush("AccentBlueBrush");
 
         if (!gameActive)
         {
-            PrimaryText = mode == OperationMode.Optimize ? "Optimize \u2014 ready" : "Monitoring";
+            _currentGameName = "";
+            _isAffinityPinned = false;
+            PrimaryText = "Watching for games";
             SecondaryText = "";
         }
 
         ResetAutoHide();
+    }
+
+    public void OnAffinityPinChanged(bool isPinned)
+    {
+        _isAffinityPinned = isPinned;
+    }
+
+    public void OnSystemStateChanged(SystemState state)
+    {
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (!_gameActive || string.IsNullOrEmpty(_currentGameName))
+                return;
+
+            var ccdLabel = state.ActiveCcd switch
+            {
+                "CCD0" => "V-Cache CCD",
+                "CCD1" => "Frequency CCD",
+                "Both" => "Both CCDs",
+                _ => ""
+            };
+
+            var suffix = _isAffinityPinned ? " (pinned)" : "";
+            PrimaryText = string.IsNullOrEmpty(ccdLabel)
+                ? _currentGameName
+                : $"{_currentGameName} \u2014 {ccdLabel}{suffix}";
+
+            SecondaryText = state.DriverPreference switch
+            {
+                0 => "Driver: PREFER_FREQ",
+                1 => "Driver: PREFER_CACHE",
+                _ => "Driver: N/A"
+            };
+        });
+    }
+
+    public void OnForegroundChanged(bool isGameForeground)
+    {
+        Application.Current?.Dispatcher.BeginInvoke(() =>
+        {
+            if (_gameActive)
+            {
+                if (isGameForeground)
+                {
+                    IsFadedOut = false;
+                }
+                else
+                {
+                    IsFadedOut = true;
+                }
+            }
+        });
     }
 
     public void ResetAutoHide()

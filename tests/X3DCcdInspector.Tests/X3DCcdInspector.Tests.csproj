@@ -15,7 +15,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\X3DCcdOptimizer\X3DCcdOptimizer.csproj" />
+    <ProjectReference Include="..\..\src\X3DCcdInspector\X3DCcdInspector.csproj" />
   </ItemGroup>
 
 </Project>

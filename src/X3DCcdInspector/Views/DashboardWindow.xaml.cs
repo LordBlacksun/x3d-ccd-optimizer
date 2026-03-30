@@ -2,10 +2,10 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
-using X3DCcdOptimizer.Config;
-using X3DCcdOptimizer.ViewModels;
+using X3DCcdInspector.Config;
+using X3DCcdInspector.ViewModels;
 
-namespace X3DCcdOptimizer.Views;
+namespace X3DCcdInspector.Views;
 
 public partial class DashboardWindow : Window
 {

@@ -4,7 +4,7 @@ using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
 using Microsoft.Diagnostics.Tracing.Session;
 using Serilog;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 /// <summary>
 /// Subscribes to ETW kernel process start/stop events for near-instant game detection.
@@ -12,7 +12,7 @@ namespace X3DCcdOptimizer.Core;
 /// </summary>
 public class ProcessEventWatcher : IDisposable
 {
-    private const string SessionName = "X3DCcdOptimizer-ProcessWatch";
+    private const string SessionName = "X3DCcdInspector-ProcessWatch";
 
     private TraceEventSession? _session;
     private ETWTraceEventSource? _source;

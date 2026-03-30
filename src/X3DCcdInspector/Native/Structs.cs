@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace X3DCcdOptimizer.Native;
+namespace X3DCcdInspector.Native;
 
 [StructLayout(LayoutKind.Sequential)]
 internal struct GROUP_AFFINITY

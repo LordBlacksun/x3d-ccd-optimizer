@@ -1,20 +1,18 @@
-namespace X3DCcdOptimizer.Models;
+namespace X3DCcdInspector.Models;
 
 public enum AffinityAction
 {
-    Engaged,
-    Migrated,
-    Restored,
-    Skipped,
+    GameDetected,
+    GameExited,
     Error,
-    WouldEngage,
-    WouldMigrate,
-    WouldRestore,
-    DriverSet,
-    DriverRestored,
-    WouldSetDriver,
-    WouldRestoreDriver,
-    DetectionSkipped
+    DetectionSkipped,
+    DriverStateChanged,
+    GameBarStatus,
+    CcdObservation,
+    CcdPreferenceSet,
+    CcdPreferenceRemoved,
+    AffinityPinApplied,
+    AffinityPinRestored
 }
 
 public record AffinityEvent

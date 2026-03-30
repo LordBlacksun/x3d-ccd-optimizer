@@ -2,13 +2,13 @@ using System.IO;
 using Serilog;
 using Serilog.Events;
 
-namespace X3DCcdOptimizer.Logging;
+namespace X3DCcdInspector.Logging;
 
 public static class AppLogger
 {
     private static readonly string LogDir = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "X3DCCDOptimizer", "logs");
+        "X3DCCDInspector", "logs");
 
     private static readonly string LogPath = Path.Combine(LogDir, "x3d-optimizer.log");
 

@@ -1,8 +1,8 @@
 using Xunit;
-using X3DCcdOptimizer.Core;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Core;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.Tests;
+namespace X3DCcdInspector.Tests;
 
 public class GameLibraryScannerTests
 {

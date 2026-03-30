@@ -1,7 +1,7 @@
-<Window x:Class="X3DCcdOptimizer.Views.SettingsWindow"
+<Window x:Class="X3DCcdInspector.Views.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Settings — X3D CCD Optimizer"
+        Title="Settings — X3D CCD Inspector"
         Width="580" Height="640"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
@@ -48,54 +48,7 @@
                                   ToolTip="Show system notifications when games are detected or affinities change."
                                   AutomationProperties.Name="Show notifications checkbox"/>
 
-                        <TextBlock Text="{Binding TierDescription}" Foreground="{StaticResource TextTertiaryBrush}" FontSize="11" Margin="0,8,0,8"/>
-
-                        <TextBlock Text="Default mode on launch:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,4,0,4"/>
-                        <ComboBox SelectedValue="{Binding DefaultMode}" SelectedValuePath="Content"
-                                  Width="140" HorizontalAlignment="Left"
-                                  ToolTip="Monitor watches your CPU without making changes. Optimize actively pins games to the best CCD."
-                                  AutomationProperties.Name="Default operation mode">
-                            <ComboBoxItem Content="monitor"/>
-                            <ComboBoxItem Content="optimize" IsEnabled="{Binding CanOptimize}"/>
-                        </ComboBox>
-
-                        <TextBlock Text="Optimization strategy:" Foreground="{StaticResource TextSecondaryBrush}" Margin="0,12,0,4"
-                                   Visibility="{Binding StrategyVisibility}"/>
-                        <ComboBox SelectedValue="{Binding OptimizeStrategy}" SelectedValuePath="Tag"
-                                  Width="320" HorizontalAlignment="Left"
-                                  IsEnabled="{Binding IsStrategyAvailable}"
-                                  Visibility="{Binding StrategyVisibility}"
-                                  AutomationProperties.Name="Optimization strategy"
-                                  ToolTip="Choose how the app manages CCD affinity.">
-                            <ComboBoxItem Content="Driver Preference (recommended for X3D)" Tag="driverPreference" IsEnabled="{Binding IsDriverAvailable}"/>
-                            <ComboBoxItem Content="Affinity Pinning (advanced)" Tag="affinityPinning"/>
-                        </ComboBox>
-                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"
-                                   Visibility="{Binding StrategyVisibility}"
-                                   Text="Driver Preference uses AMD's 3D V-Cache driver — works with the scheduler. Affinity Pinning hard-pins processes to CCDs — more aggressive, overrides the scheduler."/>
-                        <TextBlock Text="Strategy changes take effect on next launch."
-                                   Foreground="{StaticResource TextTertiaryBrush}" FontSize="10" Margin="0,2,0,0"
-                                   Visibility="{Binding StrategyVisibility}"/>
-                        <TextBlock Text="&#x26A0; AMD 3D V-Cache driver not detected. Install AMD chipset drivers or use Affinity Pinning."
-                                   Foreground="{StaticResource AccentAmberBrush}" FontSize="11" Margin="0,4,0,0"
-                                   TextWrapping="Wrap"
-                                   Visibility="{Binding DriverWarningVisibility}"/>
-                        <!-- Affinity Pinning liability warning -->
-                        <TextBlock Foreground="{StaticResource AccentAmberBrush}" FontSize="10" TextWrapping="Wrap"
-                                   Margin="0,6,0,0"
-                                   Visibility="{Binding AffinityPinningWarningVisibility}"
-                                   Text="&#x26A0; Affinity Pinning directly modifies process CPU affinity. Some anti-cheat systems may behave unexpectedly with modified affinity masks. Use at your own risk in competitive online games. The developer assumes no liability for any consequences of using this software."/>
-                        <!-- Driver Preference CPPC guidance -->
-                        <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="10" TextWrapping="Wrap"
-                                   Margin="0,6,0,0"
-                                   Visibility="{Binding DriverPreferenceCppcVisibility}">
-                            <Run Text="Driver Preference works best with CPPC Dynamic Preferred Cores set to 'Driver' in your BIOS (AMD CBS &#x2192; SMU Common Options). This allows the AMD 3D V-Cache driver to manage CCD preference. The 'Auto' BIOS setting may not reliably activate core parking."/>
-                            <Run Text=" "/>
-                            <Hyperlink NavigateUri="https://github.com/LordBlacksun/x3d-ccd-optimizer/wiki/AMD-X3D-Scheduling-Explained"
-                                       RequestNavigate="OnHyperlinkNavigate">See the Wiki for a full explanation.</Hyperlink>
-                        </TextBlock>
-
-                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,16,0,4">
+                        <TextBlock Foreground="{StaticResource TextSecondaryBrush}" Margin="0,8,0,4">
                             <Run Text="Polling interval:"/> <Run Text="{Binding PollingIntervalMs, StringFormat={}{0}ms}" FontWeight="SemiBold"/>
                         </TextBlock>
                         <Slider Minimum="1000" Maximum="5000" Value="{Binding PollingIntervalMs}"
@@ -114,104 +67,7 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- Tab 2: Process Rules -->
-            <TabItem Header="Process Rules" AutomationProperties.Name="Process rules settings tab">
-                <Grid Margin="8">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="12"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Left: Game column (all tiers except SingleCcdStandard) -->
-                        <Grid Grid.Column="0">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Foreground="{StaticResource AccentGreenBrush}"
-                                       FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6">
-                                <Run Text="&#xE83D;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
-                                <Run Text="{Binding GameColumnHeader, Mode=OneWay}"/>
-                            </TextBlock>
-
-                            <ListBox Grid.Row="1" ItemsSource="{Binding ManualGames}" SelectedItem="{Binding SelectedGame}"
-                                     FontFamily="{StaticResource FontMono}" FontSize="11"
-                                     ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                     ToolTip="{Binding GameColumnTooltip}"
-                                     AutomationProperties.Name="Games list"/>
-
-                            <StackPanel Grid.Row="2" Margin="0,6,0,0">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox Grid.Column="0" Text="{Binding NewGameText, UpdateSourceTrigger=PropertyChanged}"
-                                             Padding="4,2"
-                                             ToolTip="Type a game exe or search the known database."
-                                             AutomationProperties.Name="New game executable name"/>
-                                    <Button Grid.Column="1" Content="Add" Command="{Binding AddGameCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                            Margin="4,0,0,0" Padding="8,2" AutomationProperties.Name="Add game"/>
-                                </Grid>
-                                <ListBox ItemsSource="{Binding GameSuggestions}" MaxHeight="80" FontSize="10"
-                                         FontFamily="{StaticResource FontMono}"
-                                         Margin="0,2,0,0"
-                                         Visibility="{Binding GameSuggestions.Count, Converter={StaticResource BoolToVis}, FallbackValue=Collapsed}"
-                                         SelectionChanged="OnGameSuggestionSelected"
-                                         AutomationProperties.Name="Game autocomplete suggestions"/>
-                                <Button Content="Remove" Command="{Binding RemoveGameCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                        Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
-                                        AutomationProperties.Name="Remove selected game"/>
-                            </StackPanel>
-                        </Grid>
-
-                        <!-- Right: Background column -->
-                        <Grid Grid.Column="2">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Foreground="{StaticResource AccentBlueBrush}"
-                                       FontWeight="SemiBold" FontSize="12" Margin="0,0,0,6">
-                                <Run Text="&#xE7EE;" FontFamily="Segoe MDL2 Assets" FontSize="11"/>
-                                <Run Text="{Binding BgColumnHeader, Mode=OneWay}"/>
-                            </TextBlock>
-
-                            <Grid Grid.Row="1">
-                                <ListBox ItemsSource="{Binding BackgroundApps}" SelectedItem="{Binding SelectedBg}"
-                                         FontFamily="{StaticResource FontMono}" FontSize="11"
-                                         ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                         ToolTip="{Binding BgColumnTooltip}"
-                                         AutomationProperties.Name="Background apps list"/>
-                                <TextBlock Text="No background rules configured. In Optimize mode, unmatched processes are still auto-migrated to the Frequency CCD. Add explicit rules here for guaranteed pinning and clearer activity log tracking."
-                                           Foreground="{StaticResource TextTertiaryBrush}" FontSize="11"
-                                           TextWrapping="Wrap" Margin="8,8"
-                                           VerticalAlignment="Top" IsHitTestVisible="False"
-                                           Visibility="{Binding BgEmptyHintVisibility}"/>
-                            </Grid>
-
-                            <StackPanel Grid.Row="2" Margin="0,6,0,0">
-                                <Button Content="Pick Running Processes..." Command="{Binding AddBgFromPickerCommand}"
-                                        Style="{StaticResource SubtleButtonStyle}" Padding="8,5"
-                                        HorizontalAlignment="Stretch" FontWeight="SemiBold"
-                                        AutomationProperties.Name="Open process picker"/>
-                                <Button Content="Remove" Command="{Binding RemoveBgCommand}" Style="{StaticResource SubtleButtonStyle}"
-                                        Padding="8,2" Margin="0,4,0,0" HorizontalAlignment="Left"
-                                        AutomationProperties.Name="Remove selected background app"/>
-                            </StackPanel>
-                        </Grid>
-
-                    </Grid>
-                </Grid>
-            </TabItem>
-
-            <!-- Tab 3: Detection -->
+            <!-- Tab 2: Detection -->
             <TabItem Header="Detection" AutomationProperties.Name="Detection settings tab">
                 <Grid Margin="8,4">
                     <Grid.RowDefinitions>
@@ -384,7 +240,7 @@
                         <TextBlock Foreground="{StaticResource TextTertiaryBrush}" FontSize="10"
                                    TextWrapping="Wrap" LineHeight="16">
                             <Run FontWeight="SemiBold">DISCLAIMER:</Run>
-                            <Run Text="X3D CCD Optimizer modifies CPU affinity and/or AMD driver registry preferences to optimize CCD scheduling. While these are standard Windows and AMD features, the developer provides this software as-is with no warranty. The developer assumes no liability for any consequences including but not limited to: anti-cheat detection, game bans, system instability, or data loss. Use at your own risk. See LICENSE (GPL v2) for full terms."/>
+                            <Run Text="X3D CCD Inspector modifies CPU affinity and/or AMD driver registry preferences to optimize CCD scheduling. While these are standard Windows and AMD features, the developer provides this software as-is with no warranty. The developer assumes no liability for any consequences including but not limited to: anti-cheat detection, game bans, system instability, or data loss. Use at your own risk. See LICENSE (GPL v2) for full terms."/>
                         </TextBlock>
                     </Border>
                 </StackPanel>

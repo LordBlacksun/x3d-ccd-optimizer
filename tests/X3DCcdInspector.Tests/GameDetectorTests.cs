@@ -1,7 +1,7 @@
 using Xunit;
-using X3DCcdOptimizer.Core;
+using X3DCcdInspector.Core;
 
-namespace X3DCcdOptimizer.Tests;
+namespace X3DCcdInspector.Tests;
 
 public class GameDetectorTests
 {

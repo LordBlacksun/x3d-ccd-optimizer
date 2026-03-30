@@ -8,15 +8,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <Version>1.0.0-beta</Version>
-    <AssemblyName>X3DCcdOptimizer</AssemblyName>
-    <RootNamespace>X3DCcdOptimizer</RootNamespace>
+    <AssemblyName>X3DCcdInspector</AssemblyName>
+    <RootNamespace>X3DCcdInspector</RootNamespace>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
   </PropertyGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="X3DCcdOptimizer.Tests" />
+    <InternalsVisibleTo Include="X3DCcdInspector.Tests" />
   </ItemGroup>
 
   <ItemGroup>

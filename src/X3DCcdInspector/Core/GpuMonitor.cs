@@ -1,7 +1,7 @@
 using System.Management;
 using Serilog;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 /// <summary>
 /// Monitors per-process GPU usage via WMI performance counters.

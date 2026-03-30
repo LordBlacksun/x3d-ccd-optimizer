@@ -1,9 +1,9 @@
 using System.Diagnostics;
 using Serilog;
-using X3DCcdOptimizer.Models;
-using X3DCcdOptimizer.Native;
+using X3DCcdInspector.Models;
+using X3DCcdInspector.Native;
 
-namespace X3DCcdOptimizer.Core;
+namespace X3DCcdInspector.Core;
 
 public class ProcessWatcher : IDisposable
 {

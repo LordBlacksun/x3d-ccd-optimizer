@@ -1,7 +1,7 @@
 using Xunit;
-using X3DCcdOptimizer.Models;
+using X3DCcdInspector.Models;
 
-namespace X3DCcdOptimizer.Tests;
+namespace X3DCcdInspector.Tests;
 
 public class ProcessorTierTests
 {

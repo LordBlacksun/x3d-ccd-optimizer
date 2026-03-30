@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace X3DCcdOptimizer.Converters;
+namespace X3DCcdInspector.Converters;
 
 public class LoadBarWidthConverter : IMultiValueConverter
 {
