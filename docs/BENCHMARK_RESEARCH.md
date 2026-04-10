@@ -231,6 +231,82 @@ Use AMD's built-in hardware performance monitoring counters (PMCs) to measure L3
 
 **The seed database alone solves the immediate problem.** PMC learning handles the long tail. A/B frametime validation catches edge cases where MPKI alone gets the classification wrong. Community telemetry is the endgame that makes the tool self-improving at scale.
 
+## Standardized Benchmark Methodology
+
+Session 62 results (~34k baseline) were not recorded with settings, making later runs incomparable. All future benchmark runs MUST record the full test conditions below.
+
+### Required Test Settings (FFXIV Dawntrail Benchmark)
+
+| Setting | Value | Rationale |
+|---------|-------|-----------|
+| **Benchmark Version** | Record exact version (e.g., Ver. 1.1) | Score scaling may change between versions |
+| **Resolution** | 1920x1080 | CPU-bound territory — isolates scheduling effects from GPU bottleneck |
+| **Screen Mode** | Fullscreen (NOT Windowed or Borderless) | Windowed/Borderless adds DWM composition overhead, pollutes CPU measurements |
+| **Graphics Upscaling** | Off (native) | Upscalers (FSR/DLSS) add variable GPU/CPU overhead depending on implementation |
+| **Graphics Preset** | Maximum | Consistent load profile across runs |
+| **DirectX** | 11 | FFXIV's primary renderer; DX11 MTR is the CPU-intensive path |
+| **Dynamic Resolution** | Disabled | Prevents variable internal resolution during the run |
+
+### Required System State
+
+| Condition | Requirement | Rationale |
+|-----------|-------------|-----------|
+| **Background apps** | Close all non-essential apps (browsers, Discord, OBS, etc.) | Reduces CPU noise and scheduling interference |
+| **X3D CCD Inspector** | Not running during baseline measurement | The app's own polling (ETW, PDH, Process.GetProcesses) must not affect results |
+| **BIOS settings** | Record: CPPC, CPPC Preferred Cores, CPPC Dynamic Preferred Cores | These determine the entire scheduling stack behavior |
+| **AMD driver state** | Record: DefaultType value (PREFER_FREQ=0 / PREFER_CACHE=1) | The variable under test |
+| **Game Bar** | Note whether running or not | Triggers the PREFER_FREQ → PREFER_CACHE chain |
+| **Thermal state** | Allow 5-minute idle cool-down between runs | Prevents thermal throttling from carrying over between runs |
+| **Power plan** | Record Windows power plan (Balanced / High Performance) | Affects core parking and boost behavior |
+
+### Recording Template
+
+```
+Date:           YYYY-MM-DD HH:MM
+Benchmark:      FFXIV Dawntrail Ver. X.X
+Resolution:     1920x1080
+Screen Mode:    Fullscreen
+Upscaler:       None
+Preset:         Maximum
+DirectX:        11
+
+BIOS CPPC:              Enabled/Disabled
+BIOS Preferred Cores:   Enabled/Disabled
+BIOS Dynamic Preferred: Auto/Driver/Cache/Frequency
+AMD Driver State:       PREFER_FREQ / PREFER_CACHE
+Game Bar:               Running / Not Running
+Inspector Running:      Yes / No
+Power Plan:             Balanced / High Performance
+Background Apps:        [list any running]
+
+Score:          XXXXX
+Avg FPS:        XXX.X
+Min FPS:        XX
+```
+
+### Session 73 Benchmark Attempts (2026-04-09)
+
+These runs are NOT comparable to the session 62 baseline due to different settings:
+
+| Run | Score | Resolution | Mode | Upscaler | Notes |
+|-----|-------|-----------|------|----------|-------|
+| Session 62 baseline | ~34,000 | Unknown | Unknown | Unknown | No intervention, PREFER_FREQ. Settings not recorded. |
+| Session 62 AffinityPinning | ~31,000 | Unknown | Unknown | Unknown | ~166 processes migrated |
+| Session 73 run 1 | 22,505 | 1080p | Windowed | FSR | Device Manager + Inspector open |
+| Session 73 run 2 | 16,645 | 3440x1440 | Borderless | DLSS | GPU-bound at ultrawide, useless for CPU scheduling comparison |
+| Session 73 run 3 | 31,036 | 1080p | **Fullscreen** | FSR | Inspector closed, min FPS 8 (hitch), avg 213.8 FPS |
+| Session 73 run 4 | 30,783 | 1080p | **Fullscreen** | DLSS | Inspector closed, Firefox open, min FPS 106 (clean), avg 212.9 FPS |
+
+### Analysis
+
+Runs 3 and 4 converge at ~31k regardless of upscaler (FSR vs DLSS), confirming the upscaler is not a factor. Min FPS 106 on run 4 confirms a clean execution with no hitches.
+
+**~31k is the confirmed current baseline** for this system at 1080p Fullscreen Maximum DX11 with PREFER_FREQ, no Inspector running. The session 62 ~34k baseline cannot be reproduced — original test settings were not recorded. The delta may be attributable to system-level changes since 2026-03-30 (Windows updates, GPU drivers, BIOS/AGESA, thermal conditions) rather than any application-level regression.
+
+**Conclusion:** The migration regression (34k → 31k) cannot be independently validated because the 34k baseline is no longer reproducible under any tested conditions. The bulk migration code has been fully removed (Phases 2 + 5), and ~31k represents the current system performance ceiling for this benchmark configuration.
+
+---
+
 ## References
 
 - [doitsujin/ffxiv-benchmark-launcher](https://github.com/doitsujin/ffxiv-benchmark-launcher) — Reverse-engineered benchmark launcher (Python reimplementation)

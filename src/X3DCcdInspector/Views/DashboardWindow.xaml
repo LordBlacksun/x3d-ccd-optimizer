@@ -119,8 +119,8 @@
         <!-- ============================================================ -->
         <Grid Grid.Row="1" Margin="8,8,8,0">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" MinWidth="280" MaxWidth="420"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <!-- Active Game Panel -->
@@ -222,14 +222,14 @@
             </Border>
 
             <!-- CCD Heatmap Panels -->
-            <UniformGrid Grid.Column="1" Rows="1" Columns="2" Width="480">
+            <UniformGrid Grid.Column="1" Rows="1" Columns="2">
                 <views:CcdPanel DataContext="{Binding Ccd0Panel}" AutomationProperties.Name="Primary CCD panel"/>
                 <views:CcdPanel DataContext="{Binding Ccd1Panel}" AutomationProperties.Name="Secondary CCD panel"/>
             </UniformGrid>
         </Grid>
 
         <!-- ============================================================ -->
-        <!-- Row 2: Tabbed section (CCD Map + Game Library)                -->
+        <!-- Row 2: Tabbed section (CCD Map + Game Library + Exclusions)    -->
         <!-- ============================================================ -->
         <TabControl Grid.Row="2" Margin="12,8,12,4" SelectedIndex="0"
                     Background="Transparent" BorderThickness="0"
@@ -385,6 +385,80 @@
                                     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                     <Setter Property="Padding" Value="2,0"/>
                                     <Setter Property="Margin" Value="0"/>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+                        </ListView>
+                    </DockPanel>
+                </Border>
+            </TabItem>
+            <!-- Process Exclusions tab -->
+            <TabItem Header="Exclusions" AutomationProperties.Name="Process Exclusions tab">
+                <Border Style="{StaticResource CardStyle}" Margin="0,4,0,0">
+                    <DockPanel>
+                        <!-- Header row: count + filter + refresh -->
+                        <Grid DockPanel.Dock="Top" Margin="8,6,8,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{Binding ProcessExclusions.TotalText}"
+                                       Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"
+                                       VerticalAlignment="Center"/>
+                            <TextBox Grid.Column="1" Text="{Binding ProcessExclusions.FilterText, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="12,0,8,0" Padding="4,2" FontSize="11"
+                                     FontFamily="{StaticResource FontMono}"
+                                     ToolTip="Filter by process name"
+                                     AutomationProperties.Name="Filter processes"/>
+                            <Button Grid.Column="2" Content="Refresh" Padding="8,2"
+                                    FontSize="10" Command="{Binding ProcessExclusions.RefreshCommand}"
+                                    ToolTip="Refresh running process list"/>
+                        </Grid>
+                        <ListView ItemsSource="{Binding ProcessExclusions.ProcessView}"
+                                  Background="Transparent" BorderThickness="0"
+                                  Foreground="{StaticResource TextPrimaryBrush}"
+                                  VirtualizingPanel.IsVirtualizing="True"
+                                  VirtualizingPanel.VirtualizationMode="Recycling"
+                                  ScrollViewer.CanContentScroll="True"
+                                  ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                  AutomationProperties.Name="Running processes list">
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Height="28" Margin="0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsExcluded, Mode=OneWay}"
+                                                  VerticalAlignment="Center" Margin="4,0,6,0"
+                                                  IsHitTestVisible="False"/>
+                                        <TextBlock Grid.Column="1"
+                                                   FontFamily="{StaticResource FontMono}" FontSize="11"
+                                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                                   VerticalAlignment="Center" TextTrimming="CharacterEllipsis">
+                                            <Run Text="{Binding ProcessName, Mode=OneWay}"/>
+                                            <Run Text="{Binding CountText, Mode=OneWay}"
+                                                 Foreground="{StaticResource TextTertiaryBrush}" FontSize="10"/>
+                                        </TextBlock>
+                                        <Border Grid.Column="2" CornerRadius="3" Padding="6,1" Margin="6,0"
+                                                Visibility="{Binding IsExcluded, Converter={StaticResource BoolToVis}}">
+                                            <Border.Background>
+                                                <SolidColorBrush Color="#C62828"/>
+                                            </Border.Background>
+                                            <TextBlock Text="EXCLUDED" Foreground="White" FontSize="9" FontWeight="Bold"/>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                    <Setter Property="Padding" Value="2,0"/>
+                                    <Setter Property="Margin" Value="0"/>
+                                    <Setter Property="Cursor" Value="Hand"/>
+                                    <EventSetter Event="MouseLeftButtonUp" Handler="OnExclusionItemClick"/>
                                 </Style>
                             </ListView.ItemContainerStyle>
                         </ListView>

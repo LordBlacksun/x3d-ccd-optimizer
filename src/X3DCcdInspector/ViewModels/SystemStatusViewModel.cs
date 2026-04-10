@@ -134,13 +134,14 @@ public class SystemStatusViewModel : ViewModelBase
                 : FindBrush("TextTertiaryBrush");
 
             // Game Bar
-            GameBarStatus = state.IsGameBarRunning ? "Running" : "Not Running";
+            GameBarStatus = state.IsGameBarRunning ? "Running" : "Standby";
             GameBarDot = state.IsGameBarRunning
                 ? FindBrush("AccentGreenBrush")
                 : FindBrush("TextTertiaryBrush");
 
             // GameMode
-            GameModeText = state.GameModeStatus;
+            var gameModeDisplay = state.GameModeStatus == "Inactive" ? "Standby" : state.GameModeStatus;
+            GameModeText = gameModeDisplay;
             GameModeDot = state.GameModeStatus switch
             {
                 "Active" => FindBrush("AccentGreenBrush"),

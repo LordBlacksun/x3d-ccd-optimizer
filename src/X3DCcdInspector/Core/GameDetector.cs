@@ -55,8 +55,8 @@ public class GameDetector
     /// </summary>
     public DetectionMethod? CheckGame(string processName)
     {
-        // Background apps are never games
-        if (IsBackgroundApp(processName))
+        // Excluded or background apps are never games
+        if (IsExcluded(processName) || IsBackgroundApp(processName))
             return null;
 
         var nameWithExe = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
@@ -96,6 +96,23 @@ public class GameDetector
             ? processName[..^4] : processName;
 
         return _backgroundApps.Contains(nameWithExe) || _backgroundApps.Contains(nameWithoutExe);
+    }
+
+    public void AddExclusion(string processName)
+    {
+        var nameWithExe = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? processName : processName + ".exe";
+        _excludedProcesses.Add(nameWithExe);
+    }
+
+    public void RemoveExclusion(string processName)
+    {
+        var nameWithExe = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? processName : processName + ".exe";
+        var nameWithoutExe = processName.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+            ? processName[..^4] : processName;
+        _excludedProcesses.Remove(nameWithExe);
+        _excludedProcesses.Remove(nameWithoutExe);
     }
 
     public string GetDisplayName(string processName)

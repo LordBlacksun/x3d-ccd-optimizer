@@ -32,6 +32,7 @@ public class MainViewModel : ViewModelBase
     public GameLibraryViewModel? GameLibrary { get; private set; }
     public SystemStatusViewModel SystemStatus { get; }
     public ActiveGameViewModel ActiveGame { get; }
+    public ProcessExclusionsViewModel? ProcessExclusions { get; private set; }
 
     public string StatusText
     {
@@ -194,6 +195,12 @@ public class MainViewModel : ViewModelBase
         };
 
         UpdateStatus();
+    }
+
+    public void InitProcessExclusions(AppConfig config, GameDetector gameDetector)
+    {
+        ProcessExclusions = new ProcessExclusionsViewModel(config, gameDetector);
+        OnPropertyChanged(nameof(ProcessExclusions));
     }
 
     public void InitGameLibrary(GameDatabase gameDb, IEnumerable<string>? excludedProcesses = null)

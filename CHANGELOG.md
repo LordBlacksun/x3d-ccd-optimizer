@@ -2,6 +2,23 @@
 
 All notable changes to X3D CCD Inspector are documented here.
 
+## [Unreleased]
+
+### Fixed
+- Excluded processes were not blocking game detection via manual rules or library scan — only the GPU heuristic path checked the exclusion list. Wallpaper Engine and similar apps in the exclusion list were still detected as games.
+
+### Added
+- **Process Exclusions tab** — third dashboard tab showing running user-level processes with click-to-toggle exclusion. Filters system services, auto-refreshes every 5 seconds, persists immediately to config.
+- Runtime exclusion add/remove on `GameDetector` — no restart needed when toggling exclusions.
+
+### Changed
+- CCD heatmap panels now use fluid layout — scales with window size instead of fixed 560px width.
+- Xbox Game Bar status shows "Standby" instead of "Not Running" when idle.
+- GameMode status shows "Standby" instead of "Inactive" when no game is detected.
+
+### Documentation
+- Added standardized benchmark methodology to BENCHMARK_RESEARCH.md with required settings, system state checklist, and recording template.
+
 ## [2.0.0-beta] — 2026-03-30
 
 ### Changed — Project Transition: Optimizer → Inspector

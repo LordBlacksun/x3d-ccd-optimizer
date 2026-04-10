@@ -201,6 +201,7 @@ public partial class App : System.Windows.Application
         // ViewModels
         _mainViewModel = new MainViewModel(
             _topology, _perfMon, _processWatcher, _gameDetector, _affinityManager, _config);
+        _mainViewModel.InitProcessExclusions(_config, _gameDetector);
         if (_gameDb != null)
         {
             _mainViewModel.InitGameLibrary(_gameDb, _config.ExcludedProcesses);
@@ -438,6 +439,7 @@ public partial class App : System.Windows.Application
         RecoveryManager.OnDisengage();
 
         _overlayViewModel?.StopTimers();
+        _mainViewModel?.ProcessExclusions?.Dispose();
         _mainViewModel?.CcdMap.Dispose();
 
         // Unregister hotkey

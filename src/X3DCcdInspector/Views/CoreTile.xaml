@@ -4,7 +4,7 @@
     <Border Style="{StaticResource CoreTileStyle}"
             Background="{Binding LoadColor}"
             Opacity="{Binding TileOpacity}">
-        <Grid MinWidth="80">
+        <Grid MinWidth="56">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>

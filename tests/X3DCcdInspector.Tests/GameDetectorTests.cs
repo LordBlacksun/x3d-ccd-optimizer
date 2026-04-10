@@ -119,6 +119,26 @@ public class GameDetectorTests
         Assert.Equal(DetectionMethod.Manual, detector.CheckGame("test"));
     }
 
+    // --- CheckGame: Excluded processes override ---
+
+    [Fact]
+    public void CheckGame_ReturnsNull_ForExcludedManualGame()
+    {
+        var detector = CreateDetector(
+            manualGames: ["wallpaper64.exe"],
+            excludedProcesses: ["wallpaper64.exe"]);
+        Assert.Null(detector.CheckGame("wallpaper64.exe"));
+    }
+
+    [Fact]
+    public void CheckGame_ReturnsNull_ForExcludedLibraryGame()
+    {
+        var detector = CreateDetector(
+            excludedProcesses: ["wallpaper64.exe"],
+            launcherGames: new Dictionary<string, string> { ["wallpaper64.exe"] = "Wallpaper Engine" });
+        Assert.Null(detector.CheckGame("wallpaper64.exe"));
+    }
+
     // --- IsExcluded ---
 
     [Fact]

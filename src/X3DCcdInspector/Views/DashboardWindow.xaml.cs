@@ -83,6 +83,15 @@ public partial class DashboardWindow : Window
         }
     }
 
+    private void OnExclusionItemClick(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (sender is ListViewItem { DataContext: RunningProcessViewModel item }
+            && DataContext is MainViewModel vm)
+        {
+            vm.ProcessExclusions?.ToggleExclusion(item);
+        }
+    }
+
     private void RestoreWindowState()
     {
         if (_config.Ui.WindowPosition is [var x, var y])

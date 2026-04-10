@@ -6,7 +6,7 @@ Development session history for X3D CCD Inspector.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 2.0.0-beta | **Status:** Beta | **Branch:** develop | **Last session:** 72
+**Version:** 2.0.0-beta | **Status:** Beta | **Branch:** develop | **Last session:** 73
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -15,7 +15,7 @@ Development session history for X3D CCD Inspector.
 - **Affinity pinning fallback (Phase 5 — session 69):** Explicit opt-in fallback for when AMD's amd3dvcache driver is not loaded (CPPC set to Frequency/Cache/Disabled in BIOS). Pins ONLY the game process to a specific CCD via SetProcessAffinityMask — NEVER migrates background processes. Protected process list enforced on all affinity operations (scheduling infrastructure: amd3dvcacheSvc, GameBar*, GPU drivers, explorer; critical system: csrss, lsass, svchost, etc.; config-supplied). Game Library tab shows fallback dropdown (None/V-Cache CCD/Freq CCD) when driver unavailable, hides it when driver available. On game detect: checks LiteDB FallbackCcdPin, saves original affinity, pins to target CCD mask. On game exit: restores original affinity. On clean exit: restores any active pin. Overlay shows "(pinned)" suffix when fallback active. ScannedGame.FallbackCcdPin persisted in LiteDB, preserved during library rescan.
 - **Per-game CCD preference (Phase 4 — session 68):** Uses AMD's own per-app profile registry interface at `HKLM\...\amd3dvcache\Preferences\App\{ProfileName}` with EndsWith (exe name) and Type (0=PREFER_FREQ, 1=PREFER_CACHE). VCacheDriverManager extended with SetAppProfile, RemoveAppProfile, GetAppProfile, GetAllAppProfiles, SanitizeProfileName. ScannedGame model has CcdPreference field ("Auto"/"VCache"/"Frequency"). Game Library tab shows per-game ComboBox (Auto/V-Cache/Frequency), grayed out when driver unavailable. Changes write to both LiteDB and registry. On game detect, ActiveGameViewModel verifies/recreates driver profile if preference is non-Auto. On startup, SyncAppProfiles reconciles LiteDB state with registry (recreates missing profiles, removes orphans). Per-app profiles are intentionally persistent in registry (not removed on game exit) so AMD's driver handles future launches natively.
 - **SystemStateMonitor (Phase 3 — session 67):** Central polling service with two timers. State timer (7s) polls: AMD amd3dvcacheSvc service status (process enumeration), driver preference (VCacheDriverManager registry read), Xbox Game Bar presence (GameBarPresenceWriter process check), GameMode determination (PREFER_CACHE + game active = Active), game thread-to-CCD distribution (GetProcessAffinityMask + topology mapping). Foreground timer (1.5s) polls: GetForegroundWindow + GetWindowThreadProcessId to detect if tracked game is in foreground (for overlay game-only visibility). Fires StateChanged (SystemState snapshot), SystemEvent (AffinityEvent for activity log), ForegroundChanged (bool for overlay show/hide). Change detection skips first poll, emits DRIVER_STATE_CHANGED, GAMEBAR_STATUS, CCD_OBSERVATION events only on actual state transitions.
-- **Dashboard (Phase 3 redesign):** 5-row layout: (1) System Status panel — CPU model, tier badge, CCD info with L3 sizes/core ranges, 4 status indicators with colored dots (AMD driver service, driver state, Xbox Game Bar, GameMode); (2) Active Game panel (left, idle/active states with game name, detection method, process info, CCD distribution, thread counts, CCD preference, driver action) + CCD heatmap panels (right, 4x2 core tiles with load/frequency); (3) TabControl with Process Router and Game Library tabs; (4) Always-visible Activity Log (moved out of tabs); (5) Footer with admin indicator, CPU info, buttons. Status dot colors: green=running/active, gray=not running/inactive, yellow=warning (driver installed but not running, unknown state).
+- **Dashboard (Phase 3 redesign + session 73 updates):** 5-row layout: (1) System Status panel — CPU model, tier badge, CCD info with L3 sizes/core ranges, 4 status indicators with colored dots (AMD driver service, driver state, Xbox Game Bar, GameMode); Game Bar and GameMode show "Standby" when idle (not "Not Running"/"Inactive") to avoid alarming users. (2) Active Game panel (left, idle/active states with game name, detection method, process info, CCD distribution, thread counts, CCD preference, driver action) + CCD heatmap panels (right, fluid layout — grows with window size); (3) TabControl with CCD Map, Game Library, and Exclusions tabs; (4) Always-visible Activity Log (moved out of tabs); (5) Footer with admin indicator, CPU info, buttons. Status dot colors: green=running/active, gray=standby, yellow=warning (driver installed but not running, unknown state).
 - **Activity log event types:** DETECTED (green), EXITED (blue), ERROR (red), [AUTO] BELOW THRESHOLD (gray, italic), DRIVER STATE (amber), GAME BAR (purple), CCD (blue, italic), CCD PREF (green for set, amber for removed), AFFINITY PIN (green for applied, blue for restored). Max 200 entries, auto-scroll, alternating row backgrounds.
 - **Compact overlay (Phase 3 rework):** Line 1: game name + active CCD (e.g., "FFXIV — V-Cache CCD"). Line 2: driver state (e.g., "Driver: PREFER_CACHE"). Game-only visibility: overlay hides when game is not foreground window (1.5s foreground polling via SystemStateMonitor), reappears when game returns to foreground. Ctrl+Shift+O master toggle still works independently. Opt-in CCD load bars (green V-Cache + blue Freq). OLED-safe (auto-hide, pixel shift). Draggable with position persistence. Overlay position setting (TopLeft/TopRight/BottomLeft/BottomRight) fully wired in Settings → Overlay → ComboBox.
 - **Game launcher scanning:** GameLibraryScanner scans Steam (registry → VDF/ACF parsing → SelectBestExe per game directory, extracts SteamAppId), Epic (JSON manifests), and GOG Galaxy (SQLite DB + registry hybrid). Results stored in LiteDB at `user_games.db` in %APPDATA%. Background rescan on every startup. "Rescan Game Libraries" button in Settings → Detection. VDF parser handles Valve KeyValues format. Filters non-game exes via prefix/suffix/exact-match skip lists. Uses `IgnoreInaccessible` to skip protected anti-cheat folders.
@@ -30,12 +30,13 @@ Development session history for X3D CCD Inspector.
 - **Admin elevation:** app.manifest requires administrator. Startup check with relaunch dialog if not elevated. First-launch trust dialog. UAC shield indicator in dashboard footer.
 - **X button behavior:** Configurable via `minimizeToTray` (default: false = close app). When true: minimizes to tray with one-time balloon notification.
 - **Security audits:** Session 6 (2 critical, 3 high, 7 medium). Session 11 (3 high, 6 medium, 4 low — all fixed). Session 17 defensive coding (all 8 findings fixed). Session 58 comprehensive audit (3 high, 3 medium, 6 low — all high/medium fixed in sessions 58-59).
-- **Tests:** 266 tests (AppConfig 31, GameDetector 20, VdfParser 13, SelectBestExe 14, GameDatabase 12, ProcessorTier 14, GameLibraryScanner 4, AffinityManager 13, CcdPreference 15, AffinityPin 29, SystemState 24, plus others)
+- **Process Exclusions tab (session 73):** Third dashboard tab showing running user-level processes with click-to-toggle exclusion. Filters system services (svchost, csrss, dwm, etc.). Auto-refreshes every 5 seconds. Persists to config.json and updates GameDetector runtime exclusion set immediately. Sorted with excluded processes at top, filter textbox, instance counts for multi-process apps.
+- **Tests:** 268 tests (AppConfig 31, GameDetector 22, VdfParser 13, SelectBestExe 14, GameDatabase 12, ProcessorTier 14, GameLibraryScanner 4, AffinityManager 13, CcdPreference 15, AffinityPin 29, SystemState 24, plus others)
 - **Self-contained publish:** ~155MB single exe (WPF+WinForms runtime bundled). Framework-dependent: 861 KB.
 
-**Key files:** `App.xaml.cs` (entry point, service wiring, startup sync), `Core/SystemStateMonitor.cs` (system state polling), `Core/AffinityManager.cs` (game tracking), `Core/VCacheDriverManager.cs` (amd3dvcache registry + per-app profiles), `Core/GameDetector.cs` (3-tier), `Core/GameLibraryScanner.cs` (Steam+Epic+GOG scanner), `Core/GameDatabase.cs` (LiteDB + CCD preferences), `Core/ProcessEventWatcher.cs` (ETW), `Core/ArtworkDownloader.cs` (Steam CDN), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `Models/SystemState.cs` (state snapshot), `Models/ScannedGame.cs` (LiteDB model + CcdPreference), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SystemStatusViewModel.cs` (system status panel), `ViewModels/ActiveGameViewModel.cs` (active game panel + preference verify), `ViewModels/OverlayViewModel.cs` (overlay), `ViewModels/GameLibraryViewModel.cs` (game library tab + CCD preference dropdown), `ViewModels/SettingsViewModel.cs` (settings), `Converters/DriverTooltipConverter.cs` (driver-unavailable tooltip), `Views/DashboardWindow.xaml` (main UI), `Views/AboutWindow.xaml` (about dialog), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
+**Key files:** `App.xaml.cs` (entry point, service wiring, startup sync), `Core/SystemStateMonitor.cs` (system state polling), `Core/AffinityManager.cs` (game tracking), `Core/VCacheDriverManager.cs` (amd3dvcache registry + per-app profiles), `Core/GameDetector.cs` (3-tier + runtime exclusion add/remove), `Core/GameLibraryScanner.cs` (Steam+Epic+GOG scanner), `Core/GameDatabase.cs` (LiteDB + CCD preferences), `Core/ProcessEventWatcher.cs` (ETW), `Core/ArtworkDownloader.cs` (Steam CDN), `Core/RecoveryManager.cs` (crash recovery), `Core/StartupManager.cs` (registry), `Models/SystemState.cs` (state snapshot), `Models/ScannedGame.cs` (LiteDB model + CcdPreference), `ViewModels/MainViewModel.cs` (orchestrator), `ViewModels/SystemStatusViewModel.cs` (system status panel), `ViewModels/ActiveGameViewModel.cs` (active game panel + preference verify), `ViewModels/OverlayViewModel.cs` (overlay), `ViewModels/GameLibraryViewModel.cs` (game library tab + CCD preference dropdown), `ViewModels/ProcessExclusionsViewModel.cs` (process exclusions tab), `ViewModels/SettingsViewModel.cs` (settings), `Converters/DriverTooltipConverter.cs` (driver-unavailable tooltip), `Views/DashboardWindow.xaml` (main UI), `Views/AboutWindow.xaml` (about dialog), `Views/OverlayWindow.xaml` (overlay), `Views/SettingsWindow.xaml` (settings)
 
-**What's next:** Screenshots, release polish, code signing. All 8 implementation phases complete.
+**What's next:** Benchmark Inspector overhead (run benchmark WITH Inspector to measure impact), screenshots, release polish, code signing. All 8 implementation phases complete + session 73 additions.
 
 **NuGet dependencies:** Serilog (4.2.0), Serilog.Sinks.Console (6.0.0), Serilog.Sinks.File (6.0.0), System.Management (8.0.0), LiteDB (5.0.21), Microsoft.Data.Sqlite (8.0.0), Microsoft.Diagnostics.Tracing.TraceEvent (3.1.30)
 
@@ -67,6 +68,87 @@ Development session history for X3D CCD Inspector.
 - LiteDB `ReplaceGames()` only wipes entries matching the scanned sources — purge stale source types explicitly
 - `FirstOrDefault()` on value tuple list returns default struct, not null
 - **Session 67:** `ProcessThread.IdealProcessor` is set-only in .NET — cannot read which processor a thread runs on. Use `GetProcessAffinityMask` + topology mapping for CCD distribution instead. When process has full system affinity, estimate thread distribution proportional to allowed cores per CCD.
+
+---
+
+## Session 73 — 2026-04-09
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Bug fixes, new Exclusions tab, UI improvements, benchmark validation
+
+### Bug fixes
+
+**Excluded processes not blocking game detection (all paths):**
+- `GameDetector.CheckGame()` only checked `IsBackgroundApp()`, not `IsExcluded()`
+- Library-scanned and manual-rule games bypassed the exclusion list entirely
+- Wallpaper Engine was being detected as a game despite being in the exclusion list
+- Fix: Added `IsExcluded()` check at the top of `CheckGame()` before any detection path
+- Added `AddExclusion()` and `RemoveExclusion()` methods to GameDetector for runtime updates
+- 2 new tests: `CheckGame_ReturnsNull_ForExcludedManualGame`, `CheckGame_ReturnsNull_ForExcludedLibraryGame`
+
+### New feature: Process Exclusions tab
+
+Third tab in dashboard TabControl (after CCD Map, Game Library):
+- Lists running user-level processes, filtered to remove system services (svchost, csrss, dwm, explorer, etc. — ~50 hardcoded hidden processes)
+- Click any row to toggle exclusion — immediately saves to config.json and updates GameDetector's runtime HashSet
+- Red "EXCLUDED" badge on excluded processes, checkbox indicator
+- Sorted: excluded at top, then alphabetical
+- Auto-refreshes every 5 seconds via timer, manual Refresh button
+- Filter textbox for searching by process name
+- Instance counts for multi-process apps (e.g., Chrome)
+- New files: `ViewModels/ProcessExclusionsViewModel.cs`, `ViewModels/RunningProcessViewModel`
+- Wired via `MainViewModel.InitProcessExclusions()`, disposed in `App.OnExit()`
+
+### UI improvements
+
+**CCD heatmap layout — fluid instead of fixed:**
+- Removed hardcoded `Width="560"` from heatmap UniformGrid
+- Active Game panel: `Width="Auto" MinWidth="280" MaxWidth="420"` (was `Width="*"`)
+- Heatmap column: `Width="*"` (was `Width="Auto"`) — now fills available space
+- CoreTile MinWidth reduced from 80 to 56 — tiles flex with window size
+
+**Status text — less alarming idle states:**
+- Xbox Game Bar: "Not Running" → "Standby" (normal idle state)
+- GameMode: "Inactive" → "Standby" (activates when game detected + PREFER_CACHE)
+- Prevents users from thinking their AMD driver setup is broken
+
+### Benchmark validation (FFXIV Dawntrail)
+
+Attempted to validate that the migration regression (~34k → ~31k from session 62) is resolved now that all migration code has been removed.
+
+**Problem:** Session 62 did not record benchmark settings (resolution, screen mode, upscaler). Cannot reproduce the 34k baseline.
+
+**Results (all without Inspector running, Firefox open):**
+
+| Run | Score | Resolution | Mode | Upscaler | Min FPS |
+|-----|-------|-----------|------|----------|---------|
+| 1 | 22,505 | 1080p | Windowed | FSR | 71 |
+| 2 | 16,645 | 3440x1440 | Borderless | DLSS | 75 |
+| 3 | 31,036 | 1080p | Fullscreen | FSR | 8 (hitch) |
+| 4 | 30,783 | 1080p | Fullscreen | DLSS | 106 |
+
+**Findings:**
+- Windowed mode costs ~28% vs Fullscreen (DWM overhead)
+- Ultrawide 1440p is GPU-bound — useless for CPU scheduling measurement
+- FSR vs DLSS: no measurable difference (~31k both)
+- ~31k is the confirmed current baseline at 1080p Fullscreen Maximum DX11
+- The 34k session 62 number is unreproducible — likely different settings or system drift
+
+**Added to BENCHMARK_RESEARCH.md:**
+- Standardized test methodology section with required settings
+- Required system state checklist (BIOS, driver state, background apps)
+- Copy-paste recording template for future runs
+- All session 73 results logged
+
+**Outstanding:** Need to run benchmark WITH Inspector active to measure polling overhead impact.
+
+### Stale memory corrected
+
+Updated memory file `project_migration_regression.md`: the note said "AffinityPinning still migrates all background processes — needs rework." Phase 2 removed `MigrateBackground()` entirely, Phase 5 rebuilt pinning as game-only. The regression is fixed in code; what's needed is re-benchmark confirmation (which this session attempted but couldn't complete due to unreproducible baseline).
+
+### Build result
+- **0 errors, 0 warnings**
+- **268 tests pass, 0 failures, 0 skipped**
 
 ---
 
