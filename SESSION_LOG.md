@@ -6,7 +6,7 @@ Development session history for X3D CCD Inspector.
 
 ## Current State (for new sessions — read this first)
 
-**Version:** 2.0.0-beta | **Status:** Beta | **Branch:** develop | **Last session:** 73
+**Version:** 2.0.0-beta | **Status:** Beta | **Branch:** develop | **Last session:** 74
 
 **What exists:**
 - .NET 8 / C# 12 WPF application targeting `net8.0-windows` with WinForms (for NotifyIcon)
@@ -68,6 +68,37 @@ Development session history for X3D CCD Inspector.
 - LiteDB `ReplaceGames()` only wipes entries matching the scanned sources — purge stale source types explicitly
 - `FirstOrDefault()` on value tuple list returns default struct, not null
 - **Session 67:** `ProcessThread.IdealProcessor` is set-only in .NET — cannot read which processor a thread runs on. Use `GetProcessAffinityMask` + topology mapping for CCD distribution instead. When process has full system affinity, estimate thread distribution proportional to allowed cores per CCD.
+
+---
+
+## Session 74 — 2026-04-10
+
+**Agent:** Claude Opus 4.6 (1M context)
+**Goal:** Project status review, commit session 73 work, Claude Code statusline setup
+
+### Status review
+
+- Reviewed session log, benchmark docs, and memory files for current project state
+- Confirmed migration regression item is CLOSED — ~31k is the current system baseline, original 34k unreproducible
+- Updated memory file `project_migration_regression.md` to reflect closed status
+
+### Committed session 73 work
+
+All session 73 changes committed and pushed to `develop` (`db8e8fd`):
+- 12 files changed, 545 insertions, 13 deletions
+- Exclusion bug fix, Process Exclusions tab, fluid heatmap layout, status text improvements, benchmark methodology docs, 2 new tests
+- Build artifacts, logos, and wiki docs intentionally left untracked
+
+### Claude Code statusline
+
+Configured Claude Code statusline at `~/.claude/statusline-command.sh`:
+- Shows: model name (cyan) | context % (green/yellow/red) | 5h rate limit remaining (green/yellow/red) | repo:branch (yellow:blue)
+- Uses python3 for JSON parsing (jq not available on Windows)
+- Iterated through: initial jq-based script → jq not found → rewrite with python3 → cleaned up dead code → added rate limit segment
+
+### No code changes to application
+
+This session was housekeeping only — no changes to X3D CCD Inspector source code.
 
 ---
 
